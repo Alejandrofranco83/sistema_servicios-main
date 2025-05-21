@@ -1,0 +1,748 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["extendedWhereUnique"]
+  engineType      = "binary"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model PersonaIPS {
+  id          Int      @id @default(autoincrement())
+  personaId   Int
+  fechaInicio DateTime
+  estado      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  persona     Persona  @relation(fields: [personaId], references: [id])
+
+  @@index([personaId])
+}
+
+model Persona {
+  id                     Int                        @id @default(autoincrement())
+  nombreCompleto         String
+  documento              String                     @unique
+  telefono               String?
+  email                  String?
+  direccion              String?
+  tipo                   String
+  fechaNacimiento        DateTime?
+  createdAt              DateTime                   @default(now())
+  updatedAt              DateTime                   @updatedAt
+  ips                    PersonaIPS[]
+  Sueldo                 Sueldo[]
+  usuario                Usuario?                   @relation("PersonaUsuario")
+  vales                  Vale[]
+  movimientosRRHH        MovimientoRRHH[]
+  movimientosFinalizados MovimientoRRHHFinalizado[]
+  resumenesRRHH          ResumenMesRRHH[]
+  saldoPersona           SaldoPersona?
+  usoDevolucion          UsoDevolucion[]
+}
+
+model Vale {
+  id                     String    @id @default(uuid())
+  numero                 String    @unique
+  moneda                 String
+  monto                  Decimal   @db.Decimal(15, 2)
+  monto_texto            String?
+  fecha_emision          DateTime  @default(now())
+  fecha_vencimiento      DateTime
+  fecha_cobro            DateTime?
+  estado                 String    @default("pendiente")
+  motivo                 String
+  impreso                Boolean   @default(false)
+  observaciones_internas String?
+  persona_id             Int
+  persona_nombre         String
+  usuario_creador_id     Int
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  persona                Persona   @relation(fields: [persona_id], references: [id])
+  usuario_creador        Usuario   @relation("UsuarioCreadorVale", fields: [usuario_creador_id], references: [id])
+}
+
+model Rol {
+  id              Int               @id @default(autoincrement())
+  nombre          String            @unique
+  descripcion     String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  usuarios        Usuario[]
+  NotificacionRol NotificacionRol[]
+  permisos        Permiso[]         @relation("PermisoToRol")
+}
+
+model Permiso {
+  id          Int      @id @default(autoincrement())
+  modulo      String
+  pantalla    String
+  descripcion String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  roles       Rol[]    @relation("PermisoToRol")
+}
+
+model Usuario {
+  id                      Int                   @id @default(autoincrement())
+  username                String                @unique
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+  password                String
+  nombre                  String?
+  activo                  Boolean               @default(true)
+  email                   String?
+  personaId               Int?                  @unique @map("persona_id")
+  rolId                   Int                   @map("rol_id")
+  aquipagoConfigs         AquipagoConfig[]      @relation("UsuarioAquipagoConfig")
+  cajasAbiertas           Caja[]
+  cambiosMoneda           CambioMoneda[]        @relation("UsuarioCambioMoneda")
+  cotizaciones            Cotizacion[]          @relation("UsuarioCotizacion")
+  depositos               DepositoBancario[]
+  gastos                  Gasto[]
+  movimientosCaja         MovimientoCaja[]
+  operacionesBancarias    OperacionBancaria[]
+  pagosCajas              Pago[]
+  sueldosMinimos          SueldoMinimo[]        @relation("UsuarioSueldoMinimo")
+  persona                 Persona?              @relation("PersonaUsuario", fields: [personaId], references: [id])
+  rol                     Rol                   @relation(fields: [rolId], references: [id])
+  valesCreados            Vale[]                @relation("UsuarioCreadorVale")
+  caja_mayor_movimientos  CajaMayorMovimiento[]
+  conteos                 Conteo[]
+  movimientosFarmacia     MovimientoFarmacia[]  @relation("UsuarioMovimientoFarmacia")
+  movimientosRRHHCargados MovimientoRRHH[]
+  NotificacionUsuario     NotificacionUsuario[]
+  resumenesFinalizados    ResumenMesRRHH[]      @relation("UsuarioFinalizaMes")
+  resumenesReabiertos     ResumenMesRRHH[]      @relation("UsuarioReabreMes")
+  usoDevolucion           UsoDevolucion[]
+  wepaGsConfigs           WepaGsConfig[]        @relation("UsuarioWepaGsConfig")
+  wepaUsdConfigs          WepaUsdConfig[]       @relation("UsuarioWepaUsdConfig")
+}
+
+model Cotizacion {
+  id         Int      @id @default(autoincrement())
+  fecha      DateTime @default(now())
+  valorDolar Decimal  @db.Decimal(10, 2)
+  valorReal  Decimal  @db.Decimal(10, 2)
+  vigente    Boolean  @default(true)
+  usuarioId  Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  usuario    Usuario  @relation("UsuarioCotizacion", fields: [usuarioId], references: [id])
+}
+
+model SueldoMinimo {
+  id        Int      @id @default(autoincrement())
+  fecha     DateTime @default(now())
+  valor     Decimal  @db.Decimal(10, 2)
+  vigente   Boolean  @default(true)
+  usuarioId Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  usuario   Usuario  @relation("UsuarioSueldoMinimo", fields: [usuarioId], references: [id])
+}
+
+model Sueldo {
+  id        Int      @id @default(autoincrement())
+  personaId Int
+  mes       Int
+  anio      Int
+  monto     Decimal  @db.Decimal(15, 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  persona   Persona  @relation(fields: [personaId], references: [id])
+
+  @@unique([personaId, mes, anio])
+  @@index([mes, anio])
+  @@index([personaId])
+}
+
+model CambioMoneda {
+  id            String   @id @default(uuid())
+  fecha         DateTime @default(now())
+  monedaOrigen  String
+  monedaDestino String
+  monto         Decimal  @db.Decimal(15, 2)
+  cotizacion    Decimal  @db.Decimal(15, 4)
+  resultado     Decimal  @db.Decimal(15, 2)
+  observacion   String
+  usuarioId     Int?
+  cajaId        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  caja          Caja?    @relation(fields: [cajaId], references: [id])
+  usuario       Usuario? @relation("UsuarioCambioMoneda", fields: [usuarioId], references: [id])
+}
+
+model Sucursal {
+  id        Int       @id @default(autoincrement())
+  nombre    String
+  codigo    String    @unique
+  direccion String
+  telefono  String
+  email     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  cajas     Caja[]
+  gastos    Gasto[]
+  maletines Maletin[]
+}
+
+model Maletin {
+  id         Int      @id @default(autoincrement())
+  codigo     String   @unique
+  sucursalId Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  cajas      Caja[]
+  sucursal   Sucursal @relation(fields: [sucursalId], references: [id])
+}
+
+model Caja {
+  id                        String              @id @default(uuid())
+  estado                    String
+  fechaApertura             DateTime            @default(now())
+  fechaCierre               DateTime?
+  sucursalId                Int
+  usuarioId                 Int
+  maletinId                 Int
+  saldoInicialPYG           Decimal             @default(0) @db.Decimal(15, 2)
+  saldoInicialUSD           Decimal             @default(0) @db.Decimal(15, 2)
+  saldoInicialBRL           Decimal             @default(0) @db.Decimal(15, 2)
+  saldoFinalPYG             Decimal?            @db.Decimal(15, 2)
+  saldoFinalUSD             Decimal?            @db.Decimal(15, 2)
+  saldoFinalBRL             Decimal?            @db.Decimal(15, 2)
+  detallesDenominacion      Json?
+  servicios                 Json?
+  createdAt                 DateTime            @default(now())
+  updatedAt                 DateTime            @updatedAt
+  detallesDenominacionFinal Json?
+  serviciosFinal            Json?
+  cajaEnteroId              Int                 @unique @default(autoincrement())
+  maletin                   Maletin             @relation(fields: [maletinId], references: [id])
+  sucursal                  Sucursal            @relation(fields: [sucursalId], references: [id])
+  usuario                   Usuario             @relation(fields: [usuarioId], references: [id])
+  cambiosMoneda             CambioMoneda[]
+  movimientosNuevos         Movimiento[]
+  movimientos               MovimientoCaja[]
+  operacionesBancarias      OperacionBancaria[]
+  pagos                     Pago[]
+}
+
+model CuentaBancaria {
+  id              Int                 @id @default(autoincrement())
+  banco           String
+  numeroCuenta    String
+  moneda          String
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  bancoId         Int?
+  tipo            String
+  aquipagoConfigs AquipagoConfig[]
+  banco_rel       Banco?              @relation(fields: [bancoId], references: [id])
+  depositos       DepositoBancario[]
+  dispositivosPos DispositivoPos[]    @relation("CuentaBancariaDispositivoPos")
+  operaciones     OperacionBancaria[]
+  wepaGsConfigs   WepaGsConfig[]
+  wepaUsdConfigs  WepaUsdConfig[]
+}
+
+model DispositivoPos {
+  id               Int            @id @default(autoincrement())
+  nombre           String
+  codigoBarras     String         @unique
+  cuentaBancariaId Int
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  cuentaBancaria   CuentaBancaria @relation("CuentaBancariaDispositivoPos", fields: [cuentaBancariaId], references: [id])
+}
+
+model MovimientoCaja {
+  id              String   @id @default(uuid())
+  fecha           DateTime @default(now())
+  cajaId          String
+  operadora       String
+  servicio        String
+  monto           Decimal  @db.Decimal(15, 2)
+  rutaComprobante String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  usuarioId       Int?
+  caja            Caja     @relation(fields: [cajaId], references: [id])
+  usuario         Usuario? @relation(fields: [usuarioId], references: [id])
+}
+
+model Movimiento {
+  id                   String                @id @default(uuid())
+  fecha                DateTime              @default(now())
+  descripcion          String
+  tipoMovimiento       String
+  monto                Decimal               @db.Decimal(15, 2)
+  moneda               String
+  cajaId               String?
+  nombrePersona        String?
+  documentoPersona     String?
+  observaciones        String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  estadoRecepcion      String?               @default("PENDIENTE")
+  fechaRecepcion       DateTime?
+  observacionRecepcion String?
+  sucursalId           String?
+  sucursalNombre       String?
+  usuarioRecepcion     String?
+  caja                 Caja?                 @relation(fields: [cajaId], references: [id])
+  cajaMayorMovimientos CajaMayorMovimiento[]
+}
+
+model OperacionBancaria {
+  id                String          @id @default(uuid())
+  tipo              String
+  monto             Decimal         @db.Decimal(15, 2)
+  montoACobrar      Decimal?        @db.Decimal(15, 2)
+  tipoServicio      String
+  fecha             DateTime        @default(now())
+  codigoBarrasPos   String?
+  posDescripcion    String?
+  numeroComprobante String?
+  cuentaBancariaId  Int?
+  cajaId            String
+  rutaComprobante   String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  usuarioId         Int?
+  caja              Caja            @relation(fields: [cajaId], references: [id])
+  cuentaBancaria    CuentaBancaria? @relation(fields: [cuentaBancariaId], references: [id])
+  usuario           Usuario?        @relation(fields: [usuarioId], references: [id])
+}
+
+model Pago {
+  id              String   @id @default(uuid())
+  fecha           DateTime @default(now())
+  operadora       String
+  servicio        String
+  monto           Decimal  @db.Decimal(15, 2)
+  moneda          String
+  observacion     String?
+  cajaId          String
+  rutaComprobante String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  usuarioId       Int?
+  caja            Caja     @relation(fields: [cajaId], references: [id])
+  usuario         Usuario? @relation(fields: [usuarioId], references: [id])
+}
+
+model UsoDevolucion {
+  id             Int      @id @default(autoincrement())
+  tipo           String   @db.VarChar(20)
+  persona_id     Int
+  persona_nombre String   @db.VarChar(255)
+  guaranies      BigInt   @default(0)
+  dolares        Decimal  @default(0) @db.Decimal(12, 2)
+  reales         Decimal  @default(0) @db.Decimal(12, 2)
+  motivo         String
+  usuario_id     Int
+  fecha_creacion DateTime @default(now()) @db.Timestamp(6)
+  anulado        Boolean  @default(false)
+  persona        Persona  @relation(fields: [persona_id], references: [id])
+  usuario        Usuario  @relation(fields: [usuario_id], references: [id])
+
+  @@map("uso_devolucion")
+}
+
+model SaldoPersona {
+  persona_id          Int      @unique
+  guaranies           BigInt   @default(0)
+  dolares             Float    @default(0)
+  reales              Float    @default(0)
+  fecha_actualizacion DateTime @default(now()) @updatedAt
+  fecha_creacion      DateTime @default(now())
+  id                  Int      @id @default(autoincrement())
+  persona             Persona  @relation(fields: [persona_id], references: [id])
+
+  @@map("saldo_persona")
+}
+
+model Banco {
+  id        Int                @id @default(autoincrement())
+  nombre    String             @unique
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  cuentas   CuentaBancaria[]
+  depositos DepositoBancario[]
+}
+
+model DepositoBancario {
+  id                   String                @id @default(uuid())
+  numeroBoleta         String                @unique
+  monto                Decimal               @db.Decimal(15, 2)
+  fecha                DateTime              @default(now())
+  observacion          String?
+  rutaComprobante      String?
+  bancoId              Int?
+  cuentaBancariaId     Int
+  usuarioId            Int?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  banco                Banco?                @relation(fields: [bancoId], references: [id])
+  cuentaBancaria       CuentaBancaria        @relation(fields: [cuentaBancariaId], references: [id])
+  usuario              Usuario?              @relation(fields: [usuarioId], references: [id])
+  cajaMayorMovimientos CajaMayorMovimiento[]
+}
+
+/// Modelo para la gestión de pagos de servicios y efectivo a cajas
+model PagoServicio {
+  id                 Int      @id @default(autoincrement())
+  cajaId             String
+  operadora          String
+  servicio           String
+  monto              Int
+  moneda             String
+  observacion        String?
+  rutaComprobante    String?
+  fechaCreacion      DateTime @default(now())
+  fechaActualizacion DateTime @updatedAt
+  estado             String   @default("PENDIENTE")
+
+  @@map("pagos_servicios")
+}
+
+model CajaMayorMovimiento {
+  id              Int               @id @default(autoincrement())
+  fechaHora       DateTime          @default(now()) @db.Timestamptz(3)
+  tipo            String
+  operacionId     String
+  moneda          String
+  monto           Decimal           @db.Decimal(15, 2)
+  esIngreso       Boolean
+  saldoAnterior   Decimal           @db.Decimal(15, 2)
+  saldoActual     Decimal           @db.Decimal(15, 2)
+  concepto        String?
+  usuarioId       Int
+  observaciones   String?
+  valeId          String?
+  cambioMonedaId  String?
+  usoDevolucionId Int?
+  depositoId      String?
+  pagoServicioId  Int?
+  movimientoId    String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  deposito        DepositoBancario? @relation(fields: [depositoId], references: [id])
+  movimiento      Movimiento?       @relation(fields: [movimientoId], references: [id])
+  usuario         Usuario           @relation(fields: [usuarioId], references: [id])
+
+  @@index([tipo])
+  @@index([fechaHora])
+  @@index([moneda])
+  @@index([usuarioId])
+  @@map("caja_mayor_movimientos")
+}
+
+model Conteo {
+  id            Int             @id @default(autoincrement())
+  fecha_hora    DateTime        @default(now())
+  moneda        String
+  total         Decimal         @db.Decimal(15, 2)
+  saldo_sistema Decimal         @db.Decimal(15, 2)
+  diferencia    Decimal         @db.Decimal(15, 2)
+  observaciones String?
+  estado        String          @default("completado")
+  usuario_id    Int
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  detalles      ConteoDetalle[]
+  usuario       Usuario         @relation(fields: [usuario_id], references: [id])
+
+  @@index([fecha_hora])
+  @@index([moneda])
+  @@index([usuario_id])
+  @@map("conteos")
+}
+
+model ConteoDetalle {
+  id           Int     @id @default(autoincrement())
+  conteo_id    Int
+  denominacion Decimal @db.Decimal(15, 2)
+  cantidad     Int     @default(0)
+  subtotal     Decimal @db.Decimal(15, 2)
+  conteo       Conteo  @relation(fields: [conteo_id], references: [id], onDelete: Cascade)
+
+  @@index([conteo_id])
+  @@map("conteo_detalles")
+}
+
+model MovimientoFarmacia {
+  id                   Int      @id @default(autoincrement())
+  fechaHora            DateTime @map("fecha_hora")
+  tipoMovimiento       String   @map("tipo_movimiento")
+  concepto             String
+  movimientoOrigenId   Int?     @map("movimiento_origen_id")
+  movimientoOrigenTipo String?  @map("movimiento_origen_tipo")
+  monto                Decimal  @db.Decimal(15, 2)
+  monedaCodigo         String   @map("moneda_codigo") @db.VarChar(3)
+  estado               String
+  usuarioId            Int?     @map("usuario_id")
+  fechaCreacion        DateTime @default(now()) @map("fecha_creacion")
+  fechaModificacion    DateTime @updatedAt @map("fecha_modificacion")
+  usuario              Usuario? @relation("UsuarioMovimientoFarmacia", fields: [usuarioId], references: [id])
+
+  @@index([fechaHora])
+  @@index([tipoMovimiento])
+  @@index([estado])
+  @@index([usuarioId])
+  @@index([movimientoOrigenId, movimientoOrigenTipo])
+  @@map("movimientos_farmacia")
+}
+
+model AquipagoConfig {
+  id                    Int            @id @default(autoincrement())
+  cuentaBancariaId      Int
+  limiteCredito         Decimal        @db.Decimal(18, 0)
+  fechaInicioVigencia   DateTime       @db.Date
+  fechaFinVigencia      DateTime       @db.Date
+  nombreArchivoContrato String?
+  pathArchivoContrato   String?
+  fechaCreacion         DateTime       @default(now())
+  usuarioId             Int
+  cuentaBancaria        CuentaBancaria @relation(fields: [cuentaBancariaId], references: [id])
+  usuario               Usuario        @relation("UsuarioAquipagoConfig", fields: [usuarioId], references: [id])
+
+  @@index([cuentaBancariaId])
+  @@index([usuarioId])
+}
+
+model WepaGsConfig {
+  id                    Int            @id @default(autoincrement())
+  cuentaBancariaId      Int            @map("cuenta_bancaria_id")
+  limiteCredito         Decimal        @map("limite_credito") @db.Decimal(18, 0)
+  fechaInicioVigencia   DateTime       @map("fecha_inicio_vigencia") @db.Date
+  fechaFinVigencia      DateTime       @map("fecha_fin_vigencia") @db.Date
+  nombreArchivoContrato String?        @map("nombre_archivo_contrato")
+  pathArchivoContrato   String?        @map("path_archivo_contrato")
+  fechaCreacion         DateTime       @default(now()) @map("fecha_creacion")
+  usuarioId             Int            @map("usuario_id")
+  cuentaBancaria        CuentaBancaria @relation(fields: [cuentaBancariaId], references: [id])
+  usuario               Usuario        @relation("UsuarioWepaGsConfig", fields: [usuarioId], references: [id])
+
+  @@index([cuentaBancariaId])
+  @@index([usuarioId])
+  @@map("wepa_gs_config")
+}
+
+model WepaUsdConfig {
+  id                    Int            @id @default(autoincrement())
+  cuentaBancariaId      Int            @map("cuenta_bancaria_id")
+  limiteCredito         Decimal        @map("limite_credito") @db.Decimal(18, 2)
+  fechaInicioVigencia   DateTime       @map("fecha_inicio_vigencia") @db.Date
+  fechaFinVigencia      DateTime       @map("fecha_fin_vigencia") @db.Date
+  nombreArchivoContrato String?        @map("nombre_archivo_contrato")
+  pathArchivoContrato   String?        @map("path_archivo_contrato")
+  fechaCreacion         DateTime       @default(now()) @map("fecha_creacion")
+  usuarioId             Int            @map("usuario_id")
+  cuentaBancaria        CuentaBancaria @relation(fields: [cuentaBancariaId], references: [id])
+  usuario               Usuario        @relation("UsuarioWepaUsdConfig", fields: [usuarioId], references: [id])
+
+  @@index([cuentaBancariaId])
+  @@index([usuarioId])
+  @@map("wepa_usd_config")
+}
+
+model CarouselSlide {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String
+  bgColor   String?
+  imageUrl  String?
+  orden     Int
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model InfoPanel {
+  id             Int      @id @default(autoincrement())
+  title          String
+  content        String
+  notaImportante String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model MovimientoRRHH {
+  id          Int      @id @default(autoincrement())
+  personaId   Int      @map("persona_id")
+  mes         Int
+  anio        Int
+  fecha       DateTime @default(now())
+  tipo        String
+  observacion String?
+  moneda      String
+  monto       Decimal  @db.Decimal(15, 2)
+  usuarioId   Int      @map("usuario_id")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  persona     Persona  @relation(fields: [personaId], references: [id])
+  usuario     Usuario  @relation(fields: [usuarioId], references: [id])
+
+  @@index([personaId, anio, mes])
+  @@index([usuarioId])
+  @@map("movimientos_rrhh")
+}
+
+model ResumenMesRRHH {
+  id                 Int                        @id @default(autoincrement())
+  personaId          Int                        @map("persona_id")
+  mes                Int
+  anio               Int
+  fechaFinalizacion  DateTime                   @default(now()) @map("fecha_finalizacion")
+  finalizado         Boolean                    @default(true)
+  usuarioFinalizaId  Int                        @map("usuario_finaliza_id")
+  usuarioReabreId    Int?                       @map("usuario_reabre_id")
+  fechaReapertura    DateTime?                  @map("fecha_reapertura")
+  cotizacionesUsadas Json?                      @map("cotizaciones_usadas")
+  totalGS            Decimal                    @map("total_gs") @db.Decimal(15, 2)
+  totalUSD           Decimal                    @default(0) @map("total_usd") @db.Decimal(15, 2)
+  totalBRL           Decimal                    @default(0) @map("total_brl") @db.Decimal(15, 2)
+  totalFinalGS       Decimal                    @map("total_final_gs") @db.Decimal(15, 2)
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+  movimientos        MovimientoRRHHFinalizado[]
+  persona            Persona                    @relation(fields: [personaId], references: [id])
+  usuarioFinaliza    Usuario                    @relation("UsuarioFinalizaMes", fields: [usuarioFinalizaId], references: [id])
+  usuarioReabre      Usuario?                   @relation("UsuarioReabreMes", fields: [usuarioReabreId], references: [id])
+
+  @@unique([personaId, mes, anio])
+  @@index([personaId])
+  @@index([mes, anio])
+  @@map("resumenes_mes_rrhh")
+}
+
+model MovimientoRRHHFinalizado {
+  id               Int            @id @default(autoincrement())
+  resumenMesId     Int            @map("resumen_mes_id")
+  movimientoOrigId Int?           @map("movimiento_orig_id")
+  personaId        Int            @map("persona_id")
+  mes              Int
+  anio             Int
+  fecha            DateTime
+  tipo             String
+  observacion      String?
+  moneda           String
+  monto            Decimal        @db.Decimal(15, 2)
+  montoConvertido  Decimal?       @map("monto_convertido_gs") @db.Decimal(15, 2)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  persona          Persona        @relation(fields: [personaId], references: [id])
+  resumenMes       ResumenMesRRHH @relation(fields: [resumenMesId], references: [id])
+
+  @@index([resumenMesId])
+  @@index([personaId])
+  @@index([mes, anio])
+  @@map("movimientos_rrhh_finalizados")
+}
+
+model CategoriaGasto {
+  id            Int                 @id @default(autoincrement())
+  nombre        String              @unique
+  activo        Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  gastos        Gasto[]
+  subcategorias SubcategoriaGasto[]
+}
+
+model SubcategoriaGasto {
+  id          Int            @id @default(autoincrement())
+  nombre      String
+  categoriaId Int
+  activo      Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  gastos      Gasto[]
+  categoria   CategoriaGasto @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
+
+  @@unique([nombre, categoriaId])
+  @@index([categoriaId])
+}
+
+model Gasto {
+  id             Int                @id @default(autoincrement())
+  fecha          DateTime           @default(now())
+  descripcion    String
+  monto          Decimal            @db.Decimal(15, 2)
+  moneda         String             @default("GS")
+  categoriaId    Int
+  subcategoriaId Int?
+  sucursalId     Int?
+  comprobante    String?
+  observaciones  String?
+  usuarioId      Int
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  categoria      CategoriaGasto     @relation(fields: [categoriaId], references: [id])
+  subcategoria   SubcategoriaGasto? @relation(fields: [subcategoriaId], references: [id])
+  sucursal       Sucursal?          @relation(fields: [sucursalId], references: [id])
+  usuario        Usuario            @relation(fields: [usuarioId], references: [id])
+
+  @@index([categoriaId])
+  @@index([subcategoriaId])
+  @@index([sucursalId])
+  @@index([usuarioId])
+}
+
+model Notificacion {
+  id            Int                   @id @default(autoincrement())
+  titulo        String                @db.VarChar(100)
+  mensaje       String
+  tipo          String                @db.VarChar(20)
+  fechaCreacion DateTime              @default(now()) @map("fecha_creacion")
+  url           String?               @db.VarChar(255)
+  modulo        String?               @db.VarChar(50)
+  esGlobal      Boolean               @default(false) @map("es_global")
+  entidadTipo   String?               @map("entidad_tipo") @db.VarChar(50)
+  entidadId     String?               @map("entidad_id") @db.VarChar(50)
+  accion        String?               @db.VarChar(50)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  roles         NotificacionRol[]
+  usuarios      NotificacionUsuario[]
+
+  @@map("notificaciones")
+}
+
+model NotificacionUsuario {
+  id             Int          @id @default(autoincrement())
+  notificacionId Int          @map("notificacion_id")
+  usuarioId      Int          @map("usuario_id")
+  leida          Boolean      @default(false)
+  fechaLectura   DateTime?    @map("fecha_lectura")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  notificacion   Notificacion @relation(fields: [notificacionId], references: [id], onDelete: Cascade)
+  usuario        Usuario      @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([notificacionId, usuarioId])
+  @@index([notificacionId])
+  @@index([usuarioId])
+  @@map("notificaciones_usuarios")
+}
+
+model NotificacionRol {
+  id             Int          @id @default(autoincrement())
+  notificacionId Int          @map("notificacion_id")
+  rolId          Int          @map("rol_id")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  notificacion   Notificacion @relation(fields: [notificacionId], references: [id], onDelete: Cascade)
+  rol            Rol          @relation(fields: [rolId], references: [id], onDelete: Cascade)
+
+  @@unique([notificacionId, rolId])
+  @@index([notificacionId])
+  @@index([rolId])
+  @@map("notificaciones_roles")
+}

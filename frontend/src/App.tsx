@@ -1,0 +1,110 @@
+import React, { useState, useEffect } from 'react';
+import { HashRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import Dashboard from './components/Dashboard/Dashboard';
+import Login from './components/Login';
+import axios from 'axios'; // La importación ya estaba
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { CotizacionProvider } from './contexts/CotizacionContext';
+import { SucursalProvider } from './contexts/SucursalContext';
+import { ServerStatusProvider } from './contexts/ServerStatusContext';
+import Cajas from './components/Cajas';
+
+// --- DESCOMENTAR ESTA SECCIÓN ---
+// Configuración global para axios
+// Asegúrate que la baseURL sea la correcta o usa una variable de entorno
+axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+
+
+// Al iniciar la aplicación, verificar si hay un token guardado
+const token = localStorage.getItem('token');
+if (token) {
+  // Configurar el token para todas las solicitudes
+  axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+}
+
+// Interceptor para manejar respuestas de error de autenticación
+axios.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+      console.error(
+        `%c[Interceptor Auth Error] ${error.response.status} en ${error.config.method?.toUpperCase()} ${error.config.url}`,
+        'color: red; font-weight: bold;'
+      );
+      console.error('[Interceptor Auth Error] Respuesta del servidor:', error.response.data);
+      console.error('[Interceptor Auth Error] Configuración de la petición:', error.config);
+      
+      if (error.config.url && error.config.url.includes('/api/rrhh/')) {
+        console.warn('[Interceptor] Ignorando error de autenticación en módulo RRHH para debugging');
+      } else {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        delete axios.defaults.headers.common['Authorization'];
+        // Es crucial que esta línea NO cause problemas durante el build.
+        // Si lo hace, necesitará ser movida a un lugar donde solo se ejecute en el cliente.
+        if (typeof window !== 'undefined') { // Asegurar que solo se ejecute en el navegador
+            window.location.hash = '/login';
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+// --- FIN DE LA SECCIÓN A DESCOMENTAR ---
+
+const ProtectedRoute: React.FC = () => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  return <Outlet />;
+};
+
+const App: React.FC = () => {
+  const [mode, setMode] = useState<'light' | 'dark'>(
+    localStorage.getItem('themeMode') === 'dark' ? 'dark' : 'light'
+  );
+
+  const toggleTheme = () => {
+    const newMode = mode === 'light' ? 'dark' : 'light';
+    setMode(newMode);
+    localStorage.setItem('themeMode', newMode);
+  };
+
+  const theme = React.useMemo(
+    () =>
+      createTheme({
+        palette: {
+          mode,
+          primary: { main: '#1976d2' },
+          secondary: { main: '#dc004e' },
+        },
+      }),
+    [mode]
+  );
+
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Router>
+        <AuthProvider>
+          <CotizacionProvider>
+            <SucursalProvider>
+              <ServerStatusProvider>
+                <Routes>
+                  <Route path="/login" element={<Login onToggleTheme={toggleTheme} isDarkMode={mode === 'dark'} />} />
+                  <Route element={<ProtectedRoute />}>
+                    <Route path="/*" element={<Dashboard onToggleTheme={toggleTheme} isDarkMode={mode === 'dark'} />} />
+                  </Route>
+                </Routes>
+              </ServerStatusProvider>
+            </SucursalProvider>
+          </CotizacionProvider>
+        </AuthProvider>
+      </Router>
+    </ThemeProvider>
+  );
+};
+
+export default App;

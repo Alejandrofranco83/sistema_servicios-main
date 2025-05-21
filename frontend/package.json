@@ -1,0 +1,104 @@
+{
+  "name": "sistema-servicios-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "main": "electron.js",
+  "homepage": "./",
+  "proxy": "http://localhost:3000",
+  "dependencies": {
+    "@electron/remote": "^2.1.2",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@mui/icons-material": "^5.17.1",
+    "@mui/material": "^5.17.1",
+    "@mui/x-date-pickers": "^6.20.2",
+    "@testing-library/jest-dom": "^5.16.5",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^13.5.0",
+    "@types/jest": "^27.5.2",
+    "@types/node": "^16.18.23",
+    "@types/react": "^18.0.35",
+    "@types/react-dom": "^18.0.11",
+    "axios": "^1.8.4",
+    "date-fns": "^2.30.0",
+    "dotenv": "^16.5.0",
+    "electron-pos-printer": "^1.3.6",
+    "mysql2": "^3.14.0",
+    "pdf-to-printer": "^5.6.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-number-format": "^5.4.4",
+    "react-router-dom": "^6.30.0",
+    "react-scripts": "5.0.1",
+    "react-to-print": "^3.0.6",
+    "react-toastify": "^11.0.5",
+    "recharts": "^2.15.3",
+    "typescript": "^4.9.5",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "react-start": "react-scripts start",
+    "start": "concurrently --kill-others \"npm run react-start\" \"npm run wait-electron\"",
+    "wait-electron": "wait-on http://localhost:3000 && npm run electron-dev",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "electron-dev": "set ELECTRON_START_URL=http://localhost:3000 && electron .",
+    "electron-node": "node electron-start.js",
+    "electron": "electron .",
+    "electron-build": "npm run build && electron-builder",
+    "release": "npm run build && electron-builder --publish=always",
+    "dev": "concurrently --kill-others \"npm run react-start\" \"npm run wait-electron\""
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "electron": "^28.3.0",
+    "electron-builder": "^24.13.3",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.sistemaservicios.app",
+    "productName": "Sistema Servicios",
+    "extends": "react-cra",
+    "files": [
+      "build/**/*",
+      "electron.js",
+      "preload.js",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "main": "electron.js"
+    },
+    "directories": {
+      "buildResources": "public",
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "public/electron-icon.ico"
+    },
+    "asarUnpack": [
+      "**/node_modules/pdf-to-printer/dist/**"
+    ]
+  }
+}

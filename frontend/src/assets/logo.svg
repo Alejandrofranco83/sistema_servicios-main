@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 200">
+  <text x="50%" y="40%" textAnchor="middle" fontSize="48" fill="#808080">FARMACIA</text>
+  <text x="50%" y="70%" textAnchor="middle" fontSize="60" fill="#FF0000">FRANCO</text>
+  <g transform="translate(180, 140)">
+    <circle cx="40" cy="0" r="15" stroke="#808080" strokeWidth="2" fill="none"/>
+    <path d="M40,0 L40,0" stroke="#FF0000" strokeWidth="2"/>
+    <circle cx="80" cy="0" r="15" stroke="#808080" strokeWidth="2" fill="none"/>
+    <path d="M80,-7 L80,7 M73,0 L87,0" stroke="#808080" strokeWidth="2"/>
+    <circle cx="120" cy="0" r="15" stroke="#808080" strokeWidth="2" fill="none"/>
+    <path d="M120,-7 L120,7 M113,0 L127,0" stroke="#FF0000" strokeWidth="2"/>
+  </g>
+</svg> 

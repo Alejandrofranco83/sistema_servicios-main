@@ -1,0 +1,11 @@
+172.18.0.1 - - [13/May/2025:03:25:36 +0000] "POST /admin/ HTTP/1.1" 200 60 - -
+localhost - - [13/May/2025:03:25:36 +0000] "POST / HTTP/1.1" 401 91 CUPS-Get-Devices successful-ok
+172.18.0.1 - - [13/May/2025:03:25:36 +0000] "POST /admin/ HTTP/1.1" 426 60 - -
+172.18.0.1 - - [13/May/2025:03:25:36 +0000] "POST /admin/ HTTP/1.1" 200 60 - -
+172.18.0.1 - - [13/May/2025:03:27:27 +0000] "POST /admin/ HTTP/1.1" 200 66 - -
+localhost - - [13/May/2025:03:27:27 +0000] "POST / HTTP/1.1" 401 75 CUPS-Get-Devices successful-ok
+172.18.0.1 - - [13/May/2025:03:27:27 +0000] "POST /admin/ HTTP/1.1" 200 1980 - -
+172.18.0.1 - - [13/May/2025:03:27:41 +0000] "POST /admin/ HTTP/1.1" 200 60 - -
+localhost - - [13/May/2025:03:27:41 +0000] "POST / HTTP/1.1" 401 91 CUPS-Get-Devices successful-ok
+172.18.0.1 - - [13/May/2025:03:27:41 +0000] "POST /admin/ HTTP/1.1" 426 60 - -
+172.18.0.1 - - [13/May/2025:03:27:41 +0000] "POST /admin/ HTTP/1.1" 200 60 - -
