@@ -5,6 +5,7 @@ import {
     // DiferenciaServicio as DiferenciaServicioSimple
 } from '../../../interfaces/diferencias';
 import cotizacionService from '../../../services/cotizacionService';
+import api from '../../../services/api';
 import { es } from 'date-fns/locale';
 import { format, parseISO } from 'date-fns';
 
@@ -282,13 +283,13 @@ export const calcularDetalleDiferencias = async (
             resRetiros,
             resOperacionesBancarias
         ] = await Promise.all([
-            axios.get<CajaCompleta>(`${process.env.REACT_APP_API_URL}/cajas/${cajaId}`),
-            axios.get<any>(`${process.env.REACT_APP_API_URL}/cajas/${cajaId}/datos-cierre`), // <-- NUEVA LLAMADA (usar any por ahora)
-            axios.get<{ data: MovimientoData }>(`${process.env.REACT_APP_API_URL}/cajas/${cajaId}/movimiento`),
-            axios.get<PagoServicio[]>(`${process.env.REACT_APP_API_URL}/pagos-servicios?cajaId=${cajaId}`),
-            axios.get<Pago[]>(`${process.env.REACT_APP_API_URL}/cajas/${cajaId}/pagos`),
-            axios.get<Retiro[]>(`${process.env.REACT_APP_API_URL}/cajas/${cajaId}/retiros`),
-            axios.get<OperacionBancaria[]>(`${process.env.REACT_APP_API_URL}/operaciones-bancarias/caja/${cajaId}`),
+            api.get<CajaCompleta>(`/api/cajas/${cajaId}`),
+            api.get<any>(`/api/cajas/${cajaId}/datos-cierre`), // <-- NUEVA LLAMADA (usar any por ahora)
+            api.get<{ data: MovimientoData }>(`/api/cajas/${cajaId}/movimiento`),
+            api.get<PagoServicio[]>(`/api/pagos-servicios?cajaId=${cajaId}`),
+            api.get<Pago[]>(`/api/cajas/${cajaId}/pagos`),
+            api.get<Retiro[]>(`/api/cajas/${cajaId}/retiros`),
+            api.get<OperacionBancaria[]>(`/api/operaciones-bancarias/caja/${cajaId}`),
         ]);
 
         const cajaCompleta = resCajaCompleta.data;

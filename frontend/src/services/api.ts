@@ -149,7 +149,7 @@ export const cajaMayorService = {
   // Obtener los saldos actuales de todas las monedas
   getSaldosActuales: async () => {
     try {
-      const response = await api.get('/caja_mayor_movimientos/saldos');
+      const response = await api.get('/api/caja_mayor_movimientos/saldos');
       return response.data;
     } catch (error) {
       console.error('Error al obtener saldos actuales de caja mayor:', error);
@@ -172,8 +172,8 @@ export const cajaMayorService = {
       const { moneda } = params;
       
       const endpoint = moneda 
-        ? `/caja_mayor_movimientos/movimientos/${moneda}` 
-        : '/caja_mayor_movimientos/movimientos';
+        ? `/api/caja_mayor_movimientos/movimientos/${moneda}` 
+        : '/api/caja_mayor_movimientos/movimientos';
         
       console.log('[cajaMayorService] Llamando a:', endpoint, 'con params:', params);
       const response = await api.get(endpoint, {
@@ -191,7 +191,7 @@ export const cajaMayorService = {
   // Obtener detalles de un movimiento específico
   getMovimientoDetalle: async (movimientoId: number) => {
     try {
-      const response = await api.get(`/caja_mayor_movimientos/detalle/${movimientoId}`);
+      const response = await api.get(`/api/caja_mayor_movimientos/detalle/${movimientoId}`);
       return response.data;
     } catch (error) {
       console.error(`Error al obtener detalles del movimiento ${movimientoId}:`, error);
@@ -209,7 +209,7 @@ export const cajaMayorService = {
   // <<< Nueva función para obtener tipos únicos >>>
   getTiposUnicos: async (): Promise<string[]> => {
     try {
-      const response = await api.get('/caja_mayor_movimientos/tipos');
+      const response = await api.get('/api/caja_mayor_movimientos/tipos');
       return response.data || []; // Devolver array vacío si no hay datos
     } catch (error) {
       console.error('Error al obtener tipos únicos de movimiento:', error);

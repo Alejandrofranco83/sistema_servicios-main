@@ -21,10 +21,11 @@ import {
   Warning as WarningIcon
 } from '@mui/icons-material';
 import { formatCurrency } from '../../utils/formatUtils';
-import axios from 'axios';
+// import axios from 'axios'; // <--- ELIMINAR O COMENTAR
+import api from '../../services/api'; // <--- IMPORTAR LA INSTANCIA API
 
 // Constante con la URL base de la API
-const API_URL = 'http://localhost:3000/api';
+// const API_URL = 'http://localhost:3000/api'; // <--- ELIMINAR ESTA LÍNEA
 
 interface EliminarCambioProps {
   open: boolean;
@@ -89,7 +90,8 @@ const EliminarCambio: React.FC<EliminarCambioProps> = ({
         setError(null);
 
         console.log('Intentando cargar cambio con ID:', cambioId);
-        const response = await axios.get(`${API_URL}/cambios-moneda/${cambioId}`);
+        // const response = await axios.get(`${API_URL}/cambios-moneda/${cambioId}`); // <--- LÍNEA ANTIGUA
+        const response = await api.get(`/api/cambios-moneda/${cambioId}`); // <--- USAR INSTANCIA API
         console.log('Datos recibidos del cambio:', response.data);
         
         if (!response.data || !response.data.id) {
@@ -121,7 +123,7 @@ const EliminarCambio: React.FC<EliminarCambioProps> = ({
         });
       } catch (err: any) {
         console.error('Error al cargar el cambio:', err);
-        console.error('URL solicitada:', `${API_URL}/cambios-moneda/${cambioId}`);
+        console.error('URL solicitada:', `/api/cambios-moneda/${cambioId}`);
         setError(
           err.response?.data?.error || 
           err.response?.data?.mensaje || 
@@ -207,7 +209,8 @@ const EliminarCambio: React.FC<EliminarCambioProps> = ({
       console.log('Enviando solicitud para cancelar cambio:', cambioId);
       
       // La ruta ya está implementada en el backend
-      const response = await axios.post(`${API_URL}/cambios-moneda/cancelar/${cambioId}`, {
+      // const response = await axios.post(`${API_URL}/cambios-moneda/cancelar/${cambioId}`, { // <--- LÍNEA ANTIGUA
+      const response = await api.post(`/api/cambios-moneda/cancelar/${cambioId}`, { // <--- USAR INSTANCIA API
         observacion: 'Cambio cancelado por usuario'
       });
       
@@ -224,7 +227,7 @@ const EliminarCambio: React.FC<EliminarCambioProps> = ({
       
     } catch (err: any) {
       console.error('Error al cancelar el cambio:', err);
-      console.error('URL solicitada:', `${API_URL}/cambios-moneda/cancelar/${cambioId}`);
+      console.error('URL solicitada:', `/api/cambios-moneda/cancelar/${cambioId}`);
       
       // Obtener el mensaje específico del error
       const mensajeError = err.response?.data?.error || 

@@ -33,7 +33,7 @@ import { useCajas } from '../CajasContext';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { formatearIdCaja, formatearMontoConSeparadores } from '../helpers';
-import axios from 'axios';
+import api from '../../../services/api'; // Añadido para usar la instancia global
 import { useCotizacion } from '../../../contexts/CotizacionContext';
 import cotizacionService from '../../../services/cotizacionService';
 import TicketCierreCaja from '../ImpresionTicket/TicketCierreCaja';
@@ -161,10 +161,10 @@ const DetalleDialog: React.FC<DetalleDialogProps> = ({ open, onClose }) => {
       console.log('Iniciando carga de operaciones bancarias para caja:', cajaSeleccionada.id);
       
       // Cargar operaciones bancarias sin abrir el diálogo
-      const url = `${process.env.REACT_APP_API_URL}/operaciones-bancarias/caja/${cajaSeleccionada.id}`;
+      const url = `/api/operaciones-bancarias/caja/${cajaSeleccionada.id}`; // URL Corregida con /api/
       console.log('URL de carga de operaciones bancarias:', url);
       
-      axios.get(url)
+      api.get(url) // Llamada corregida con instancia api
         .then(response => {
           console.log('Operaciones bancarias recibidas:', response.data);
           setOperacionesBancarias(response.data);
@@ -195,7 +195,8 @@ const DetalleDialog: React.FC<DetalleDialogProps> = ({ open, onClose }) => {
     
     try {
       console.log(`Cargando retiros para caja ID: ${cajaSeleccionada.id}`);
-      const resRetiros = await axios.get(`${process.env.REACT_APP_API_URL}/cajas/${cajaSeleccionada.id}/retiros`);
+      // const resRetiros = await axios.get(`${process.env.REACT_APP_API_URL}/cajas/${cajaSeleccionada.id}/retiros`); // Antigua
+      const resRetiros = await api.get(`/api/cajas/${cajaSeleccionada.id}/retiros`); // Corregida
       
       if (resRetiros.data && Array.isArray(resRetiros.data)) {
         setRetiros(resRetiros.data);
@@ -254,9 +255,12 @@ const DetalleDialog: React.FC<DetalleDialogProps> = ({ open, onClose }) => {
       
       // Usamos Promise.all para cargar todo en paralelo
       const [resMovimientos, resPagosServicios, resPagosCaja] = await Promise.all([
-        axios.get(`${process.env.REACT_APP_API_URL}/cajas/${cajaSeleccionada.id}/movimiento`),
-        axios.get(`${process.env.REACT_APP_API_URL}/pagos-servicios?cajaId=${cajaSeleccionada.id}`),
-        axios.get(`${process.env.REACT_APP_API_URL}/cajas/${cajaSeleccionada.id}/pagos`) // <-- LLAMADA RESTAURADA
+        // axios.get(`${process.env.REACT_APP_API_URL}/cajas/${cajaSeleccionada.id}/movimiento`), // Antigua
+        api.get(`/api/cajas/${cajaSeleccionada.id}/movimiento`), // Corregida
+        // axios.get(`${process.env.REACT_APP_API_URL}/pagos-servicios?cajaId=${cajaSeleccionada.id}`), // Antigua
+        api.get(`/api/pagos-servicios?cajaId=${cajaSeleccionada.id}`), // Corregida
+        // axios.get(`${process.env.REACT_APP_API_URL}/cajas/${cajaSeleccionada.id}/pagos`) // Antigua
+        api.get(`/api/cajas/${cajaSeleccionada.id}/pagos`) // Corregida
       ]);
       
       // Cargar movimientos

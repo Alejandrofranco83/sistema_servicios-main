@@ -25,7 +25,7 @@ import {
 } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
-import axios from 'axios';
+import api from '../../../services/api';
 import { formatearMontoConSeparadores } from '../../Cajas/helpers';
 import { es } from 'date-fns/locale';
 import { format, parseISO } from 'date-fns';
@@ -128,8 +128,8 @@ const DiferenciaEnCajaList: React.FC<DiferenciaEnCajaListProps> = ({ propGlobalC
       setLoading(true);
       setError(null);
       try {
-        const response = await axios.get<{ comparaciones: ComparacionEnCaja[] }>(
-          `${process.env.REACT_APP_API_URL}/diferencias/en-caja/comparaciones`
+        const response = await api.get<{ comparaciones: ComparacionEnCaja[] }>(
+          `/api/diferencias/en-caja/comparaciones`
         );
 
         let comparacionesArray = response.data.comparaciones;
@@ -153,8 +153,8 @@ const DiferenciaEnCajaList: React.FC<DiferenciaEnCajaListProps> = ({ propGlobalC
 
       } catch (err) {
         console.error("Error fetching diferencias en caja:", err);
-        if (axios.isAxiosError(err) && err.response?.status === 401) {
-          setError("No autorizado. Por favor, inicie sesión de nuevo.");
+        if (err instanceof Error) {
+          setError(err.message || "Error al cargar las diferencias internas de cajas.");
         } else {
           setError("Error al cargar las diferencias internas de cajas.");
         }

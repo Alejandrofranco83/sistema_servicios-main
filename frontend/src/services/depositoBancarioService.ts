@@ -1,7 +1,7 @@
-import axios from 'axios';
 import api from './api';
+// import axios from 'axios'; // No es necesario si usamos la instancia api
 
-const API_BASE_URL = 'http://localhost:3000/api';
+// const API_BASE_URL = 'http://localhost:3000/api'; // No es necesario si usamos la instancia api
 
 // Interfaz para los datos de movimiento de caja
 export interface MovimientoCajaInput {
@@ -19,7 +19,8 @@ export const depositoBancarioService = {
   // Crear un nuevo depósito bancario
   createDeposito: async (formData: FormData): Promise<any> => {
     try {
-      const response = await api.post('/depositos-bancarios', formData, {
+      // const response = await api.post('/depositos-bancarios', formData, { // <--- RUTA ANTIGUA
+      const response = await api.post('/api/depositos-bancarios', formData, { // <--- RUTA CORREGIDA
         headers: {
           'Content-Type': 'multipart/form-data'
         }

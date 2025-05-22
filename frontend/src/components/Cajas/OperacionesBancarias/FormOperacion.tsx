@@ -20,12 +20,12 @@ import { AttachFile as AttachFileIcon } from '@mui/icons-material';
 import { useCajas } from '../CajasContext';
 import { formatearIdCaja } from '../helpers';
 import { serviciosOperacionesBancarias } from '../constants';
-import axios from 'axios';
+import api from '../../../services/api';
 import { useCotizacion } from '../../../contexts/CotizacionContext';
 import posService, { Pos } from '../../../services/posService';
 
 // Constantes
-const API_URL = 'http://localhost:3000/api';
+// const API_URL = 'http://localhost:3000/api';
 
 interface FormOperacionProps {
   open: boolean;
@@ -65,7 +65,8 @@ const FormOperacion: React.FC<FormOperacionProps> = ({ open, onClose }) => {
   useEffect(() => {
     const cargarCuentasBancarias = async () => {
       try {
-        const response = await axios.get(`${API_URL}/cuentas-bancarias`);
+        // const response = await axios.get(`${API_URL}/cuentas-bancarias`);
+        const response = await api.get('/api/cuentas-bancarias');
         setCuentasBancarias(response.data);
       } catch (error) {
         console.error('Error al cargar cuentas bancarias:', error);
@@ -200,7 +201,8 @@ const FormOperacion: React.FC<FormOperacionProps> = ({ open, onClose }) => {
       let newState: Partial<any> = { 
         tipo: newType,
         cuentaBancariaId: undefined,
-        tipoServicio: ''
+        // No resetear tipoServicio aquí, o hacerlo explícitamente si es necesario
+        // tipoServicio: '' // Comentado para revisión
       };
       
       // Calcular montoACobrar para ambos tipos
@@ -243,7 +245,7 @@ const FormOperacion: React.FC<FormOperacionProps> = ({ open, onClose }) => {
     }
   };
   
-  // Función para seleccionar un servicio
+  // Función para seleccionar un servicio - RESTAURADA
   const seleccionarServicio = (servicio: string, event?: React.MouseEvent<HTMLLIElement>) => {
     if (event) {
       event.preventDefault();
@@ -342,8 +344,9 @@ const FormOperacion: React.FC<FormOperacionProps> = ({ open, onClose }) => {
 
     try {
       console.log('Guardando operación bancaria...');
-      console.log('Datos a enviar:', formOperacion);
-      
+      // DEBUG: Mostrar el estado de formOperacion ANTES de construir datosOperacion
+      console.log('[DEBUG] formOperacion ANTES de datosOperacion:', JSON.stringify(formOperacion, null, 2));
+
       // Crear FormData para enviar los datos y el archivo
       const formData = new FormData();
       
@@ -362,7 +365,9 @@ const FormOperacion: React.FC<FormOperacionProps> = ({ open, onClose }) => {
         crearMovimientoFarmacia: true
       };
       
-      console.log('Datos operación preparados:', datosOperacion);
+      // DEBUG: Mostrar el objeto datosOperacion que se va a stringify y enviar
+      console.log('[DEBUG] datosOperacion A ENVIAR:', JSON.stringify(datosOperacion, null, 2));
+      console.log('Datos operación preparados:', datosOperacion); // Mantener el original por si acaso
       
       // Añadir datos como JSON
       formData.append('data', JSON.stringify(datosOperacion));
@@ -379,13 +384,13 @@ const FormOperacion: React.FC<FormOperacionProps> = ({ open, onClose }) => {
       if (formOperacion.id) {
         // Actualizar operación existente
         console.log(`Actualizando operación con ID ${formOperacion.id}...`);
-        respuesta = await axios.put(`${API_URL}/operaciones-bancarias/${formOperacion.id}`, formData, {
+        respuesta = await api.put(`/api/operaciones-bancarias/${formOperacion.id}`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
       } else {
         // Crear nueva operación
         console.log('Creando nueva operación...');
-        respuesta = await axios.post(`${API_URL}/operaciones-bancarias`, formData, {
+        respuesta = await api.post('/api/operaciones-bancarias', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
       }

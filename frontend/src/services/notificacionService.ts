@@ -1,4 +1,5 @@
 import axios from 'axios';
+import api from './api';
 
 // Interfaz para las notificaciones
 export interface Notificacion {
@@ -17,14 +18,12 @@ export interface Notificacion {
   accion?: string;
 }
 
-const API_URL = '/api/notificaciones';
-
 export const notificacionService = {
   // Verificar si la API está disponible
   verificarApi: async (): Promise<boolean> => {
     try {
       // Intenta obtener un contador de notificaciones como prueba simple
-      const response = await axios.get(`${API_URL}/mis-notificaciones/contador`);
+      const response = await api.get(`/api/notificaciones/mis-notificaciones/contador`);
       return response.status === 200;
     } catch (error: any) {
       console.error('Error al verificar API de notificaciones:', error?.message || 'Error desconocido');
@@ -35,7 +34,7 @@ export const notificacionService = {
   // Obtener todas las notificaciones del usuario
   obtenerMisNotificaciones: async (): Promise<Notificacion[]> => {
     try {
-      const response = await axios.get(`${API_URL}/mis-notificaciones`);
+      const response = await api.get(`/api/notificaciones/mis-notificaciones`);
       
       // Verificar que la respuesta sea un array
       if (!Array.isArray(response.data)) {
@@ -55,7 +54,7 @@ export const notificacionService = {
   obtenerMisNotificacionesNoLeidas: async (): Promise<Notificacion[]> => {
     try {
       console.log('[SERVICE] Solicitando notificaciones no leídas al servidor');
-      const response = await axios.get(`${API_URL}/mis-notificaciones/no-leidas`);
+      const response = await api.get(`/api/notificaciones/mis-notificaciones/no-leidas`);
       
       if (!Array.isArray(response.data)) {
         console.warn('[SERVICE] La respuesta de no leídas no es un array:', response.data);
@@ -79,7 +78,7 @@ export const notificacionService = {
   contarMisNotificacionesNoLeidas: async (): Promise<number> => {
     try {
       console.log('Solicitando contador de notificaciones no leídas');
-      const response = await axios.get(`${API_URL}/mis-notificaciones/contador`);
+      const response = await api.get(`/api/notificaciones/mis-notificaciones/contador`);
       
       // Extraer directamente el número del contador para evitar problemas de tipo
       let contador = 0;
@@ -111,7 +110,7 @@ export const notificacionService = {
   // Marcar una notificación como leída
   marcarComoLeida: async (id: number): Promise<void> => {
     try {
-      await axios.put(`${API_URL}/${id}/leer`);
+      await api.put(`/api/notificaciones/${id}/leer`);
     } catch (error) {
       console.error(`Error al marcar notificación ${id} como leída:`, error);
       throw error;
@@ -121,7 +120,7 @@ export const notificacionService = {
   // Marcar todas las notificaciones como leídas
   marcarTodasComoLeidas: async (): Promise<void> => {
     try {
-      await axios.put(`${API_URL}/leer-todas`);
+      await api.put(`/api/notificaciones/leer-todas`);
     } catch (error) {
       console.error('Error al marcar todas las notificaciones como leídas:', error);
       throw error;
@@ -132,7 +131,7 @@ export const notificacionService = {
   crearNotificacion: async (notificacion: Omit<Notificacion, 'id' | 'fechaCreacion'>): Promise<Notificacion> => {
     try {
       console.log('Enviando notificación:', notificacion);
-      const response = await axios.post(API_URL, notificacion);
+      const response = await api.post('/api/notificaciones', notificacion);
       console.log('Respuesta de creación de notificación:', response.data);
       return response.data;
     } catch (error: any) {
@@ -147,7 +146,7 @@ export const notificacionService = {
   // Eliminar una notificación (para usuarios con permisos)
   eliminarNotificacion: async (id: number): Promise<void> => {
     try {
-      await axios.delete(`${API_URL}/${id}`);
+      await api.delete(`/api/notificaciones/${id}`);
     } catch (error) {
       console.error(`Error al eliminar notificación ${id}:`, error);
       throw error;
@@ -157,7 +156,7 @@ export const notificacionService = {
   // Crear notificación para un usuario específico
   crearNotificacionParaUsuario: async (notificacion: Omit<Notificacion, 'id' | 'fechaCreacion'>, usuarioId: number): Promise<Notificacion> => {
     try {
-      const response = await axios.post(`${API_URL}/para-usuario`, {
+      const response = await api.post(`/api/notificaciones/para-usuario`, {
         notificacion,
         usuarioId
       }, {
@@ -175,7 +174,7 @@ export const notificacionService = {
   // Crear notificación para un rol específico
   crearNotificacionParaRol: async (notificacion: Omit<Notificacion, 'id' | 'fechaCreacion'>, rolId: number): Promise<Notificacion> => {
     try {
-      const response = await axios.post(`${API_URL}/para-rol`, {
+      const response = await api.post(`/api/notificaciones/para-rol`, {
         notificacion,
         rolId
       }, {
@@ -193,7 +192,7 @@ export const notificacionService = {
   // Actualizar una notificación existente
   actualizarNotificacion: async (notificacion: Notificacion): Promise<Notificacion> => {
     try {
-      const response = await axios.put(`${API_URL}/${notificacion.id}`, notificacion, {
+      const response = await api.put(`/api/notificaciones/${notificacion.id}`, notificacion, {
         headers: {
           'Content-Type': 'application/json'
         }

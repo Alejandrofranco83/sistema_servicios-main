@@ -14,7 +14,7 @@ import {
   IconButton
 } from '@mui/material';
 import { Print as PrintIcon, Close as CloseIcon } from '@mui/icons-material';
-import axios from 'axios';
+import api from '../../services/api';
 import { formatCurrency } from '../../utils/formatUtils'; 
 // Importar funciones de formato y conversión a letras (si están en utils)
 // O copiar/pegar numeroALetras y formatearFecha aquí si no están centralizadas
@@ -24,10 +24,26 @@ import { formatCurrency } from '../../utils/formatUtils';
 // ===============================================
 
 // URL Base de la API
-const API_URL = 'http://localhost:3000/api';
+// const API_URL = 'http://localhost:3000/api';
 
 // TipoMoneda
 type TipoMoneda = 'PYG' | 'USD' | 'BRL';
+
+// Mapeo entre códigos de moneda del backend y frontend
+const mapearMoneda = (monedaBackend: string): TipoMoneda => {
+  switch(monedaBackend?.toUpperCase()) { // Asegurar toUpperCase y manejar posible undefined
+    case 'PYG': return 'PYG';
+    case 'USD': return 'USD';
+    case 'BRL': return 'BRL';
+    // Casos para nombres completos si es necesario, ej: 'GUARANIES'
+    case 'GUARANIES': return 'PYG';
+    case 'DOLARES': return 'USD';
+    case 'REALES': return 'BRL';
+    default: 
+      console.warn(`[mapearMoneda] Moneda no reconocida: ${monedaBackend}, se usará PYG por defecto.`);
+      return 'PYG'; // Moneda por defecto o manejo de error
+  }
+};
 
 // numeroALetras y sus helpers
 function Unidades(num: number): string {
@@ -248,92 +264,82 @@ const ImprimirValeDialog: React.FC<ImprimirValeDialogProps> = ({ open, onClose, 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [valeData, setValeData] = useState<ValeDetalles | null>(null);
-  // Guardar el ID del movimiento original para usarlo en la impresión
   const [movimientoIdOriginal, setMovimientoIdOriginal] = useState<number | null>(null);
 
-  const fetchValeDetails = useCallback(async (id: number) => {
-    setLoading(true);
-    setError(null);
-    setValeData(null); 
-    setMovimientoIdOriginal(id); // Guardar el ID del movimiento
-    console.log(`[ImprimirValeDialog] Buscando detalles para movimiento ID: ${id}`);
-
-    try {
-      // 1. Obtener datos del movimiento para conseguir el operacionId (ID del vale)
-      const movimientoResponse = await axios.get(`${API_URL}/caja_mayor_movimientos/${id}`);
-      console.log('[ImprimirValeDialog] Respuesta Movimiento API:', movimientoResponse.data);
-
-      if (!movimientoResponse.data || movimientoResponse.data.tipo !== 'Vales') {
-          throw new Error('El movimiento seleccionado no es un vale.');
-      }
-
-      const operacionId = movimientoResponse.data.operacionId;
-      if (!operacionId) {
-          throw new Error('No se encontró el ID de operación (vale ID) en el movimiento.');
-      }
-      
-      console.log(`[ImprimirValeDialog] Obtenido operacionId (valeId): ${operacionId}. Buscando detalles del vale...`);
-
-      // 2. Obtener detalles completos del vale usando operacionId
-      // Asumiendo endpoint /api/vales/:valeId
-      const valeResponse = await axios.get(`${API_URL}/vales/${operacionId}`);
-      console.log('[ImprimirValeDialog] Respuesta Vale API:', valeResponse.data);
-
-      if (!valeResponse.data) {
-           throw new Error('No se encontraron detalles para el vale especificado.');
-      }
-
-      // Validar y normalizar moneda
-      const monedaRecibida = valeResponse.data.moneda?.toUpperCase();
-      let monedaNormalizada: TipoMoneda | null = null;
-      if (monedaRecibida === 'GUARANIES') monedaNormalizada = 'PYG';
-      else if (monedaRecibida === 'DOLARES') monedaNormalizada = 'USD'; // Ajusta si tu API usa otros nombres
-      else if (monedaRecibida === 'REALES') monedaNormalizada = 'BRL'; // Ajusta si tu API usa otros nombres
-      else if (['PYG', 'USD', 'BRL'].includes(monedaRecibida)) monedaNormalizada = monedaRecibida as TipoMoneda;
-      else throw new Error(`Moneda inválida o faltante recibida de la API de vales: ${valeResponse.data.moneda}`);
-      
-      // Validar fecha_vencimiento
-      const fechaVencimientoRecibida = valeResponse.data.fecha_vencimiento;
-      if (!fechaVencimientoRecibida) {
-           throw new Error('Fecha de vencimiento no encontrada en los datos del vale.');
-      }
-      
-      // Construir data con la respuesta del endpoint de vales
-      const data: ValeDetalles = {
-        id: valeResponse.data.id, // Usar el ID del vale
-        monto: valeResponse.data.monto || 0,
-        moneda: monedaNormalizada, // Usar la moneda normalizada
-        fecha_vencimiento: fechaVencimientoRecibida, // Ya validada
-        motivo: valeResponse.data.motivo || 'Sin motivo especificado', 
-        persona_nombre: valeResponse.data.persona_nombre || 'No especificado',
-      };
-      
-      setValeData(data);
-      
-    } catch (err: any) {
-      console.error('[ImprimirValeDialog] Error al buscar detalles del vale:', err);
-      // Mostrar el mensaje de error específico si viene de las validaciones
-      const errorMsg = (err instanceof Error && (err.message.startsWith('Moneda inválida') || err.message.startsWith('Fecha de vencimiento') || err.message.startsWith('No se encontró el ID'))) 
-                       ? err.message 
-                       : err.response?.data?.error || err.message || 'No se pudieron cargar los detalles del vale.';
-      setError(errorMsg);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Efecto para buscar datos cuando el diálogo se abre y el ID es válido
   useEffect(() => {
-    if (open && movimientoId !== null) {
-      fetchValeDetails(movimientoId);
+    // console.log('[ImprimirValeDialog] useEffect triggered. Open:', open, 'Movimiento ID:', movimientoId);
+    const fetchValeDetails = async () => {
+      // La validación de !movimientoId se hace antes de llamar a fetchValeDetails ahora
+      
+      setLoading(true);
+      setError(null); // Limpiar error antes de nueva carga
+      setValeData(null); // Limpiar datos anteriores
+      // console.log(`[ImprimirValeDialog] Buscando detalles para movimiento ID: ${movimientoId}`);
+
+      try {
+        // Asumimos que movimientoId ya es válido aquí por la lógica del useEffect
+        const movimientoResponse = await api.get(`/api/caja_mayor_movimientos/${movimientoId!}`);
+        const operacionId = movimientoResponse.data?.operacionId;
+
+        if (!operacionId) {
+          console.error('[ImprimirValeDialog] No se encontró operacionId (ID del vale) en el movimiento.', movimientoResponse.data);
+          throw new Error('No se pudo obtener el ID de operación del vale desde el movimiento.');
+        }
+
+        const valeResponse = await api.get(`/api/vales/${operacionId}`);
+        
+        console.log('[ImprimirValeDialog] valeResponse.data completo:', JSON.stringify(valeResponse.data, null, 2));
+
+        if (!valeResponse.data) {
+          throw new Error('No se recibieron datos del vale.');
+        }
+
+        const backendData = valeResponse.data;
+        const datosParaSetear = {
+          id: backendData.id,
+          monto: parseFloat(backendData.monto),
+          moneda: mapearMoneda(backendData.moneda),
+          fecha_vencimiento: backendData.fecha_vencimiento,
+          motivo: backendData.motivo || backendData.observaciones_internas || 'Sin motivo específico',
+          persona_nombre: backendData.persona_nombre || backendData.persona?.nombreCompleto || 'No especificado',
+        };
+        console.log('[ImprimirValeDialog] Objeto construido para setValeData:', JSON.stringify(datosParaSetear, null, 2));
+        
+        setValeData(datosParaSetear);
+        console.log('[ImprimirValeDialog] setValeData ha sido llamado.');
+
+      } catch (err: any) {
+        console.error('[ImprimirValeDialog] Error en fetchValeDetails CATCH:', err);
+        setError(
+          err.response?.data?.error || 
+          err.response?.data?.mensaje || 
+          err.message || 
+          'Error al cargar detalles del vale para imprimir.'
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (open) {
+      if (movimientoId) {
+        setMovimientoIdOriginal(movimientoId); // <--- ESTABLECER movimientoIdOriginal AQUÍ
+        fetchValeDetails();
+      } else {
+        console.error('[ImprimirValeDialog] ERROR: movimientoId es nulo o inválido al abrir el diálogo.');
+        setError('ID de movimiento no válido para imprimir.');
+        setValeData(null);
+        setMovimientoIdOriginal(null);
+        setLoading(false);
+      }
     } else {
-      // Limpiar al cerrar
+      // Limpiar cuando el diálogo se cierra (opcional, pero buena práctica)
       setValeData(null);
       setError(null);
       setLoading(false);
-      setMovimientoIdOriginal(null); // Limpiar también el ID guardado
+      setMovimientoIdOriginal(null);
     }
-  }, [open, movimientoId, fetchValeDetails]);
+  }, [open, movimientoId]);
   
   // Corregir getMontoFormateado para usar formatCurrency correctamente
   const getMontoFormateado = (monto: number, moneda: TipoMoneda): string => {

@@ -21,10 +21,10 @@ import {
   Warning as WarningIcon
 } from '@mui/icons-material';
 import { formatCurrency } from '../../utils/formatUtils';
-import axios from 'axios';
+import api from '../../services/api';
 
 // Constante con la URL base de la API
-const API_URL = 'http://localhost:3000/api';
+// const API_URL = 'http://localhost:3000/api';
 
 interface EditarValeProps {
   open: boolean;
@@ -110,7 +110,8 @@ const EditarVale: React.FC<EditarValeProps> = ({
 
         console.log(`Cargando vale para el movimiento ID: ${movimientoId}`);
 
-        const response = await axios.get(`${API_URL}/vales/por-movimiento/${movimientoId}`);
+        // const response = await axios.get(`${API_URL}/vales/por-movimiento/${movimientoId}`);
+        const response = await api.get(`/api/vales/por-movimiento/${movimientoId}`);
         console.log('Datos recibidos del vale:', response.data);
         
         if (!response.data || !response.data.id) {
@@ -226,7 +227,8 @@ const EditarVale: React.FC<EditarValeProps> = ({
       setError(null);
       
       // Llamada a la API para cancelar el vale
-      await axios.post(`${API_URL}/vales/cancelar/${valeData.id}`, {
+      // await axios.post(`${API_URL}/vales/cancelar/${valeData.id}`, {
+      await api.post(`/api/vales/cancelar/${valeData.id}`, {
         movimientoId: movimientoId,
         razon: 'Vale cancelado'
       });

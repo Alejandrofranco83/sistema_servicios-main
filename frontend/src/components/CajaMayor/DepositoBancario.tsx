@@ -29,13 +29,9 @@ import {
 } from '@mui/icons-material';
 import { useCotizacion } from '../../contexts/CotizacionContext';
 import { formatCurrency } from '../../utils/formatUtils';
-import axios from 'axios';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { depositoBancarioService, MovimientoCajaInput } from '../../services/depositoBancarioService';
-
-// URL base para las peticiones API (debe coincidir con la configuración del proyecto)
-const API_BASE_URL = 'http://localhost:3000/api';
 
 interface DepositoBancarioProps {
   open: boolean;
@@ -96,8 +92,8 @@ const DepositoBancario: React.FC<DepositoBancarioProps> = ({ open, onClose, onGu
       setError(null);
       
       // Llamada a la API real para obtener las cuentas bancarias
-      console.log('Obteniendo cuentas bancarias desde:', `${API_BASE_URL}/cuentas-bancarias`);
-      const response = await api.get('/cuentas-bancarias');
+      console.log('Obteniendo cuentas bancarias desde /api/cuentas-bancarias');
+      const response = await api.get('/api/cuentas-bancarias');
       console.log('Respuesta del servidor (cuentas bancarias):', response.data);
       
       // Transformar los datos al formato que espera nuestro componente
@@ -333,7 +329,7 @@ const DepositoBancario: React.FC<DepositoBancarioProps> = ({ open, onClose, onGu
     try {
       setLoading(true);
       setError(null);
-      setSuccessMessage(null); // Limpiar mensaje previo
+      setSuccessMessage(null);
       
       console.log('Cuenta seleccionada:', cuentaActual);
       
@@ -432,28 +428,15 @@ const DepositoBancario: React.FC<DepositoBancarioProps> = ({ open, onClose, onGu
         onClose();
       }, 2000);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al procesar el depósito:', error);
       
-      // Mejorar manejo de errores
-      if (axios.isAxiosError(error)) {
-        console.error('Detalles del error Axios:', {
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-          data: error.response?.data,
-          headers: error.response?.headers
-        });
-        
-        if (error.response) {
-          setError(`Error (${error.response.status}): ${error.response.data.error || 'Intente nuevamente'}`);
-        } else if (error.request) {
-          setError('No se recibió respuesta del servidor. Verifique su conexión.');
-        } else {
-          setError(`Error al enviar la solicitud: ${error.message}`);
-        }
-      } else {
-        setError('Error al registrar el depósito. Intente nuevamente.');
-      }
+      // Manejo de error más genérico. Asumimos que el servicio ya pudo haber procesado el error de Axios.
+      const errorMessage = error.response?.data?.error || // Intenta obtener de la respuesta de Axios si está anidado
+                         error.response?.data?.mensaje ||
+                         error.message || // Mensaje del error original
+                         'Error al registrar el depósito. Intente nuevamente.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

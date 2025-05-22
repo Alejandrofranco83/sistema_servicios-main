@@ -32,6 +32,7 @@ import {
 } from '../../constants';
 import { Denominacion } from '../../interfaces';
 import axios from 'axios';
+import api from '../../../../services/api';
 
 interface VerAperturaDialogProps {
   open: boolean;
@@ -159,9 +160,9 @@ const VerAperturaDialog: React.FC<VerAperturaDialogProps> = ({ open, onClose }) 
   const guardarCambios = async () => {
     setLoading(true);
     try {
-      // Enviar los datos actualizados al backend
-      const response = await axios.put(
-        `${process.env.REACT_APP_API_URL}/cajas/${cajaSeleccionada.id}/datos-apertura`, 
+      // Enviar los datos actualizados al backend usando la instancia global de api
+      const response = await api.put(
+        `/api/cajas/${cajaSeleccionada.id}/datos-apertura`, 
         datosEditados
       );
       

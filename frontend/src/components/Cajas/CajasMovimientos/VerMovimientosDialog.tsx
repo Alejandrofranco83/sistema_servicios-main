@@ -26,7 +26,7 @@ import {
 import { useCajas } from '../CajasContext';
 import { formatearIdCaja } from '../helpers';
 import { handleInputClick } from '../../../utils/inputUtils';
-import axios from 'axios';
+import api from '../../../services/api';
 
 interface MovimientosData {
   tigo: {
@@ -132,7 +132,7 @@ const VerMovimientosDialog: React.FC<VerMovimientosDialogProps> = ({ open, onClo
       setLoading(true);
       
       // Llamada a la API para obtener los movimientos existentes
-      axios.get(`${process.env.REACT_APP_API_URL}/cajas/${cajaSeleccionada.id}/movimiento`)
+      api.get(`/api/cajas/${cajaSeleccionada.id}/movimiento`)
         .then(response => {
           console.log('Movimientos cargados:', response.data);
           
@@ -299,7 +299,7 @@ const VerMovimientosDialog: React.FC<VerMovimientosDialogProps> = ({ open, onClo
     };
     
     // Llamada a la API para guardar los movimientos
-    axios.post(`${process.env.REACT_APP_API_URL}/cajas/${cajaSeleccionada.id}/movimiento`, datosAEnviar)
+    api.post(`/api/cajas/${cajaSeleccionada.id}/movimiento`, datosAEnviar)
       .then(response => {
         console.log('Movimientos guardados:', response.data);
         
@@ -361,8 +361,8 @@ const VerMovimientosDialog: React.FC<VerMovimientosDialogProps> = ({ open, onClo
         console.log('Enviando lote de comprobantes con tipos:', tiposArchivos);
 
         // Realizar la única llamada POST al nuevo endpoint batch
-        axios.post(
-          `${process.env.REACT_APP_API_URL}/cajas/${cajaSeleccionada.id}/comprobantes/batch`,
+        api.post(
+          `/api/cajas/${cajaSeleccionada.id}/comprobantes/batch`,
           formData,
           {
             headers: {
@@ -534,7 +534,7 @@ const VerMovimientosDialog: React.FC<VerMovimientosDialogProps> = ({ open, onClo
         setLoading(true);
         
         // Llamada a la API para obtener la URL del comprobante
-        axios.get(`${process.env.REACT_APP_API_URL}/cajas/${cajaSeleccionada.id}/comprobante/${tipoBackend}`)
+        api.get(`/api/cajas/${cajaSeleccionada.id}/comprobante/${tipoBackend}`)
           .then(response => {
             if (response.data && response.data.url) {
               // Abrir en una nueva ventana

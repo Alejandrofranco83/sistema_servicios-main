@@ -23,9 +23,7 @@ import {
   Alert
 } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import axios from 'axios';
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+import api from '../../services/api';
 
 // Interfaz actualizada para los items (coincide con backend, monto es string)
 interface MovimientoFarmacia {
@@ -106,7 +104,7 @@ const BalanceFarmaciaLista: React.FC = () => {
 
       console.log('Parámetros enviados a la API:', params); // Log para depuración
 
-      const response = await axios.get(`${API_URL}/movimientos-farmacia`, { params });
+      const response = await api.get(`/api/movimientos-farmacia`, { params });
       
       const movimientosData = response.data.data || [];
       console.log('Datos recibidos:', movimientosData); // Log para depuración
@@ -118,7 +116,7 @@ const BalanceFarmaciaLista: React.FC = () => {
       // Para esto usamos totalBalancePYGSinConversion si está disponible, 
       // de lo contrario usamos un cálculo manual basado en solo los movimientos en guaraníes
       // Nota: Si el backend no proporciona este valor, deberá modificarse para incluirlo
-      const soloGuaranies = await axios.get(`${API_URL}/movimientos-farmacia`, { 
+      const soloGuaranies = await api.get(`/api/movimientos-farmacia`, { 
         params: {
           ...params,
           monedaCodigo: 'PYG', // Filtrar solo por guaraníes

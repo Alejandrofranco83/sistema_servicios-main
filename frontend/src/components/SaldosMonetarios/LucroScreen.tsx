@@ -29,7 +29,7 @@ import {
   Divider,
   GlobalStyles
 } from '@mui/material';
-import axios from 'axios';
+import api from '../../services/api';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -271,7 +271,7 @@ const LucroScreen: React.FC = () => {
     setLucrosCalculados([]);
 
     try {
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/movimientos-caja/all-movimientos`, {
+      const response = await api.get(`/api/movimientos-caja/all-movimientos`, {
         params: {
           fechaDesde: fechaDesde.toISOString().split('T')[0], // YYYY-MM-DD
           fechaHasta: fechaHasta.toISOString().split('T')[0], // YYYY-MM-DD

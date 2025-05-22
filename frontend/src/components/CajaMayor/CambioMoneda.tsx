@@ -30,6 +30,7 @@ import {
 import { useCotizacion } from '../../contexts/CotizacionContext';
 import { formatCurrency } from '../../utils/formatUtils';
 import { handleInputClick } from '../../utils/inputUtils';
+import api from '../../services/api';
 
 interface CambioMonedaProps {
   open: boolean;
@@ -566,16 +567,6 @@ const CambioMoneda: React.FC<CambioMonedaProps> = ({ open, onClose, onGuardarExi
       setLoading(true);
       setError(null);
       
-      // Parsear valores numéricos
-      let montoNumerico: number;
-      if (monedaOrigen === 'PYG') {
-        montoNumerico = parseInt(monto.replace(/\./g, ''), 10);
-      } else {
-        montoNumerico = parseFloat(monto.replace(/\./g, '').replace(',', '.'));
-      }
-      
-      const cotizacionNumerica = parseFloat(cotizacion.replace(/\./g, '').replace(',', '.'));
-      
       // Obtener usuarioId del localStorage correctamente
       // Intenta con diferentes claves donde podría estar el usuario
       let usuarioId = null;
@@ -653,39 +644,49 @@ const CambioMoneda: React.FC<CambioMonedaProps> = ({ open, onClose, onGuardarExi
       
       console.log('ID de usuario identificado:', usuarioId);
       
+      if (!usuarioId) {
+        setError('No se pudo identificar al usuario para registrar el cambio. Por favor, inicie sesión nuevamente.');
+        setLoading(false);
+        return;
+      }
+      
+      // Parsear valores numéricos
+      let montoNumerico: number;
+      if (monedaOrigen === 'PYG') {
+        montoNumerico = parseInt(monto.replace(/\./g, ''), 10);
+      } else {
+        montoNumerico = parseFloat(monto.replace(/\./g, '').replace(',', '.'));
+      }
+      
+      const cotizacionNumerica = parseFloat(cotizacion.replace(/\./g, '').replace(',', '.'));
+      
+      let resultadoFinalNumerico: number;
+      if (monedaDestino === 'PYG') {
+        resultadoFinalNumerico = parseInt(resultadoEditable.replace(/\./g, ''), 10);
+      } else {
+        resultadoFinalNumerico = parseFloat(resultadoEditable.replace(/\./g, '').replace(',', '.'));
+      }
+      
       // Crear datos para enviar a la API
       const datosCambio = {
         monedaOrigen,
         monedaDestino,
         monto: montoNumerico,
         cotizacion: cotizacionNumerica,
-        resultado: resultadoFinal, // Usar el valor editado por el usuario
+        resultado: resultadoFinalNumerico,
         observacion,
         fecha: new Date().toISOString(),
         usuarioId
       };
       
-      console.log('Datos del cambio a enviar:', datosCambio);
+      console.log('Datos del cambio a enviar con api.post:', datosCambio);
       
-      // Llamar a la API para registrar el cambio
-      const response = await fetch('/api/cambios-moneda', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(datosCambio)
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al registrar el cambio');
-      }
-      
-      const cambioRegistrado = await response.json();
+      // Llamar a la API para registrar el cambio usando la instancia api de Axios
+      const cambioRegistradoResponse = await api.post('/api/cambios-moneda', datosCambio);
+      const cambioRegistrado = cambioRegistradoResponse.data;
+
       console.log('Cambio registrado:', cambioRegistrado);
       
-      // Llamar a la función de refresco del componente padre
       onGuardarExito();
       
       // Formatear montos para mostrar mensaje de éxito
@@ -704,13 +705,13 @@ const CambioMoneda: React.FC<CambioMonedaProps> = ({ open, onClose, onGuardarExi
       
       switch (monedaDestino) {
         case 'PYG':
-          resultadoFormateado = formatCurrency.guaranies(resultadoFinal);
+          resultadoFormateado = formatCurrency.guaranies(resultadoFinalNumerico);
           break;
         case 'USD':
-          resultadoFormateado = formatCurrency.dollars(resultadoFinal);
+          resultadoFormateado = formatCurrency.dollars(resultadoFinalNumerico);
           break;
         case 'BRL':
-          resultadoFormateado = formatCurrency.reals(resultadoFinal);
+          resultadoFormateado = formatCurrency.reals(resultadoFinalNumerico);
           break;
       }
       
@@ -722,9 +723,12 @@ const CambioMoneda: React.FC<CambioMonedaProps> = ({ open, onClose, onGuardarExi
         onClose();
       }, 2000);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al procesar el cambio:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Error al registrar el cambio. Intente nuevamente.';
+      const errorMessage = error.response?.data?.error || 
+                         error.response?.data?.mensaje || 
+                         error.message || 
+                         'Error al registrar el cambio. Intente nuevamente.';
       setError(errorMessage);
     } finally {
       setLoading(false);

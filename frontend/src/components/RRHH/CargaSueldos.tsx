@@ -21,7 +21,7 @@ import {
   AlertTitle
 } from '@mui/material';
 import { Save as SaveIcon, Refresh as RefreshIcon } from '@mui/icons-material';
-import axios from 'axios';
+import api from '../../services/api';
 
 interface Persona {
   id: number;
@@ -78,7 +78,7 @@ const CargaSueldos: React.FC = () => {
     setLoading(true);
     try {
       // Intentar obtener datos reales de la API
-      const response = await axios.get('/api/personas/funcionarios');
+      const response = await api.get('/api/personas/funcionarios');
       
       if (response.data && Array.isArray(response.data) && response.data.length > 0) {
         setPersonas(response.data);
@@ -127,7 +127,7 @@ const CargaSueldos: React.FC = () => {
     
     setLoading(true);
     try {
-      const response = await axios.get(`/api/sueldos/${anio}/${mes}`);
+      const response = await api.get(`/api/sueldos/${anio}/${mes}`);
       
       if (response.data && Array.isArray(response.data)) {
         const sueldosCargados: { [key: number]: string } = {};
@@ -176,7 +176,7 @@ const CargaSueldos: React.FC = () => {
         return;
       }
 
-      await axios.post('/api/sueldos/guardar', sueldosParaGuardar);
+      await api.post('/api/sueldos/guardar', sueldosParaGuardar);
       
       setSnackbar({
         open: true,

@@ -1,4 +1,5 @@
-import axios from 'axios';
+import api from './api'; // Importar instancia global de Axios
+// import axios from 'axios'; // Eliminar axios directo
 
 // Ya no definimos API_URL aquí,
 // se asume que axios está configurado globalmente en App.tsx.
@@ -27,7 +28,8 @@ const posService = {
   getAllPos: async (): Promise<Pos[]> => {
     try {
       console.log('Obteniendo todos los dispositivos POS desde: /api/pos');
-      const response = await axios.get('/api/pos'); // Ruta relativa
+      // const response = await axios.get('/api/pos'); // Antigua
+      const response = await api.get('/api/pos'); // Corregida
       console.log('Respuesta del servidor (getAllPos):', response.data);
       return response.data;
     } catch (error: any) {
@@ -45,7 +47,8 @@ const posService = {
       // Asumiendo que la ruta correcta en el backend es /api/pos/:id
       // Si es /api/pos/id/:id como antes, ajústalo. Prefiere /api/pos/:id por consistencia.
       console.log(`Obteniendo POS por ID desde: /api/pos/${id}`);
-      const response = await axios.get(`/api/pos/${id}`); // Ruta relativa
+      // const response = await axios.get(`/api/pos/${id}`); // Antigua
+      const response = await api.get(`/api/pos/${id}`); // Corregida
       console.log(`Respuesta del servidor (getPosById ${id}):`, response.data);
       return response.data;
     } catch (error: any) {
@@ -63,7 +66,8 @@ const posService = {
       console.log(`Buscando POS con código de barras ${codigo}`);
       console.log(`URL para buscar POS por código: /api/pos/codigo/${codigo}`);
       
-      const response = await axios.get(`/api/pos/codigo/${codigo}`); // Ruta relativa
+      // const response = await axios.get(`/api/pos/codigo/${codigo}`); // Antigua
+      const response = await api.get(`/api/pos/codigo/${codigo}`); // Corregida
       console.log('Respuesta del servidor (buscar POS por código):', response.data);
       return response.data;
     } catch (error: any) {
@@ -85,7 +89,8 @@ const posService = {
     try {
       console.log('Creando POS con datos:', data);
       console.log('URL para crear POS: /api/pos');
-      const response = await axios.post('/api/pos', data); // Ruta relativa
+      // const response = await axios.post('/api/pos', data); // Antigua
+      const response = await api.post('/api/pos', data); // Corregida
       console.log('Respuesta del servidor (createPos):', response.data);
       return response.data;
     } catch (error: any) {
@@ -102,7 +107,8 @@ const posService = {
     try {
       console.log(`Actualizando POS ${id} con datos:`, data);
       console.log(`URL para actualizar POS: /api/pos/${id}`);
-      const response = await axios.put(`/api/pos/${id}`, data); // Ruta relativa
+      // const response = await axios.put(`/api/pos/${id}`, data); // Antigua
+      const response = await api.put(`/api/pos/${id}`, data); // Corregida
       console.log(`Respuesta del servidor (updatePos ${id}):`, response.data);
       return response.data;
     } catch (error: any) {
@@ -119,7 +125,8 @@ const posService = {
     try {
       console.log(`Eliminando POS con ID: ${id}`);
       console.log(`URL para eliminar POS: /api/pos/${id}`);
-      await axios.delete(`/api/pos/${id}`); // Ruta relativa
+      // await axios.delete(`/api/pos/${id}`); // Antigua
+      await api.delete(`/api/pos/${id}`); // Corregida
       console.log(`POS ${id} eliminado exitosamente.`);
     } catch (error: any) {
       console.error(`Error al eliminar dispositivo POS ${id}:`, error.message);

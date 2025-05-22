@@ -65,7 +65,7 @@ export const usoDevolucionService = {
    */
   async create(data: UsoDevolucionInput): Promise<UsoDevolucionResponse> {
     try {
-      const response = await api.post('/uso-devolucion', data);
+      const response = await api.post('/api/uso-devolucion', data);
       return response.data;
     } catch (error) {
       console.error('Error al crear registro de uso/devolución:', error);
@@ -80,7 +80,7 @@ export const usoDevolucionService = {
    */
   async getAll(filters = {}): Promise<UsoDevolucion[]> {
     try {
-      const response = await api.get('/uso-devolucion', { params: filters });
+      const response = await api.get('/api/uso-devolucion', { params: filters });
       return response.data;
     } catch (error) {
       console.error('Error al obtener registros de uso/devolución:', error);
@@ -95,7 +95,7 @@ export const usoDevolucionService = {
    */
   async getById(id: number): Promise<UsoDevolucion> {
     try {
-      const response = await api.get(`/uso-devolucion/${id}`);
+      const response = await api.get(`/api/uso-devolucion/${id}`);
       return response.data;
     } catch (error) {
       console.error(`Error al obtener registro de uso/devolución ID ${id}:`, error);
@@ -110,7 +110,7 @@ export const usoDevolucionService = {
    */
   async anular(id: number): Promise<{ message: string }> {
     try {
-      const response = await api.put(`/uso-devolucion/${id}/anular`);
+      const response = await api.put(`/api/uso-devolucion/${id}/anular`);
       return response.data;
     } catch (error) {
       console.error(`Error al anular registro de uso/devolución ID ${id}:`, error);
@@ -125,7 +125,7 @@ export const usoDevolucionService = {
    */
   async getSaldoPersona(personaId: number): Promise<SaldoPersona> {
     try {
-      const response = await api.get(`/uso-devolucion/saldo/persona/${personaId}`);
+      const response = await api.get(`/api/uso-devolucion/saldo/persona/${personaId}`);
       return response.data;
     } catch (error) {
       console.error(`Error al obtener saldo de persona ID ${personaId}:`, error);
@@ -140,7 +140,7 @@ export const usoDevolucionService = {
    */
   async getHistorialPersona(personaId: number): Promise<UsoDevolucion[]> {
     try {
-      const response = await api.get(`/uso-devolucion/historial/persona/${personaId}`);
+      const response = await api.get(`/api/uso-devolucion/historial/persona/${personaId}`);
       return response.data;
     } catch (error) {
       console.error(`Error al obtener historial de persona ID ${personaId}:`, error);
@@ -153,7 +153,7 @@ export const usoDevolucionService = {
  * Obtiene todas las personas con saldo
  */
 export const obtenerPersonasConSaldo = async (): Promise<SaldoPersona[]> => {
-  const response = await api.get('/uso-devolucion/saldos/personas');
+  const response = await api.get('/api/uso-devolucion/saldos/personas');
   return response.data;
 };
 
@@ -162,7 +162,7 @@ export const obtenerPersonasConSaldo = async (): Promise<SaldoPersona[]> => {
  * @param personaId - ID de la persona
  */
 export const obtenerSaldoPersona = async (personaId: number): Promise<SaldoPersona> => {
-  const response = await api.get(`/saldos/personas/${personaId}`);
+  const response = await api.get(`/api/uso-devolucion/saldos/persona/${personaId}`);
   return response.data;
 };
 
@@ -171,6 +171,6 @@ export const obtenerSaldoPersona = async (personaId: number): Promise<SaldoPerso
  * @param personaId - ID de la persona
  */
 export const obtenerMovimientosPersona = async (personaId: number): Promise<UsoDevolucion[]> => {
-  const response = await api.get(`/uso-devolucion/historial/persona/${personaId}`);
+  const response = await api.get(`/api/uso-devolucion/historial/persona/${personaId}`);
   return response.data;
 }; 

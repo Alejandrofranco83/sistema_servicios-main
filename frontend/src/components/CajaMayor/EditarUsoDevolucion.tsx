@@ -25,10 +25,10 @@ import {
 } from '@mui/icons-material';
 import { formatCurrency } from '../../utils/formatUtils';
 import { handleInputClick } from '../../utils/inputUtils'; // Reutilizar si aplica
-import axios from 'axios'; // Asumiendo que usarás axios
+import api from '../../services/api'; // <--- IMPORTAR LA INSTANCIA API
 
 // Constante con la URL base de la API
-const API_URL = 'http://localhost:3000/api'; // Ajusta si es necesario
+// const API_URL = 'http://localhost:3000/api'; // <--- ELIMINAR ESTA LÍNEA
 
 interface EditarUsoDevolucionProps {
   open: boolean;
@@ -93,8 +93,8 @@ const EditarUsoDevolucion: React.FC<EditarUsoDevolucionProps> = ({
           return;
         }
 
-        // TODO: Ajustar el endpoint según tu API
-        const response = await axios.get(`${API_URL}/uso-devolucion/por-movimiento/${movimientoId}`);
+        // const response = await axios.get(`${API_URL}/uso-devolucion/por-movimiento/${movimientoId}`); // <--- LÍNEA ANTIGUA
+        const response = await api.get(`/api/uso-devolucion/por-movimiento/${movimientoId}`); // <--- USAR INSTANCIA API Y RUTA CORRECTA
         console.log('Datos recibidos de Uso/Devolución:', response.data);
 
         if (!response.data || !response.data.id) {
@@ -186,10 +186,11 @@ const EditarUsoDevolucion: React.FC<EditarUsoDevolucionProps> = ({
       setCancelando(true);
       setError(null);
 
-      // Llamada a la API para cancelar la operación
-      // TODO: Ajustar el endpoint y payload según tu API
-      await axios.post(`${API_URL}/uso-devolucion/cancelar/${operacionData.id}`, {
-        // Podrías enviar el movimientoId si el backend lo necesita para crear el inverso
+      // await axios.post(`${API_URL}/uso-devolucion/cancelar/${operacionData.id}`, { // <--- LÍNEA ANTIGUA
+      //   movimientoId: operacionData.movimientoId,
+      //   razon: `Cancelación de ${operacionData.tipo.toLowerCase()} ID ${operacionData.id}`
+      // });
+      await api.post(`/api/uso-devolucion/cancelar/${operacionData.id}`, { // <--- USAR INSTANCIA API Y RUTA CORRECTA
         movimientoId: operacionData.movimientoId,
         razon: `Cancelación de ${operacionData.tipo.toLowerCase()} ID ${operacionData.id}`
       });

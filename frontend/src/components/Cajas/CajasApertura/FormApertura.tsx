@@ -26,7 +26,7 @@ import { useCajas } from '../CajasContext';
 import { Maletin, FormularioApertura, SaldoServicio } from '../interfaces';
 import { formatearMontoConSeparadores, formatearMontoServicio } from '../helpers';
 import { handleInputClick } from '../../../utils/inputUtils';
-import axios from 'axios';
+import api from '../../../services/api';
 
 interface FormAperturaProps {
   open: boolean;
@@ -154,7 +154,7 @@ const FormApertura: React.FC<FormAperturaProps> = ({ open, onClose }) => {
 
     try {
       // Enviar los datos al backend para crear la nueva caja
-      const response = await axios.post('/api/cajas', formApertura);
+      const response = await api.post('/api/cajas', formApertura);
 
       if (response.status === 201) {
         setSuccessMessage('Caja abierta correctamente');

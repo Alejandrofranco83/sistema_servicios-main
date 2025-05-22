@@ -29,11 +29,10 @@ import {
   LocalAtm as LocalAtmIcon
 } from '@mui/icons-material';
 import axios from 'axios';
+import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { obtenerPersonasConSaldo, SaldoPersona } from '../../services/usoDevolucionService';
 import { useCotizacion } from '../../contexts/CotizacionContext';
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
 
 // Interfaz para las cotizaciones
 interface Cotizaciones {
@@ -149,7 +148,7 @@ const ActivoPasivo: React.FC = () => {
       console.log('Usando cotización vigente:', cotizacionVigente);
 
       // Realizar la misma llamada que hace BalanceFarmaciaLista
-      const response = await axios.get(`${API_URL}/movimientos-farmacia`, {
+      const response = await api.get(`/api/movimientos-farmacia`, {
         params: {
           page: 1,
           limit: 1 // Solo necesitamos obtener el total, no los movimientos
@@ -157,21 +156,21 @@ const ActivoPasivo: React.FC = () => {
       });
 
       // Obtener los balances exactos de cada moneda
-      const guaraniesResponse = await axios.get(`${API_URL}/movimientos-farmacia`, {
+      const guaraniesResponse = await api.get(`/api/movimientos-farmacia`, {
         params: {
           monedaCodigo: 'PYG',
           soloTotal: true
         }
       });
       
-      const dolaresResponse = await axios.get(`${API_URL}/movimientos-farmacia`, {
+      const dolaresResponse = await api.get(`/api/movimientos-farmacia`, {
         params: {
           monedaCodigo: 'USD',
           soloTotal: true
         }
       });
       
-      const realesResponse = await axios.get(`${API_URL}/movimientos-farmacia`, {
+      const realesResponse = await api.get(`/api/movimientos-farmacia`, {
         params: {
           monedaCodigo: 'BRL',
           soloTotal: true
@@ -309,7 +308,7 @@ const ActivoPasivo: React.FC = () => {
       const fechaFormateada = hoy.toISOString().split('T')[0]; // Formato YYYY-MM-DD
       
       // Hacer la llamada a la API con la misma fecha como inicio y fin
-      const response = await axios.get(`${API_URL}/aquipago/movimientos`, {
+      const response = await api.get(`/api/aquipago/movimientos`, {
         params: {
           fechaInicio: fechaFormateada,
           fechaFin: fechaFormateada
@@ -346,7 +345,7 @@ const ActivoPasivo: React.FC = () => {
   const cargarBalanceWepaGs = async () => {
     try {
       // Usar el nuevo endpoint de balance global
-      const response = await axios.get(`${API_URL}/weno-gs/balance-global`);
+      const response = await api.get(`/api/weno-gs/balance-global`);
 
       // Verificar si la respuesta contiene el valor totalADepositar
       const totalADepositar = response.data.totalADepositar || 0;
@@ -378,7 +377,7 @@ const ActivoPasivo: React.FC = () => {
   const cargarBalanceWepaUsd = async () => {
     try {
       // Usar el nuevo endpoint de balance global en lugar de filtrar por fecha
-      const response = await axios.get(`${API_URL}/wepa-usd/balance-global`);
+      const response = await api.get(`/api/wepa-usd/balance-global`);
 
       // Verificar si la respuesta contiene el valor totalADepositar
       const totalADepositar = response.data.totalADepositar || 0;
@@ -485,7 +484,7 @@ const ActivoPasivo: React.FC = () => {
   const obtenerEfectivoEnCajas = async (): Promise<number> => {
     try {
       console.log('Obteniendo efectivo en cajas desde el nuevo endpoint...');
-      const response = await axios.get(`${API_URL}/activo-pasivo/efectivo-en-cajas`);
+      const response = await api.get(`/api/activo-pasivo/efectivo-en-cajas`);
       
       if (!response.data || typeof response.data.totalEfectivoEnCajas !== 'number') {
         console.error('Respuesta inválida del endpoint de efectivo en cajas:', response.data);
@@ -533,7 +532,7 @@ const ActivoPasivo: React.FC = () => {
       
       // 1. Obtener TODAS las cajas cerradas directamente (para asegurar tener las más recientes)
       console.log('Obteniendo todas las cajas cerradas...');
-      const respCajasCerradas = await axios.get(`${API_URL}/cajas?estado=cerrada`);
+      const respCajasCerradas = await api.get(`/api/cajas?estado=cerrada`);
       const cajasCerradas = respCajasCerradas.data || [];
       console.log(`Encontradas ${cajasCerradas.length} cajas cerradas`);
       
@@ -604,7 +603,7 @@ const ActivoPasivo: React.FC = () => {
       
       // 2. Obtener datos de comparaciones como respaldo (por si acaso)
       console.log('Obteniendo comparaciones de maletines (verificación adicional)...');
-      const respComparaciones = await axios.get(`${API_URL}/diferencias/maletines/comparaciones`);
+      const respComparaciones = await api.get(`/api/diferencias/maletines/comparaciones`);
       const comparaciones = respComparaciones.data.comparaciones || [];
       console.log(`Encontradas ${comparaciones.length} comparaciones de maletines`);
       
@@ -663,7 +662,7 @@ const ActivoPasivo: React.FC = () => {
       
       // 3. Obtener cajas abiertas (estas tienen prioridad sobre todo lo demás)
       console.log('Obteniendo cajas abiertas...');
-      const respCajas = await axios.get(`${API_URL}/cajas?estado=abierta`);
+      const respCajas = await api.get(`/api/cajas?estado=abierta`);
       const cajasAbiertas = respCajas.data || [];
       console.log(`Encontradas ${cajasAbiertas.length} cajas abiertas`);
       
@@ -798,7 +797,7 @@ const ActivoPasivo: React.FC = () => {
   const obtenerSaldosServicios = async (): Promise<number> => {
     try {
       console.log('Obteniendo saldos en servicios desde el nuevo endpoint...');
-      const response = await axios.get(`${API_URL}/activo-pasivo/saldos-servicios`);
+      const response = await api.get(`/api/activo-pasivo/saldos-servicios`);
       
       if (!response.data || typeof response.data.totalSaldosServicios !== 'number') {
         console.error('Respuesta inválida del endpoint de saldos en servicios:', response.data);
@@ -841,7 +840,7 @@ const ActivoPasivo: React.FC = () => {
       
       // 1. Obtener TODAS las cajas cerradas
       console.log('Obteniendo saldos de servicios de cajas cerradas...');
-      const respCajasCerradas = await axios.get(`${API_URL}/cajas?estado=cerrada`);
+      const respCajasCerradas = await api.get(`/api/cajas?estado=cerrada`);
       const cajasCerradas = respCajasCerradas.data || [];
       console.log(`Encontradas ${cajasCerradas.length} cajas cerradas para verificar saldos de servicios`);
       
@@ -903,7 +902,7 @@ const ActivoPasivo: React.FC = () => {
       
       // 2. Obtener cajas abiertas (estas tienen prioridad sobre las cerradas)
       console.log('Obteniendo saldos de servicios de cajas abiertas...');
-      const respCajas = await axios.get(`${API_URL}/cajas?estado=abierta`);
+      const respCajas = await api.get(`/api/cajas?estado=abierta`);
       const cajasAbiertas = respCajas.data || [];
       console.log(`Encontradas ${cajasAbiertas.length} cajas abiertas para verificar saldos de servicios`);
       

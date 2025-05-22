@@ -29,10 +29,11 @@ import {
 } from '@mui/icons-material';
 import { formatCurrency } from '../../utils/formatUtils';
 import { handleInputClick } from '../../utils/inputUtils';
-import axios from 'axios';
+// import axios from 'axios'; // <--- ELIMINAR O COMENTAR
+import api from '../../services/api'; // <--- IMPORTAR LA INSTANCIA API
 
 // Constante con la URL base de la API
-const API_URL = 'http://localhost:3000/api';
+// const API_URL = 'http://localhost:3000/api'; // <--- ELIMINAR ESTA LÍNEA
 
 /**
  * Componente para ver, cancelar o editar depósitos bancarios
@@ -90,6 +91,8 @@ const CancelarDeposito: React.FC<CancelarDepositoProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const backendBaseUrl = api.defaults.baseURL; // <--- OBTENER BASE_URL DE LA INSTANCIA API
+
   // Cargar datos del depósito según el movimientoId
   useEffect(() => {
     const cargarDeposito = async () => {
@@ -112,7 +115,8 @@ const CancelarDeposito: React.FC<CancelarDepositoProps> = ({
 
         console.log(`Cargando datos del depósito para el movimiento ID: ${movimientoId}`);
         
-        const response = await axios.get(`${API_URL}/depositos-bancarios/por-movimiento/${movimientoId}`);
+        // const response = await axios.get(`${API_URL}/depositos-bancarios/por-movimiento/${movimientoId}`); // <--- LÍNEA ANTIGUA
+        const response = await api.get(`/api/depositos-bancarios/por-movimiento/${movimientoId}`); // <--- USAR INSTANCIA API Y RUTA CORRECTA
         console.log('Datos recibidos de Depósito:', response.data);
 
         if (!response.data || !response.data.id) {
@@ -242,7 +246,11 @@ const CancelarDeposito: React.FC<CancelarDepositoProps> = ({
       setCancelando(true);
       setError(null);
 
-      await axios.post(`${API_URL}/depositos-bancarios/cancelar/${depositoData.id}`, {
+      // await axios.post(`${API_URL}/depositos-bancarios/cancelar/${depositoData.id}`, { // <--- LÍNEA ANTIGUA
+      //   movimientoId: depositoData.movimientoId,
+      //   razon: razonCancelacion
+      // });
+      await api.post(`/api/depositos-bancarios/cancelar/${depositoData.id}`, { // <--- USAR INSTANCIA API Y RUTA CORRECTA
         movimientoId: depositoData.movimientoId,
         razon: razonCancelacion
       });
@@ -283,7 +291,12 @@ const CancelarDeposito: React.FC<CancelarDepositoProps> = ({
       formData.append('movimientoId', depositoData.movimientoId.toString());
 
       try {
-          const response = await axios.put(`${API_URL}/depositos-bancarios/${depositoData.id}`, formData, {
+          // const response = await axios.put(`${API_URL}/depositos-bancarios/${depositoData.id}`, formData, { // <--- LÍNEA ANTIGUA
+          //     headers: {
+          //         'Content-Type': 'multipart/form-data',
+          //     },
+          // });
+          const response = await api.put(`/api/depositos-bancarios/${depositoData.id}`, formData, { // <--- USAR INSTANCIA API Y RUTA CORRECTA
               headers: {
                   'Content-Type': 'multipart/form-data',
               },
@@ -491,7 +504,7 @@ const CancelarDeposito: React.FC<CancelarDepositoProps> = ({
                           )}
                           {!selectedFile && depositoData.rutaComprobante && (
                               <Typography variant="body2">
-                                  Actual: <a href={`${API_URL}/uploads/${depositoData.rutaComprobante}`} target="_blank" rel="noopener noreferrer">{depositoData.rutaComprobante.split('/').pop()}</a>
+                                  Actual: <a href={`${backendBaseUrl}/uploads/${depositoData.rutaComprobante}`} target="_blank" rel="noopener noreferrer">{depositoData.rutaComprobante.split('/').pop()}</a>
                               </Typography>
                           )}
                           {selectedFile && (

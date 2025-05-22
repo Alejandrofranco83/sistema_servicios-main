@@ -1,7 +1,8 @@
-import axios from 'axios';
+import api from './api'; // Importar instancia global de Axios
+// import axios from 'axios'; // Eliminar axios directo
 
-// URL base de la API
-const API_URL = 'http://localhost:3000/api';
+// // URL base de la API // Eliminada
+// const API_URL = 'http://localhost:3000/api'; // Eliminada
 
 export interface OperacionBancaria {
   id?: string;
@@ -42,7 +43,8 @@ const operacionBancariaService = {
   // Obtener todas las operaciones bancarias
   getAllOperacionesBancarias: async (): Promise<OperacionBancaria[]> => {
     try {
-      const response = await axios.get(`${API_URL}/operaciones-bancarias`);
+      // const response = await axios.get(`${API_URL}/operaciones-bancarias`); // Antigua
+      const response = await api.get('/api/operaciones-bancarias'); // Corregida
       return response.data;
     } catch (error: any) {
       console.error('Error al obtener operaciones bancarias:', error.message);
@@ -53,7 +55,8 @@ const operacionBancariaService = {
   // Obtener operaciones bancarias por ID de caja
   getOperacionesBancariasByCajaId: async (cajaId: string): Promise<OperacionBancaria[]> => {
     try {
-      const response = await axios.get(`${API_URL}/operaciones-bancarias/caja/${cajaId}`);
+      // const response = await axios.get(`${API_URL}/operaciones-bancarias/caja/${cajaId}`); // Antigua
+      const response = await api.get(`/api/operaciones-bancarias/caja/${cajaId}`); // Corregida
       return response.data;
     } catch (error: any) {
       console.error(`Error al obtener operaciones bancarias para caja ${cajaId}:`, error.message);
@@ -64,7 +67,8 @@ const operacionBancariaService = {
   // Obtener una operación bancaria por ID
   getOperacionBancariaById: async (id: string): Promise<OperacionBancaria> => {
     try {
-      const response = await axios.get(`${API_URL}/operaciones-bancarias/${id}`);
+      // const response = await axios.get(`${API_URL}/operaciones-bancarias/${id}`); // Antigua
+      const response = await api.get(`/api/operaciones-bancarias/${id}`); // Corregida
       return response.data;
     } catch (error: any) {
       console.error(`Error al obtener operación bancaria ${id}:`, error.message);
@@ -86,7 +90,8 @@ const operacionBancariaService = {
         formData.append('data', JSON.stringify(data));
         formData.append('comprobante', comprobante);
         
-        const response = await axios.post(`${API_URL}/operaciones-bancarias`, formData, {
+        // const response = await axios.post(`${API_URL}/operaciones-bancarias`, formData, { // Antigua
+        const response = await api.post('/api/operaciones-bancarias', formData, { // Corregida
           headers: {
             'Content-Type': 'multipart/form-data'
           }
@@ -95,7 +100,8 @@ const operacionBancariaService = {
         return response.data;
       } else {
         // Si no hay archivo, enviar JSON directamente
-        const response = await axios.post(`${API_URL}/operaciones-bancarias`, data);
+        // const response = await axios.post(`${API_URL}/operaciones-bancarias`, data); // Antigua
+        const response = await api.post('/api/operaciones-bancarias', data); // Corregida
         return response.data;
       }
     } catch (error: any) {
@@ -119,7 +125,8 @@ const operacionBancariaService = {
         formData.append('data', JSON.stringify(data));
         formData.append('comprobante', comprobante);
         
-        const response = await axios.put(`${API_URL}/operaciones-bancarias/${id}`, formData, {
+        // const response = await axios.put(`${API_URL}/operaciones-bancarias/${id}`, formData, { // Antigua
+        const response = await api.put(`/api/operaciones-bancarias/${id}`, formData, { // Corregida
           headers: {
             'Content-Type': 'multipart/form-data'
           }
@@ -128,7 +135,8 @@ const operacionBancariaService = {
         return response.data;
       } else {
         // Si no hay archivo, enviar JSON directamente
-        const response = await axios.put(`${API_URL}/operaciones-bancarias/${id}`, data);
+        // const response = await axios.put(`${API_URL}/operaciones-bancarias/${id}`, data); // Antigua
+        const response = await api.put(`/api/operaciones-bancarias/${id}`, data); // Corregida
         return response.data;
       }
     } catch (error: any) {
@@ -140,7 +148,8 @@ const operacionBancariaService = {
   // Eliminar una operación bancaria
   deleteOperacionBancaria: async (id: string): Promise<void> => {
     try {
-      await axios.delete(`${API_URL}/operaciones-bancarias/${id}`);
+      // await axios.delete(`${API_URL}/operaciones-bancarias/${id}`); // Antigua
+      await api.delete(`/api/operaciones-bancarias/${id}`); // Corregida
     } catch (error: any) {
       console.error(`Error al eliminar operación bancaria ${id}:`, error.message);
       throw error;

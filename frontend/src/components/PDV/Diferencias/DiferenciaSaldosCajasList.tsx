@@ -22,7 +22,7 @@ import {
   Collapse,
   TablePagination
 } from '@mui/material';
-import axios from 'axios';
+import api from '../../../services/api';
 import { formatearMontoConSeparadores } from '../../Cajas/helpers';
 import { es } from 'date-fns/locale';
 import { format, parseISO } from 'date-fns';
@@ -91,8 +91,8 @@ const DiferenciaSaldosCajasList: React.FC<DiferenciaSaldosCajasListProps> = ({ p
       setLoading(true);
       setError(null);
       try {
-        const response = await axios.get<{ comparaciones: ComparacionSaldosServicios[] }>( // Espera objeto con 'comparaciones'
-          `${process.env.REACT_APP_API_URL}/diferencias/saldos-servicios/comparaciones`
+        const response = await api.get<{ comparaciones: ComparacionSaldosServicios[] }>( // Espera objeto con 'comparaciones'
+          `/api/diferencias/saldos-servicios/comparaciones`
         );
 
         let comparacionesArray = response.data.comparaciones;
@@ -112,8 +112,8 @@ const DiferenciaSaldosCajasList: React.FC<DiferenciaSaldosCajasListProps> = ({ p
         setDatosComparaciones(comparacionesArray);
       } catch (err) {
         console.error("Error fetching diferencias saldos servicios:", err);
-        if (axios.isAxiosError(err) && err.response?.status === 401) {
-          setError("No autorizado. Por favor, inicie sesión de nuevo.");
+        if (err instanceof Error) {
+          setError(err.message || "Error al cargar las diferencias de saldos de servicios.");
         } else {
           setError("Error al cargar las diferencias de saldos de servicios.");
         }

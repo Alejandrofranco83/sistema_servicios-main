@@ -73,7 +73,7 @@ import AnularPagoServicio from './AnularPagoServicio';
 import DevolverRetiro from './DevolverRetiro';
 import { cajaMayorService } from '../../services/api';
 import cotizacionExternaService from '../../services/cotizacionExternaService';
-import axios from 'axios';
+import api from '../../services/api';
 
 // Definir TipoMoneda para representar las abreviaturas estándar
 type TipoMoneda = 'PYG' | 'USD' | 'BRL';
@@ -127,9 +127,6 @@ interface CambioDetalles {
   observacion?: string;
   fecha?: string;
 }
-
-// Constante con la URL base de la API
-const API_URL = 'http://localhost:3000/api';
 
 // Componentes para símbolos de moneda personalizados
 const GuaraniesIcon = () => (
@@ -636,14 +633,12 @@ const Balance: React.FC = () => {
   const editarMovimiento = (movimientoId: string, tipo: string) => {
     console.log(`Editando movimiento tipo: ${tipo} con ID: ${movimientoId}`);
     
-    setSelectedMovimientoId(Number(movimientoId));
+    const movimientoNumericoId = Number(movimientoId);
+    setSelectedMovimientoId(movimientoNumericoId);
     
     // Si es un movimiento de tipo Recepción Retiro, usar nuestro componente de devolución
     if (tipo === 'Recepción Retiro') {
-      // Buscar el movimiento para obtener el retiroId o movimientoId
-      const movimiento = movimientosMonedaActiva.find(m => m.id.toString() === movimientoId) as Movimiento | undefined;
-      
-      // Usar retiroId o movimientoId, según cuál esté disponible
+      const movimiento = movimientosMonedaActiva.find(m => m.id === movimientoNumericoId);
       const idRetiro = movimiento?.retiroId || movimiento?.movimientoId;
       
       if (movimiento && idRetiro) {
@@ -656,7 +651,6 @@ const Balance: React.FC = () => {
       return;
     }
     
-    // Determinar qué dialog abrir según el tipo de movimiento
     const tipoNormalizado = tipo.toLowerCase();
     
     if (tipoNormalizado === 'vales') {
@@ -664,13 +658,24 @@ const Balance: React.FC = () => {
     } else if (tipoNormalizado === 'uso y devolución') {
       setEditarUsoDevolucionOpen(true);
     } else if (tipoNormalizado.includes('depósito') || tipoNormalizado.includes('deposito')) {
-      // Para depósitos bancarios utilizamos el componente independiente CancelarDeposito
       setCancelarDepositoOpen(true);
     } else if (tipoNormalizado === 'pago servicio') {
-      // Para pagos de servicios mostramos el dialog de anulación
       setAnularPagoServicioOpen(true);
+    } else if (tipoNormalizado === 'cambio') {
+      // Encontrar el operacionId del movimiento de cambio
+      const movimientoCambio = movimientosMonedaActiva.find(m => m.id === movimientoNumericoId);
+      if (movimientoCambio && movimientoCambio.operacionId) {
+        setSelectedCambioId(movimientoCambio.operacionId); // Guardar el ID del CAMBIO (operacionId)
+        setEliminarCambioOpen(true); // Abrir el diálogo para eliminar/cancelar el cambio
+      } else {
+        console.error('No se pudo obtener el operacionId para el movimiento de cambio:', movimientoId);
+        setError('No se pudo obtener la información necesaria para anular este cambio.');
+      }
     } else {
       console.warn(`No hay editor definido para el tipo: ${tipo}`);
+      // Opcionalmente, mostrar un mensaje al usuario si no hay acción definida
+      // setErrorDialogMessage(`No hay una acción de edición definida para movimientos de tipo "${tipo}".`);
+      // setErrorDialogOpen(true);
     }
   };
 
@@ -683,14 +688,14 @@ const Balance: React.FC = () => {
     console.log(`[Balance] Verificando estado para imprimir vale (Movimiento ID: ${movimientoId})...`);
 
     try {
-      const movimientoResponse = await axios.get(`${API_URL}/caja_mayor_movimientos/${movimientoId}`);
+      const movimientoResponse = await api.get(`/api/caja_mayor_movimientos/${movimientoId}`);
       const operacionId = movimientoResponse.data?.operacionId;
 
       if (!operacionId) {
         throw new Error('No se pudo obtener el ID de operación del vale.');
       }
 
-      const valeResponse = await axios.get(`${API_URL}/vales/${operacionId}`);
+      const valeResponse = await api.get(`/api/vales/${operacionId}`);
       const estadoVale = valeResponse.data?.estado;
       const motivoCancelacion = valeResponse.data?.motivo_cancelacion; 
 
@@ -752,7 +757,7 @@ const Balance: React.FC = () => {
 
       const promises = idsToFetch.map(async (id) => {
         try {
-          const response = await axios.get<CambioDetalles>(`${API_URL}/cambios-moneda/${id}`);
+          const response = await api.get<CambioDetalles>(`/api/cambios-moneda/${id}`);
           if (response.data) {
             return { id, details: response.data };
           }
@@ -903,9 +908,16 @@ const Balance: React.FC = () => {
         height: '100%'
       }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h5">
-            Balance de Caja Mayor
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Typography variant="h5" sx={{ mr: 2 }}>
+              Balance de Caja Mayor
+            </Typography>
+            {verificandoEstadoVale && 
+              <Alert severity="info" sx={{ py: 0, px: 1, mr: 2 }}>
+                Verificando estado del vale...
+              </Alert>
+            }
+          </Box>
           
           {/* Botones de acciones */}
           <ButtonGroup variant="outlined" size="small">
@@ -948,9 +960,6 @@ const Balance: React.FC = () => {
           </ButtonGroup>
         </Box>
 
-        {verificandoEstadoVale && 
-          <Alert severity="info" sx={{ mb: 2 }}>Verificando estado del vale...</Alert>
-        }
         {error && (
           <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
             {error}

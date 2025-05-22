@@ -5,6 +5,7 @@ import { useSucursal } from '../../contexts/SucursalContext';
 import { Caja, Maletin, FormularioApertura, Retiro, OperacionBancaria, Persona, FormRetiro, Pago, FormPago } from './interfaces';
 import { cajaInicial, denominacionesGuaranies, denominacionesReales, denominacionesDolares, serviciosIniciales } from './constants';
 import operacionBancariaService from '../../services/operacionBancariaService';
+import api from '../../services/api';
 
 // Definir la interfaz del contexto
 interface CajasContextType {
@@ -605,6 +606,10 @@ export const CajasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     
     const serviciosReseteados = serviciosIniciales.map(s => ({...s, monto: 0}));
     
+    // DEBUG: Verificar sucursal y usuario
+    console.log('[DEBUG CajasContext] handleNuevaCaja - sucursalActual:', sucursalActual);
+    console.log('[DEBUG CajasContext] handleNuevaCaja - user:', user);
+    
     // Resetear el formulario completo con valores iniciales
     setFormApertura({
       sucursalId: sucursalActual?.id || '',
@@ -939,9 +944,9 @@ export const CajasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     try {
       setLoading(true);
       
-      // Realizar la petición de cierre
-      await axios.put(
-        `${process.env.REACT_APP_API_URL}/cajas/${cajaSeleccionada.id}/cerrar`,
+      // Realizar la petición de cierre usando la instancia global de API
+      await api.put(
+        `/api/cajas/${cajaSeleccionada.id}/cerrar`,
         datosCierre
       );
       

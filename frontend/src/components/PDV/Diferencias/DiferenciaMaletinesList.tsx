@@ -22,7 +22,7 @@ import {
   Collapse,
   TablePagination
 } from '@mui/material';
-import axios from 'axios';
+import api from '../../../services/api';
 import { formatearMontoConSeparadores } from '../../Cajas/helpers'; // Ajusta la ruta si es necesario
 import { es } from 'date-fns/locale';
 import { format, parseISO } from 'date-fns';
@@ -65,8 +65,8 @@ const DiferenciaMaletinesList: React.FC<DiferenciaMaletinesListProps> = ({ propG
       setError(null);
       try {
         // Llamar al endpoint real y especificar el tipo de respuesta esperado
-        const response = await axios.get<{ comparaciones: ComparacionMaletin[] }>(
-          `${process.env.REACT_APP_API_URL}/diferencias/maletines/comparaciones`
+        const response = await api.get<{ comparaciones: ComparacionMaletin[] }>(
+          `/api/diferencias/maletines/comparaciones`
         );
 
         // Extraer el array de la propiedad 'comparaciones'
@@ -95,10 +95,10 @@ const DiferenciaMaletinesList: React.FC<DiferenciaMaletinesListProps> = ({ propG
       } catch (err) {
         console.error("Error fetching diferencias maletines:", err);
         // Mostrar un error más específico si es posible
-        if (axios.isAxiosError(err) && err.response?.status === 401) {
-             setError("No autorizado. Por favor, inicie sesión de nuevo.");
+        if (err instanceof Error) {
+          setError(err.message || "Error al cargar las diferencias de maletines desde el servidor.");
         } else {
-             setError("Error al cargar las diferencias de maletines desde el servidor.");
+          setError("Error al cargar las diferencias de maletines desde el servidor.");
         }
         setDatosComparaciones([]); // Limpiar datos en caso de error
       } finally {
