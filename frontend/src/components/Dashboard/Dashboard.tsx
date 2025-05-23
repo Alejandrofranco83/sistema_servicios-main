@@ -50,7 +50,7 @@ import {
   Print as PrintIcon,
   Assessment as AssessmentIcon,
 } from '@mui/icons-material';
-import axios from 'axios';
+import api from '../../services/api';
 import Usuarios from '../Usuarios/Usuarios';
 import Personas from '../Personas/Personas';
 import Roles from '../Roles/Roles';
@@ -136,7 +136,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onToggleTheme, isDarkMode }) => {
     }
 
     // Configurar el token para todas las solicitudes
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
   }, [navigate]);
 
   // Expandir el menú Operaciones para el rol OPERADOR

@@ -16,7 +16,7 @@ import {
   Chip
 } from '@mui/material';
 import { formatCurrency } from '../../utils/formatUtils';
-import axios from 'axios';
+import api from '../../services/api';
 import { Close as CloseIcon } from '@mui/icons-material';
 
 interface AnularPagoServicioProps {
@@ -65,13 +65,13 @@ const AnularPagoServicio: React.FC<AnularPagoServicioProps> = ({
       
       try {
         // Primero obtenemos el ID del pago desde el movimiento
-        const movResponse = await axios.get(`/api/caja_mayor_movimientos/${movimientoId}`);
+        const movResponse = await api.get(`/api/caja_mayor_movimientos/${movimientoId}`);
         if (movResponse.data && movResponse.data.pagoServicioId) {
           const pagoId = movResponse.data.pagoServicioId;
           setPagoServicioId(pagoId);
           
           // Luego obtenemos los detalles del pago
-          const pagoResponse = await axios.get(`/api/pagos-servicios/${pagoId}`);
+          const pagoResponse = await api.get(`/api/pagos-servicios/${pagoId}`);
           if (pagoResponse.data) {
             setPagoServicio(pagoResponse.data);
           } else {
@@ -108,7 +108,7 @@ const AnularPagoServicio: React.FC<AnularPagoServicioProps> = ({
     
     try {
       // 1. Cambiar estado del pago a ANULADO
-      const response = await axios.patch(`/api/pagos-servicios/${pagoServicioId}/estado`, {
+      const response = await api.patch(`/api/pagos-servicios/${pagoServicioId}/estado`, {
         estado: 'ANULADO',
         observacionAnulacion: observacionAnulacion.trim().toUpperCase()
       });

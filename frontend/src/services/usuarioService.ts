@@ -1,4 +1,4 @@
-import axios from 'axios';
+import api from './api'; // Usar instancia global configurada
 import { Persona } from './personaService'; // Se mantiene esta importación
 
 // SE ELIMINA LA CONSTANTE API_BASE_URL de aquí
@@ -49,8 +49,7 @@ export const usuarioService = {
         // No loguear la contraseña en producción
       });
       
-      // Ruta relativa, usa la baseURL global de App.tsx
-      const response = await axios.post('/api/auth/login', { 
+      const response = await api.post('/api/auth/login', { 
         username: credentials.username.toUpperCase(),
         password: credentials.password,
       });
@@ -70,8 +69,7 @@ export const usuarioService = {
   getUsuarios: async (): Promise<Usuario[]> => {
     try {
       console.log('Obteniendo todos los usuarios desde: /api/usuarios');
-      // Ruta relativa
-      const response = await axios.get('/api/usuarios'); 
+      const response = await api.get('/api/usuarios'); 
       console.log('Respuesta del servidor (getUsuarios):', response.data);
       return response.data;
     } catch (error: any) {
@@ -87,8 +85,7 @@ export const usuarioService = {
   getUsuarioById: async (id: number): Promise<Usuario> => {
     try {
       console.log(`Obteniendo usuario por ID desde: /api/usuarios/${id}`);
-      // Ruta relativa
-      const response = await axios.get(`/api/usuarios/${id}`); 
+      const response = await api.get(`/api/usuarios/${id}`); 
       console.log(`Respuesta del servidor (getUsuarioById ${id}):`, response.data);
       return response.data;
     } catch (error: any) {
@@ -105,8 +102,7 @@ export const usuarioService = {
     try {
       console.log('Creando usuario con datos:', usuario);
       console.log('URL para crear usuario: /api/usuarios');
-      // Ruta relativa
-      const response = await axios.post('/api/usuarios', usuario); 
+      const response = await api.post('/api/usuarios', usuario); 
       console.log('Respuesta del servidor (createUsuario):', response.data);
       return response.data;
     } catch (error: any) {
@@ -123,8 +119,7 @@ export const usuarioService = {
     try {
       console.log(`Actualizando usuario ${id} con datos:`, usuario);
       console.log(`URL para actualizar usuario: /api/usuarios/${id}`);
-      // Ruta relativa
-      const response = await axios.put(`/api/usuarios/${id}`, usuario); 
+      const response = await api.put(`/api/usuarios/${id}`, usuario); 
       console.log(`Respuesta del servidor (updateUsuario ${id}):`, response.data);
       return response.data;
     } catch (error: any) {
@@ -141,8 +136,7 @@ export const usuarioService = {
     try {
       console.log(`Eliminando usuario con ID: ${id}`);
       console.log(`URL para eliminar usuario: /api/usuarios/${id}`);
-      // Ruta relativa
-      await axios.delete(`/api/usuarios/${id}`); 
+      await api.delete(`/api/usuarios/${id}`); 
       console.log(`Usuario ${id} eliminado exitosamente.`);
     } catch (error: any) {
       console.error(`Error al eliminar usuario ${id}:`, error.message);
@@ -158,8 +152,7 @@ export const usuarioService = {
     try {
       console.log(`Reseteando contraseña para usuario ID: ${id}`);
       console.log(`URL para resetear contraseña: /api/usuarios/${id}/reset-password`);
-      // Ruta relativa
-      await axios.post(`/api/usuarios/${id}/reset-password`); 
+      await api.post(`/api/usuarios/${id}/reset-password`); 
       console.log(`Contraseña reseteada para usuario ${id}.`);
     } catch (error: any) {
       console.error(`Error al resetear contraseña del usuario ${id}:`, error.message);

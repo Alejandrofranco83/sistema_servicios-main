@@ -45,7 +45,7 @@ import {
 import { useCajas } from './CajasContext';
 import { formatearIdCaja, formatearMontoConSeparadores } from './helpers';
 import { useAuth } from '../../contexts/AuthContext';
-import { apiService } from '../../config/api';
+import api from '../../services/api';
 
 // Importar componentes refactorizados
 import { ListaRetiros } from './CajasRetiros';
@@ -118,7 +118,7 @@ const Cajas: React.FC = () => {
       if (isAdmin) {
         try {
           setLoadingSucursales(true);
-          const response = await apiService.sucursales.getAll();
+          const response = await api.get('/api/sucursales');
           if (response.data && Array.isArray(response.data)) {
             // Agregar opción "Todas" al inicio
             const sucursalesConTodas = [

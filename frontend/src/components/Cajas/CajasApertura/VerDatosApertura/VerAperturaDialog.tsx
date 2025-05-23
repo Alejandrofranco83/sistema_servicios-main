@@ -31,7 +31,6 @@ import {
   serviciosIniciales as serviciosDefault 
 } from '../../constants';
 import { Denominacion } from '../../interfaces';
-import axios from 'axios';
 import api from '../../../../services/api';
 
 interface VerAperturaDialogProps {

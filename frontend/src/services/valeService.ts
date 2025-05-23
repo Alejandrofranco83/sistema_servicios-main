@@ -1,4 +1,3 @@
-import axios from 'axios';
 import api from './api'; // Importar la instancia global
 
 // const API_BASE_URL = 'http://localhost:3000/api'; // ELIMINAR ESTA LÍNEA

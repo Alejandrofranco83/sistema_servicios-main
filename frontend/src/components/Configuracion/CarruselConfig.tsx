@@ -40,7 +40,7 @@ import {
   PointOfSale as PointOfSaleIcon,
   ArrowForward as ArrowForwardIcon
 } from '@mui/icons-material';
-import axios from 'axios';
+import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { scrollbarStyles } from '../../utils/scrollbarStyles';
 
@@ -117,7 +117,7 @@ const CarruselConfig: React.FC = () => {
       const token = localStorage.getItem('token');
       
       // Obtener los slides del backend
-      const response = await axios.get('/api/carousel/slides', {
+      const response = await api.get('/api/carousel/slides', {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -146,7 +146,7 @@ const CarruselConfig: React.FC = () => {
       const token = localStorage.getItem('token');
       
       // Obtener el panel informativo del backend
-      const response = await axios.get('/api/carousel/info-panel', {
+      const response = await api.get('/api/carousel/info-panel', {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -183,7 +183,7 @@ const CarruselConfig: React.FC = () => {
         // Actualizar el slide existente
         console.log('Actualizando slide existente:', currentSlide);
         
-        await axios.put(`/api/carousel/slides/${currentSlide.id}`, currentSlide, {
+        await api.put(`/api/carousel/slides/${currentSlide.id}`, currentSlide, {
           headers: { Authorization: `Bearer ${token}` }
         });
         
@@ -198,7 +198,7 @@ const CarruselConfig: React.FC = () => {
         // Crear un nuevo slide
         console.log('Creando nuevo slide:', currentSlide);
         
-        const response = await axios.post('/api/carousel/slides', currentSlide, {
+        const response = await api.post('/api/carousel/slides', currentSlide, {
           headers: { Authorization: `Bearer ${token}` }
         });
         
@@ -235,7 +235,7 @@ const CarruselConfig: React.FC = () => {
       console.log('Guardando panel informativo:', infoPanel);
       
       // Enviar la actualización al backend
-      const response = await axios.put('/api/carousel/info-panel', infoPanel, {
+      const response = await api.put('/api/carousel/info-panel', infoPanel, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -270,7 +270,7 @@ const CarruselConfig: React.FC = () => {
         console.log('Eliminando slide con ID:', id);
         
         // Eliminar el slide en el backend
-        await axios.delete(`/api/carousel/slides/${id}`, {
+        await api.delete(`/api/carousel/slides/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         
@@ -304,7 +304,7 @@ const CarruselConfig: React.FC = () => {
       console.log(`Cambiando orden del slide ${id} hacia ${direction}`);
       
       // Enviar la solicitud de reordenamiento al backend
-      await axios.post(`/api/carousel/slides/${id}/reorder`, 
+      await api.post(`/api/carousel/slides/${id}/reorder`, 
         { direction }, 
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -383,7 +383,7 @@ const CarruselConfig: React.FC = () => {
       
       // Subir la imagen al servidor
       const token = localStorage.getItem('token');
-      const response = await axios.post('/api/carousel/uploads', formData, {
+      const response = await api.post('/api/carousel/uploads', formData, {
         headers: { 
           'Content-Type': 'multipart/form-data',
           Authorization: `Bearer ${token}`

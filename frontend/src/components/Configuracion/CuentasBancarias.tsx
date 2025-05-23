@@ -24,13 +24,15 @@ import {
   MenuItem,
   SelectChangeEvent,
   Snackbar,
+  Grid,
+  Tooltip,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
 } from '@mui/icons-material';
-import axios from 'axios'; 
+import api from '../../services/api'; // Usar instancia global configurada
 import { useAuth } from '../../contexts/AuthContext';
 
 // Definimos las interfaces
@@ -50,8 +52,7 @@ const cuentaBancariaService = {
   getAllCuentasBancarias: async (): Promise<CuentaBancaria[]> => {
     try {
       console.log('Obteniendo cuentas bancarias desde: /api/cuentas-bancarias');
-      // Usamos ruta relativa con /api/
-      const response = await axios.get('/api/cuentas-bancarias');
+      const response = await api.get('/api/cuentas-bancarias');
       console.log('Respuesta del servidor (cuentas bancarias):', response.data);
       return response.data;
     } catch (error: any) {
@@ -68,8 +69,7 @@ const cuentaBancariaService = {
     try {
       console.log('Creando cuenta bancaria con datos:', cuenta);
       console.log('URL: /api/cuentas-bancarias');
-      // Usamos ruta relativa con /api/
-      const response = await axios.post('/api/cuentas-bancarias', cuenta);
+      const response = await api.post('/api/cuentas-bancarias', cuenta);
       console.log('Respuesta del servidor (crear cuenta):', response.data);
       return response.data;
     } catch (error: any) {
@@ -86,8 +86,7 @@ const cuentaBancariaService = {
     try {
       console.log(`Actualizando cuenta bancaria ${id} con datos:`, cuenta);
       console.log('URL:', `/api/cuentas-bancarias/${id}`);
-      // Usamos ruta relativa con /api/
-      const response = await axios.put(`/api/cuentas-bancarias/${id}`, cuenta);
+      const response = await api.put(`/api/cuentas-bancarias/${id}`, cuenta);
       console.log('Respuesta del servidor (actualizar cuenta):', response.data);
       return response.data;
     } catch (error: any) {
@@ -104,8 +103,7 @@ const cuentaBancariaService = {
     try {
       console.log(`Eliminando cuenta bancaria ${id}`);
       console.log('URL:', `/api/cuentas-bancarias/${id}`);
-      // Usamos ruta relativa con /api/
-      await axios.delete(`/api/cuentas-bancarias/${id}`);
+      await api.delete(`/api/cuentas-bancarias/${id}`);
       console.log(`Cuenta bancaria ${id} eliminada correctamente`);
     } catch (error: any) {
       console.error(`Error al eliminar cuenta bancaria ${id}:`, error.message);

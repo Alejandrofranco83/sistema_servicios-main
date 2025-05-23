@@ -1,4 +1,4 @@
-import axios from 'axios';
+import api from './api'; // Usar instancia global configurada
 
 // Ya no definimos API_BASE_URL ni axios.defaults aquí,
 // se asume que axios está configurado globalmente en App.tsx
@@ -21,7 +21,7 @@ export const personaService = {
   getPersonas: async (): Promise<Persona[]> => {
     try {
       console.log('Obteniendo personas desde: /api/personas');
-      const response = await axios.get('/api/personas'); // Ruta relativa
+      const response = await api.get('/api/personas');
       console.log('Respuesta del servidor (getPersonas):', response.data);
       return response.data;
     } catch (error: any) {
@@ -37,7 +37,7 @@ export const personaService = {
   getPersonaById: async (id: number): Promise<Persona> => {
     try {
       console.log(`Obteniendo persona por ID desde: /api/personas/${id}`);
-      const response = await axios.get(`/api/personas/${id}`); // Ruta relativa
+      const response = await api.get(`/api/personas/${id}`);
       console.log(`Respuesta del servidor (getPersonaById ${id}):`, response.data);
       return response.data;
     } catch (error: any) {
@@ -63,7 +63,7 @@ export const personaService = {
         fechaNacimiento: persona.fechaNacimiento ? new Date(persona.fechaNacimiento).toISOString() : null
       };
       
-      const response = await axios.post('/api/personas', personaData); // Ruta relativa
+      const response = await api.post('/api/personas', personaData);
       console.log('Respuesta del servidor (createPersona):', response.data);
       return response.data;
     } catch (error: any) {
@@ -88,7 +88,7 @@ export const personaService = {
         fechaNacimiento: persona.fechaNacimiento ? new Date(persona.fechaNacimiento).toISOString() : null
       };
       
-      const response = await axios.put(`/api/personas/${id}`, personaData); // Ruta relativa
+      const response = await api.put(`/api/personas/${id}`, personaData);
       console.log(`Respuesta del servidor (updatePersona ${id}):`, response.data);
       return response.data;
     } catch (error: any) {
@@ -105,7 +105,7 @@ export const personaService = {
     try {
       console.log(`Eliminando persona con ID: ${id}`);
       console.log(`URL para eliminar persona: /api/personas/${id}`);
-      await axios.delete(`/api/personas/${id}`); // Ruta relativa
+      await api.delete(`/api/personas/${id}`);
       console.log(`Persona ${id} eliminada exitosamente.`);
     } catch (error: any) {
       console.error(`Error al eliminar persona ${id}:`, error.message);
@@ -121,7 +121,7 @@ export const personaService = {
     try {
       console.log(`Buscando personas con query: "${query}"`);
       console.log(`URL para buscar personas: /api/personas/search?query=${encodeURIComponent(query)}`);
-      const response = await axios.get(`/api/personas/search?query=${encodeURIComponent(query)}`); // Ruta relativa
+      const response = await api.get(`/api/personas/search?query=${encodeURIComponent(query)}`);
       console.log(`Respuesta del servidor (searchPersonas "${query}"):`, response.data);
       return response.data;
     } catch (error: any) {

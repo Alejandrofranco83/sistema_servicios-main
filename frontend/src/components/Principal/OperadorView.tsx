@@ -25,7 +25,7 @@ import {
   Notifications as NotificationsIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../services/api';
 import { globalScrollbarStyles } from '../../utils/scrollbarStyles';
 
 // Interfaces para los datos del carrusel y panel informativo
@@ -70,7 +70,7 @@ const OperadorView: React.FC<OperadorViewProps> = ({ username }) => {
         console.log('Obteniendo datos del carrusel y panel informativo...');
         
         // Obtener slides activos del carrusel
-        const slidesResponse = await axios.get('/api/carousel/slides/active');
+        const slidesResponse = await api.get('/api/carousel/slides/active');
         console.log('Respuesta de slides:', slidesResponse.data);
         
         if (slidesResponse.data && slidesResponse.data.length > 0) {
@@ -91,7 +91,7 @@ const OperadorView: React.FC<OperadorViewProps> = ({ username }) => {
         }
         
         // Obtener información del panel
-        const infoPanelResponse = await axios.get('/api/carousel/info-panel');
+        const infoPanelResponse = await api.get('/api/carousel/info-panel');
         console.log('Respuesta del panel informativo:', infoPanelResponse.data);
         
         if (infoPanelResponse.data) {

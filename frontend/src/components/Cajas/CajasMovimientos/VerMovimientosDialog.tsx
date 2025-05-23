@@ -27,6 +27,7 @@ import { useCajas } from '../CajasContext';
 import { formatearIdCaja } from '../helpers';
 import { handleInputClick } from '../../../utils/inputUtils';
 import api from '../../../services/api';
+import { API_BASE_URL } from '../../../config';
 
 interface MovimientosData {
   tigo: {
@@ -538,7 +539,7 @@ const VerMovimientosDialog: React.FC<VerMovimientosDialogProps> = ({ open, onClo
           .then(response => {
             if (response.data && response.data.url) {
               // Obtener la URL base configurada para la aplicación
-              const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+              const apiBaseUrl = API_BASE_URL || '';
               
               // Obtener solo la parte de la ruta después del dominio
               let urlOriginal = response.data.url;

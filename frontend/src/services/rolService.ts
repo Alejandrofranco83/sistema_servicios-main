@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const API_BASE_URL = 'http://localhost:3000/api';
+import api from './api'; // Usar instancia global configurada
 
 export interface Permiso {
   id: number;
@@ -30,7 +28,7 @@ export const rolService = {
   // Obtener todos los roles
   getRoles: async (): Promise<Rol[]> => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/roles`);
+      const response = await api.get('/api/roles');
       return response.data;
     } catch (error: any) {
       console.error('Error al obtener roles:', error.message);
@@ -44,7 +42,7 @@ export const rolService = {
   // Obtener un rol por ID
   getRol: async (id: number): Promise<Rol> => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/roles/${id}`);
+      const response = await api.get(`/api/roles/${id}`);
       return response.data;
     } catch (error: any) {
       console.error(`Error al obtener rol ${id}:`, error.message);
@@ -55,7 +53,7 @@ export const rolService = {
   // Crear un nuevo rol
   createRol: async (rolData: RolInput): Promise<Rol> => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/roles`, rolData);
+      const response = await api.post('/api/roles', rolData);
       return response.data;
     } catch (error: any) {
       console.error('Error al crear rol:', error.message);
@@ -69,7 +67,7 @@ export const rolService = {
   // Actualizar un rol existente
   updateRol: async (id: number, rolData: Partial<RolInput>): Promise<Rol> => {
     try {
-      const response = await axios.put(`${API_BASE_URL}/roles/${id}`, rolData);
+      const response = await api.put(`/api/roles/${id}`, rolData);
       return response.data;
     } catch (error: any) {
       console.error(`Error al actualizar rol ${id}:`, error.message);
@@ -83,7 +81,7 @@ export const rolService = {
   // Eliminar un rol
   deleteRol: async (id: number): Promise<void> => {
     try {
-      await axios.delete(`${API_BASE_URL}/roles/${id}`);
+      await api.delete(`/api/roles/${id}`);
     } catch (error: any) {
       console.error(`Error al eliminar rol ${id}:`, error.message);
       if (error.response) {
@@ -96,7 +94,7 @@ export const rolService = {
   // Obtener todos los permisos disponibles
   getPermisos: async (): Promise<Permiso[]> => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/permisos`);
+      const response = await api.get('/api/permisos');
       return response.data;
     } catch (error: any) {
       console.error('Error al obtener permisos:', error.message);
@@ -110,7 +108,7 @@ export const rolService = {
   // Crear un nuevo permiso (para administradores)
   createPermiso: async (permisoData: Omit<Permiso, 'id' | 'createdAt' | 'updatedAt'>): Promise<Permiso> => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/permisos`, permisoData);
+      const response = await api.post('/api/permisos', permisoData);
       return response.data;
     } catch (error: any) {
       console.error('Error al crear permiso:', error.message);
@@ -124,7 +122,7 @@ export const rolService = {
   // Eliminar un permiso (para administradores)
   deletePermiso: async (id: number): Promise<void> => {
     try {
-      await axios.delete(`${API_BASE_URL}/permisos/${id}`);
+      await api.delete(`/api/permisos/${id}`);
     } catch (error: any) {
       console.error(`Error al eliminar permiso ${id}:`, error.message);
       if (error.response) {

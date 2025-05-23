@@ -27,7 +27,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import esLocale from 'date-fns/locale/es';
-import axios from 'axios';
+import api from '../../services/api';
 import { formatCurrency } from '../../utils/formatUtils';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DownloadIcon from '@mui/icons-material/Download';
@@ -65,7 +65,7 @@ interface WepaUsdConfig {
 const cuentaBancariaService = {
   getAllCuentasBancarias: async (): Promise<CuentaBancaria[]> => {
     try {
-      const response = await axios.get('/api/cuentas-bancarias');
+      const response = await api.get('/api/cuentas-bancarias');
       return response.data;
     } catch (error) {
       console.error('Error al obtener cuentas bancarias:', error);
@@ -77,10 +77,10 @@ const cuentaBancariaService = {
 const wepaUsdService = {
   getLatestConfig: async (): Promise<WepaUsdConfig | null> => {
     try {
-      const response = await axios.get('/api/configuracion/wepa-usd/actual');
+      const response = await api.get('/api/configuracion/wepa-usd/actual');
       return response.data;
-    } catch (error) {
-      if (axios.isAxiosError(error) && error.response?.status === 404) {
+    } catch (error: any) {
+      if (error.response?.status === 404) {
         return null; // No hay configuración
       }
       console.error('Error al obtener configuración actual:', error);
@@ -90,7 +90,7 @@ const wepaUsdService = {
   
   getConfigHistory: async (): Promise<WepaUsdConfig[]> => {
     try {
-      const response = await axios.get('/api/configuracion/wepa-usd/historial');
+      const response = await api.get('/api/configuracion/wepa-usd/historial');
       return response.data;
     } catch (error) {
       console.error('Error al obtener historial de configuraciones:', error);
@@ -100,7 +100,7 @@ const wepaUsdService = {
   
   createConfig: async (formData: FormData): Promise<WepaUsdConfig> => {
     try {
-      const response = await axios.post('/api/configuracion/wepa-usd', formData, {
+      const response = await api.post('/api/configuracion/wepa-usd', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -114,7 +114,7 @@ const wepaUsdService = {
   
   downloadContrato: async (id: number): Promise<Blob> => {
     try {
-      const response = await axios.get(`/api/configuracion/wepa-usd/${id}/contrato`, {
+      const response = await api.get(`/api/configuracion/wepa-usd/${id}/contrato`, {
         responseType: 'blob'
       });
       return response.data;

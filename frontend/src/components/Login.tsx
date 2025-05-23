@@ -19,11 +19,8 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
-import axios from 'axios'; // Reintroducimos axios
+import api from '../services/api'; // Usar instancia api global
 import { useAuth } from '../contexts/AuthContext';
-
-// Asegúrate que esta URL es la correcta para tu backend en desarrollo/producción
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api'; 
 
 interface LoginProps {
   onToggleTheme: () => void;
@@ -100,7 +97,7 @@ const Login: React.FC<LoginProps> = ({ onToggleTheme, isDarkMode }) => {
 
     setChangePasswordLoading(true);
     try {
-      await axios.post(`${API_BASE_URL}/auth/cambiar-password`, {
+      await api.post('/auth/cambiar-password', {
         username: passwordData.username.toUpperCase(),
         oldPassword: passwordData.oldPassword,
         newPassword: passwordData.newPassword,

@@ -5,7 +5,8 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { formatearIdCaja, formatearMontoConSeparadores } from '../helpers';
 import './TicketStyles.css';
-import axios from 'axios';
+import { formatCurrency } from '../../../utils/formatUtils';
+import api from '../../../services/api';
 import { scrollbarStyles } from '../../../utils/scrollbarStyles';
 
 interface TicketProps {
@@ -55,13 +56,17 @@ const TicketContenido: React.FC<TicketProps> = (
     
     try {
       console.log(`Cargando retiros para caja ID: ${cajaSeleccionada.id}`);
-      const resRetiros = await axios.get(`${process.env.REACT_APP_API_URL}/cajas/${cajaSeleccionada.id}/retiros`);
+      const resRetiros = await api.get(`/api/cajas/${cajaSeleccionada.id}/retiros`);
       
       if (resRetiros.data && Array.isArray(resRetiros.data)) {
-        setRetiros(resRetiros.data);
-        console.log("Retiros cargados:", resRetiros.data);
+        // Formatear cada retiro
+        const retirosFormateados = resRetiros.data.map((retiro: any) => ({
+          ...retiro,
+          montoFormateado: formatearMontoConSeparadores(parseFloat(retiro.monto || '0'))
+        }));
+        setRetiros(retirosFormateados);
       } else {
-        console.warn("No se recibieron datos de retiros válidos");
+        console.log('No se encontraron retiros válidos');
         setRetiros([]);
       }
     } catch (error) {
@@ -1190,7 +1195,7 @@ const TicketCierreCaja: React.FC<TicketProps> = (props) => {
     (async () => {
       try {
         if (cajaSeleccionada && cajaSeleccionada.id) {
-          const resRetiros = await axios.get(`${process.env.REACT_APP_API_URL}/cajas/${cajaSeleccionada.id}/retiros`);
+          const resRetiros = await api.get(`/api/cajas/${cajaSeleccionada.id}/retiros`);
           
           if (resRetiros.data && Array.isArray(resRetiros.data)) {
             // Calcular totales de retiros por moneda

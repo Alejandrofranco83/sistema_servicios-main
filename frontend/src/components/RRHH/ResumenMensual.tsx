@@ -35,9 +35,10 @@ import { SelectChangeEvent } from '@mui/material/Select';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PrintIcon from '@mui/icons-material/Print';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
-import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
 import sueldoMinimoService from '../../services/sueldoMinimoService';
+import { formatCurrency } from '../../utils/formatUtils';
+import api from '../../services/api'; // Usar instancia api global
 
 // Interfaces
 interface Persona {
@@ -420,7 +421,7 @@ const ResumenMensual: React.FC = () => {
         try {
             const token = localStorage.getItem('token');
             // Modificar para usar el mismo endpoint que en CajasContext
-            const response = await axios.get<Persona[]>('/api/personas', {
+            const response = await api.get<Persona[]>('/personas', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             
@@ -522,7 +523,7 @@ const ResumenMensual: React.FC = () => {
         setFetchMovimientosError(null);
         try {
             const token = localStorage.getItem('token');
-            const response = await axios.get(`/api/rrhh/movimientos/${selectedPerson.id}`, {
+            const response = await api.get(`/rrhh/movimientos/${selectedPerson.id}`, {
                 params: { mes: selectedMonth, anio: selectedYear },
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -580,7 +581,7 @@ const ResumenMensual: React.FC = () => {
     if (selectedPerson && selectedYear && selectedMonth) {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get(`/api/rrhh/estado-mes/${selectedPerson.id}`, {
+        const response = await api.get(`/rrhh/estado-mes/${selectedPerson.id}`, {
           params: { mes: selectedMonth, anio: selectedYear },
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -679,7 +680,7 @@ const ResumenMensual: React.FC = () => {
         console.log('[DEBUG] Cabeceras a enviar:', headers);
         
         // Petición con cabeceras explícitas
-        const response = await axios.post('/api/rrhh/movimientos', movimientoData, { headers });
+        const response = await api.post('/api/rrhh/movimientos', movimientoData, { headers });
 
         console.log('Movimiento guardado:', response.data);
         setSaveSuccess(true);
@@ -816,7 +817,7 @@ const ResumenMensual: React.FC = () => {
         return;
       }
 
-      const response = await axios.delete(`/api/rrhh/movimientos/${id}`, {
+      const response = await api.delete(`/rrhh/movimientos/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -1423,7 +1424,7 @@ const ResumenMensual: React.FC = () => {
       };
 
       // Llamar al endpoint para finalizar mes
-      const response = await axios.post('/api/rrhh/finalizar-mes', datosFinalizacion, {
+      const response = await api.post('/api/rrhh/finalizar-mes', datosFinalizacion, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -1459,7 +1460,7 @@ const ResumenMensual: React.FC = () => {
       const token = localStorage.getItem('token');
       
       // Llamar al endpoint para reabrir mes
-      const response = await axios.post('/api/rrhh/reabrir-mes', {
+      const response = await api.post('/api/rrhh/reabrir-mes', {
         personaId: selectedPerson.id,
         mes: selectedMonth,
         anio: selectedYear

@@ -80,7 +80,7 @@ export const conteoService = {
   // Obtener todos los conteos
   getConteos: async () => {
     try {
-      const response = await api.get('/conteos');
+      const response = await api.get('/api/conteos');
       return response.data;
     } catch (error) {
       console.error('Error al obtener conteos:', error);
@@ -91,7 +91,7 @@ export const conteoService = {
   // Obtener un conteo por ID
   getConteoById: async (id: number) => {
     try {
-      const response = await api.get(`/conteos/${id}`);
+      const response = await api.get(`/api/conteos/${id}`);
       return response.data;
     } catch (error) {
       console.error(`Error al obtener conteo con ID ${id}:`, error);
@@ -102,7 +102,7 @@ export const conteoService = {
   // Crear un nuevo conteo
   createConteo: async (conteoData: ConteoData) => {
     try {
-      const response = await api.post('/conteos', conteoData);
+      const response = await api.post('/api/conteos', conteoData);
       return response.data;
     } catch (error) {
       console.error('Error al crear conteo:', error);
@@ -113,7 +113,7 @@ export const conteoService = {
   // Actualizar un conteo existente
   updateConteo: async (id: number, data: Partial<ConteoData>) => {
     try {
-      const response = await api.put(`/conteos/${id}`, data);
+      const response = await api.put(`/api/conteos/${id}`, data);
       return response.data;
     } catch (error) {
       console.error(`Error al actualizar conteo con ID ${id}:`, error);
@@ -124,7 +124,7 @@ export const conteoService = {
   // Anular un conteo
   anularConteo: async (id: number) => {
     try {
-      const response = await api.patch(`/conteos/${id}/anular`);
+      const response = await api.patch(`/api/conteos/${id}/anular`);
       return response.data;
     } catch (error) {
       console.error(`Error al anular conteo con ID ${id}:`, error);
@@ -135,7 +135,7 @@ export const conteoService = {
   // Eliminar un conteo
   deleteConteo: async (id: number) => {
     try {
-      const response = await api.delete(`/conteos/${id}`);
+      const response = await api.delete(`/api/conteos/${id}`);
       return response.data;
     } catch (error) {
       console.error(`Error al eliminar conteo con ID ${id}:`, error);

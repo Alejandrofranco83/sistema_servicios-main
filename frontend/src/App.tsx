@@ -4,28 +4,22 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Dashboard from './components/Dashboard/Dashboard';
 import Login from './components/Login';
-import axios from 'axios'; // La importación ya estaba
+import api from './services/api'; // Usar instancia api global
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CotizacionProvider } from './contexts/CotizacionContext';
 import { SucursalProvider } from './contexts/SucursalContext';
 import { ServerStatusProvider } from './contexts/ServerStatusContext';
 import Cajas from './components/Cajas';
 
-// --- DESCOMENTAR ESTA SECCIÓN ---
-// Configuración global para axios
-// Asegúrate que la baseURL sea la correcta o usa una variable de entorno
-axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-
-
 // Al iniciar la aplicación, verificar si hay un token guardado
 const token = localStorage.getItem('token');
 if (token) {
-  // Configurar el token para todas las solicitudes
-  axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  // Configurar el token para todas las solicitudes usando la instancia api
+  api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 }
 
-// Interceptor para manejar respuestas de error de autenticación
-axios.interceptors.response.use(
+// Interceptor para manejar respuestas de error de autenticación usando la instancia api
+api.interceptors.response.use(
   response => response,
   error => {
     if (error.response && (error.response.status === 401 || error.response.status === 403)) {
@@ -41,7 +35,7 @@ axios.interceptors.response.use(
       } else {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        delete axios.defaults.headers.common['Authorization'];
+        delete api.defaults.headers.common['Authorization'];
         // Es crucial que esta línea NO cause problemas durante el build.
         // Si lo hace, necesitará ser movida a un lugar donde solo se ejecute en el cliente.
         if (typeof window !== 'undefined') { // Asegurar que solo se ejecute en el navegador
@@ -52,7 +46,6 @@ axios.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-// --- FIN DE LA SECCIÓN A DESCOMENTAR ---
 
 const ProtectedRoute: React.FC = () => {
   const { user, loading } = useAuth();

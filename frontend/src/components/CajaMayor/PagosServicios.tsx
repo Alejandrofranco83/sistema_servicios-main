@@ -29,7 +29,7 @@ import {
 } from '@mui/icons-material';
 import { useCotizacion } from '../../contexts/CotizacionContext';
 import { formatCurrency } from '../../utils/formatUtils';
-import axios from 'axios';
+import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface PagosServiciosProps {
@@ -146,12 +146,12 @@ const PagosServicios: React.FC<PagosServiciosProps> = ({ open, onClose, onGuarda
         
         // Llamada a la API para obtener cajas sin filtrar por estado
         // Utilizamos un parámetro que asegure traer todas las cajas de los últimos 3 días
-        const response = await axios.get('/api/cajas');
+        const response = await api.get('/api/cajas');
         
         console.log('Cajas recibidas (todas):', response.data);
         
         // Obtener todas las sucursales
-        const sucursalesResponse = await axios.get('/api/sucursales');
+        const sucursalesResponse = await api.get('/api/sucursales');
         const sucursalesData = sucursalesResponse.data || [];
         console.log('Sucursales recibidas:', sucursalesData);
         
@@ -202,7 +202,7 @@ const PagosServicios: React.FC<PagosServiciosProps> = ({ open, onClose, onGuarda
       try {
         setCargandoSucursales(true);
         // Llamada a la API para obtener las sucursales
-        const response = await axios.get('/api/sucursales');
+        const response = await api.get('/api/sucursales');
         setSucursales(response.data);
       } catch (error) {
         console.error('Error al obtener sucursales:', error);
@@ -428,7 +428,7 @@ const PagosServicios: React.FC<PagosServiciosProps> = ({ open, onClose, onGuarda
       
       // Realizar la llamada a la API para guardar el pago
       console.log('Enviando datos del pago de servicio:', Object.fromEntries(formData));
-      const response = await axios.post('/api/pagos-servicios', formData, {
+      const response = await api.post('/api/pagos-servicios', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }

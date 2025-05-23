@@ -30,7 +30,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { cajaMayorService } from '../../services/api';
 import { useCotizacion } from '../../contexts/CotizacionContext';
-import axios from 'axios';
+import api from '../../services/api'; // Usar instancia api global
 import {
   LineChart,
   Line,
@@ -47,9 +47,6 @@ import ZoomControls from '../Common/ZoomControls';
 interface AdminViewProps {
   hasPermission: (modulo: string, pantalla?: string) => boolean;
 }
-
-// URL base para las llamadas a la API
-const API_URL = (process.env.REACT_APP_API_URL || 'http://localhost:3000').replace(/\/api$/, '') + '/api';
 
 // Tipo para almacenar detalles de un valor por depositar
 interface ValorDepositar {
@@ -168,7 +165,7 @@ const AdminView: React.FC<AdminViewProps> = ({ hasPermission }) => {
       const fechaFormateada = hoy.toISOString().split('T')[0]; // Formato YYYY-MM-DD
       
       // Hacer la llamada a la API con la misma fecha como inicio y fin
-      const response = await axios.get(`${API_URL}/aquipago/movimientos`, {
+      const response = await api.get(`/api/aquipago/movimientos`, {
         params: {
           fechaInicio: fechaFormateada,
           fechaFin: fechaFormateada
@@ -193,7 +190,7 @@ const AdminView: React.FC<AdminViewProps> = ({ hasPermission }) => {
   const cargarBalanceWepaGs = async (): Promise<ValorDepositar> => {
     try {
       // Usar el endpoint de balance global
-      const response = await axios.get(`${API_URL}/weno-gs/balance-global`);
+      const response = await api.get(`/api/weno-gs/balance-global`);
 
       // Verificar si la respuesta contiene el valor totalADepositar
       const totalADepositar = response.data.totalADepositar || 0;
@@ -213,7 +210,7 @@ const AdminView: React.FC<AdminViewProps> = ({ hasPermission }) => {
   const cargarBalanceWepaUsd = async (): Promise<ValorDepositar> => {
     try {
       // Usar el endpoint de balance global
-      const response = await axios.get(`${API_URL}/wepa-usd/balance-global`);
+      const response = await api.get(`/api/wepa-usd/balance-global`);
 
       // Verificar si la respuesta contiene el valor totalADepositar
       const totalADepositar = response.data.totalADepositar || 0;
@@ -254,7 +251,7 @@ const AdminView: React.FC<AdminViewProps> = ({ hasPermission }) => {
       console.log(`Cargando movimientos de: ${fechaInicio} a ${fechaFin}`);
 
       // Obtener movimientos de la API para la semana seleccionada
-      const response = await axios.get(`${API_URL}/movimientos-caja/all-movimientos`, {
+      const response = await api.get(`/api/movimientos-caja/all-movimientos`, {
         params: {
           fechaDesde: fechaInicio,
           fechaHasta: fechaFin

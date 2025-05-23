@@ -22,7 +22,7 @@ import {
 import { useCotizacion } from '../../contexts/CotizacionContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatCurrency } from '../../utils/formatUtils';
-import axios from 'axios';
+import api from '../../services/api';
 
 // Interfaz para representar un retiro
 interface Retiro {
@@ -144,7 +144,7 @@ const DevolverRetiro: React.FC<DevolverRetiroProps> = ({ open, onClose, onGuarda
       // PASO 1: Buscar el movimiento de recepción en Caja Mayor
       do {
         console.log(`Buscando en página ${currentPage} de movimientos...`);
-        const response = await axios.get('/api/caja_mayor_movimientos/movimientos', {
+        const response = await api.get('/api/caja_mayor_movimientos/movimientos', {
           params: { 
             page: currentPage, 
             pageSize: 50 
@@ -195,7 +195,7 @@ const DevolverRetiro: React.FC<DevolverRetiroProps> = ({ open, onClose, onGuarda
           const uuidOriginal = movimientoRecepcion.operacionId || retiroId;
           console.log(`Intentando obtener detalles del movimiento original con UUID: ${uuidOriginal}`);
           // Probamos el endpoint que falló antes, pero quizás funcione con UUID ahora?
-          const responseOriginal = await axios.get(`/api/caja_mayor_movimientos/${uuidOriginal}`); 
+          const responseOriginal = await api.get(`/caja_mayor_movimientos/${uuidOriginal}`); 
           if (responseOriginal.data) {
             console.log("Datos del movimiento original encontrados:", responseOriginal.data);
             movimientoOriginal = responseOriginal.data;
@@ -323,7 +323,7 @@ const DevolverRetiro: React.FC<DevolverRetiroProps> = ({ open, onClose, onGuarda
       console.log("Enviando datos para devolver retiro:", dataToSend);
       
       // Enviar solicitud a la API para devolver el retiro
-      const response = await axios.post('/api/cajas-mayor/retiros/devolver', dataToSend);
+      const response = await api.post('/api/cajas-mayor/retiros/devolver', dataToSend);
       
       // Mostrar mensaje de éxito
       setSuccessMessage(response.data.message || 'Retiro devuelto correctamente.');

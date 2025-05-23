@@ -1,8 +1,9 @@
 import axios from 'axios';
 import debugService from '../services/debugService';
+import api from '../services/api'; // Importar la instancia api global
 
-// Configuración base para Axios
-axios.defaults.baseURL = 'http://localhost:3000';
+// Configuración base para Axios - usar variable de entorno
+axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:3000';
 axios.defaults.headers.common['Accept'] = 'application/json';
 axios.defaults.headers.post['Content-Type'] = 'application/json';
 
@@ -29,23 +30,23 @@ axios.interceptors.response.use(
   }
 );
 
-// Exportar servicios específicos
+// Exportar servicios específicos usando la instancia api global
 export const apiService = {
   // Maletines
   maletines: {
-    getAll: () => axios.get('/api/maletines'),
-    getById: (id: string) => axios.get(`/api/maletines/${id}`),
-    create: (data: any) => axios.post('/api/maletines', data),
-    update: (id: string, data: any) => axios.put(`/api/maletines/${id}`, data),
-    delete: (id: string) => axios.delete(`/api/maletines/${id}`)
+    getAll: () => api.get('/api/maletines'),
+    getById: (id: string) => api.get(`/api/maletines/${id}`),
+    create: (data: any) => api.post('/api/maletines', data),
+    update: (id: string, data: any) => api.put(`/api/maletines/${id}`, data),
+    delete: (id: string) => api.delete(`/api/maletines/${id}`)
   },
   // Sucursales
   sucursales: {
-    getAll: () => axios.get('/api/sucursales'),
-    getById: (id: string) => axios.get(`/api/sucursales/${id}`),
-    create: (data: any) => axios.post('/api/sucursales', data),
-    update: (id: string, data: any) => axios.put(`/api/sucursales/${id}`, data),
-    delete: (id: string) => axios.delete(`/api/sucursales/${id}`)
+    getAll: () => api.get('/api/sucursales'),
+    getById: (id: string) => api.get(`/api/sucursales/${id}`),
+    create: (data: any) => api.post('/api/sucursales', data),
+    update: (id: string, data: any) => api.put(`/api/sucursales/${id}`, data),
+    delete: (id: string) => api.delete(`/api/sucursales/${id}`)
   }
 };
 

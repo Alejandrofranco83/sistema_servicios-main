@@ -38,7 +38,7 @@ import {
   AreaChart, Area
 } from 'recharts';
 import cotizacionService from '../../services/cotizacionService';
-import axios from 'axios';
+import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 
 // Interfaces

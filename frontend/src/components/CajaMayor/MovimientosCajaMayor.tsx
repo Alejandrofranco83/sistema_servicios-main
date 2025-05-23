@@ -35,7 +35,7 @@ import {
 } from '@mui/icons-material';
 import DevolverRetiro from './DevolverRetiro';
 import { formatCurrency } from '../../utils/formatUtils';
-import axios from 'axios';
+import api from '../../services/api';
 
 // Definir interfaz para los movimientos
 interface Movimiento {
@@ -71,7 +71,7 @@ const MovimientosCajaMayor = () => {
       setLoading(true);
       setError(null);
       
-      const response = await axios.get('/api/cajas-mayor/movimientos');
+      const response = await api.get('/api/cajas-mayor/movimientos');
       setMovimientos(response.data);
       
     } catch (error) {

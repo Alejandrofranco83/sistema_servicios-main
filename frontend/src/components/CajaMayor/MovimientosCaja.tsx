@@ -39,7 +39,7 @@ import DepositoBancario from './DepositoBancario';
 import UsoDevolucion from './UsoDevolucion';
 import CambioMoneda from './CambioMoneda';
 import Vales from './Vales';
-import axios from 'axios';
+import api from '../../services/api';
 
 // Interfaz para un movimiento de caja
 interface Movimiento {
@@ -134,7 +134,7 @@ const MovimientosCaja: React.FC = () => {
   const cargarDatos = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/caja/movimientos');
+      const response = await api.get('/api/caja/movimientos');
       
       // Normalizar los datos recibidos de la API
       const rawData = response.data;

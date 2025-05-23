@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/api'; // Usar instancia global configurada
 import { useNavigate } from 'react-router-dom';
 
 interface User {
@@ -55,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     if (storedUser && storedToken) {
       // Configurar el token para todas las solicitudes
-      axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+      api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
       setToken(storedToken);
       
       // Intentar establecer el usuario desde el almacenamiento
@@ -84,7 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log(`Cargando permisos para el usuario ID: ${userId}`);
       
       // Obtener el usuario con sus permisos
-      const response = await axios.get(`/api/usuarios/${userId}`);
+      const response = await api.get(`/api/usuarios/${userId}`);
       const userData = response.data;
       
       console.log('Datos del usuario obtenidos:', userData);
@@ -101,8 +101,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('user', JSON.stringify(userData));
     } catch (error) {
       console.error('Error al cargar permisos del usuario:', error);
-      if (axios.isAxiosError(error) && error.response) {
-        console.error('Respuesta del servidor:', error.response.data);
+      if (error && typeof error === 'object' && 'response' in error) {
+        console.error('Respuesta del servidor:', (error as any).response?.data);
       }
     }
   };
@@ -112,7 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(true);
       setError(null);
       
-      const response = await axios.post('/api/auth/login', { username, password });
+      const response = await api.post('/api/auth/login', { username, password });
       const { token: responseToken, user } = response.data;
       
       // Registrar en la consola para depuración
@@ -150,7 +150,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setToken(responseToken);
       
       // Configurar el token para todas las solicitudes
-      axios.defaults.headers.common['Authorization'] = `Bearer ${responseToken}`;
+      api.defaults.headers.common['Authorization'] = `Bearer ${responseToken}`;
       
       // Establecer el usuario en el estado
       setUser(user);
@@ -175,8 +175,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     
-    // Limpiar los headers de axios
-    delete axios.defaults.headers.common['Authorization'];
+    // Limpiar los headers de api
+    delete api.defaults.headers.common['Authorization'];
     
     // Resetear el estado
     setUser(null);

@@ -41,7 +41,7 @@ import {
 import { useCotizacion } from '../../contexts/CotizacionContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatCurrency } from '../../utils/formatUtils';
-import axios from 'axios';
+import api from '../../services/api';
 
 // Interfaz para representar una sucursal
 interface Sucursal {
@@ -107,7 +107,7 @@ const RecibirRetiros: React.FC<RecibirRetirosProps> = ({ open, onClose, onGuarda
   // Cargar sucursales
   const cargarSucursales = async () => {
     try {
-      const response = await axios.get('/api/sucursales');
+      const response = await api.get('/api/sucursales');
       setSucursales(response.data);
     } catch (error) {
       console.error('Error al cargar sucursales:', error);
@@ -178,7 +178,7 @@ const RecibirRetiros: React.FC<RecibirRetirosProps> = ({ open, onClose, onGuarda
       setError(null);
       
       // Llamada real a la API para obtener los retiros pendientes
-      const response = await axios.get('/api/cajas-mayor/retiros/pendientes');
+      const response = await api.get('/api/cajas-mayor/retiros/pendientes');
       
       setRetiros(response.data);
       setRetirosFiltrados(response.data);
@@ -360,7 +360,7 @@ const RecibirRetiros: React.FC<RecibirRetirosProps> = ({ open, onClose, onGuarda
       console.log("Enviando datos para recibir retiros:", dataToSend);
       
       // Enviar solicitud a la API para recibir los retiros seleccionados
-      const response = await axios.post('/api/cajas-mayor/retiros/recibir', dataToSend);
+      const response = await api.post('/api/cajas-mayor/retiros/recibir', dataToSend);
       
       // Mostrar mensaje de éxito
       setSuccessMessage(response.data.message || 'Retiros recibidos correctamente');

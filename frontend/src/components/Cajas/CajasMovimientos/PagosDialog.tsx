@@ -20,10 +20,10 @@ import {
   Visibility as VisibilityIcon,
   AttachFile as AttachFileIcon
 } from '@mui/icons-material';
+import api from '../../../services/api'; // Usar instancia api global
 import { useCajas } from '../CajasContext';
 import { formatearIdCaja } from '../helpers';
 import { handleInputClick } from '../../../utils/inputUtils';
-import axios from 'axios';
 
 interface PagosDialogProps {
   open: boolean;
@@ -239,16 +239,20 @@ const PagosDialog: React.FC<PagosDialogProps> = ({ open, onClose, modoEdicion = 
         ? `/api/cajas/pagos/${editandoPagoId}`
         : `/api/cajas/${cajaSeleccionada.id}/pagos`;
       
-      const method = modoEdicion && editandoPagoId ? 'put' : 'post';
+      // Usar el método correcto según el modo
+      const apiCall = modoEdicion && editandoPagoId 
+        ? api.put(url, formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          })
+        : api.post(url, formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          });
       
-      axios({
-        method,
-        url,
-        data: formData,
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      })
+      apiCall
       .then(response => {
         if (modoEdicion && editandoPagoId) {
           // Actualizar el pago en la lista

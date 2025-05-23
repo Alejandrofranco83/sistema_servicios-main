@@ -24,7 +24,8 @@ import { formatearIdCaja, formatearMontoConSeparadores, formatearMontoServicio }
 import { Denominacion, SaldoServicio } from '../interfaces';
 import { denominacionesGuaranies, denominacionesReales, denominacionesDolares, serviciosIniciales } from '../constants';
 import { handleInputClick } from '../../../utils/inputUtils';
-import axios from 'axios';
+import { formatCurrency } from '../../../utils/formatUtils';
+import api from '../../../services/api';
 
 interface FormCierreProps {
   open: boolean;
@@ -252,7 +253,7 @@ const FormCierre: React.FC<FormCierreProps> = ({ open, onClose }) => {
       console.log('Actualizando datos de cierre:', datosCierre);
       
       // Llamar al endpoint para actualizar los datos de cierre
-      await axios.put(`/api/cajas/${cajaSeleccionada.id}/datos-cierre`, datosCierre);
+      await api.put(`/api/cajas/${cajaSeleccionada.id}/datos-cierre`, datosCierre);
       
       setSuccessMessage('Datos de cierre actualizados correctamente');
       onClose();

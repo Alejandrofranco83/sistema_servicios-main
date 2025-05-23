@@ -1,4 +1,4 @@
-import axios from 'axios';
+import api from './api'; // Usar instancia global configurada
 
 // Interface para la respuesta del servidor
 interface CambiosAlberdiResponse {
@@ -22,7 +22,7 @@ const cotizacionExternaService = {
   // Obtener cotizaciones de Cambios Alberdi
   getCambiosAlberdi: async (): Promise<CambiosAlberdiResponse> => {
     try {
-      const response = await axios.get('/api/cotizaciones-externas/cambios-alberdi');
+      const response = await api.get('/api/cotizaciones-externas/cambios-alberdi');
       return response.data;
     } catch (error) {
       console.error('Error al obtener cotizaciones de Cambios Alberdi:', error);

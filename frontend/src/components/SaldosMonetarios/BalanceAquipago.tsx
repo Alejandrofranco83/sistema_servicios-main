@@ -35,7 +35,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import esLocale from 'date-fns/locale/es';
 import { formatCurrency } from '../../utils/formatUtils';
-import axios from 'axios';
+import api from '../../services/api';
 import SearchIcon from '@mui/icons-material/Search';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
@@ -46,7 +46,6 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import PersonIcon from '@mui/icons-material/Person';
 import StoreIcon from '@mui/icons-material/Store';
-import api from '../../services/api';
 
 // Interfaces
 interface MovimientoCaja {
@@ -116,7 +115,7 @@ const BalanceAquipago: React.FC = () => {
       const fin = fechaFin.toISOString().split('T')[0];
       
       // Usar la nueva API específica para Aqui Pago
-      const response = await axios.get<ApiResponse>(`/api/aquipago/movimientos?fechaInicio=${inicio}&fechaFin=${fin}`);
+      const response = await api.get<ApiResponse>(`/api/aquipago/movimientos?fechaInicio=${inicio}&fechaFin=${fin}`);
       
       // Procesar la respuesta de la API
       if (response.data) {

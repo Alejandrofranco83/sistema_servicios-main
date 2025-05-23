@@ -65,7 +65,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import es from 'date-fns/locale/es';
-import axios from 'axios';
+import api from '../../services/api'; // Usar instancia api global
 import { useAuth } from '../../contexts/AuthContext';
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, sub, isWithinInterval, parseISO } from 'date-fns';
 import { 
@@ -491,7 +491,7 @@ const GestionGastos: React.FC = () => {
   // Cargar categorías
   const cargarCategorias = async () => {
     try {
-      const response = await axios.get('/api/categorias-gastos', {
+      const response = await api.get('/api/categorias-gastos', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setCategorias(response.data.filter((cat: Categoria) => cat.activo));
@@ -504,7 +504,7 @@ const GestionGastos: React.FC = () => {
   // Cargar subcategorías
   const cargarSubcategorias = async () => {
     try {
-      const response = await axios.get('/api/subcategorias-gastos', {
+      const response = await api.get('/api/subcategorias-gastos', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSubcategorias(response.data.filter((sub: Subcategoria) => sub.activo));
@@ -517,7 +517,7 @@ const GestionGastos: React.FC = () => {
   // Cargar sucursales
   const cargarSucursales = async () => {
     try {
-      const response = await axios.get('/api/sucursales', {
+      const response = await api.get('/api/sucursales', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSucursales(response.data);
@@ -561,7 +561,7 @@ const GestionGastos: React.FC = () => {
       
       console.log("URL de filtros: ", url);
       
-      const response = await axios.get(url, {
+      const response = await api.get(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -817,7 +817,7 @@ const GestionGastos: React.FC = () => {
       }
       
       if (dialogAction === 'crear') {
-        await axios.post('/api/gastos', formData, {
+        await api.post('/api/gastos', formData, {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'multipart/form-data'
@@ -826,7 +826,7 @@ const GestionGastos: React.FC = () => {
         setSuccessMsg('Gasto creado correctamente');
       } else {
         // Editar (PUT)
-        await axios.put(`/api/gastos/${(gasto as any).id}`, formData, {
+        await api.put(`/api/gastos/${(gasto as any).id}`, formData, {
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'multipart/form-data'
@@ -851,7 +851,7 @@ const GestionGastos: React.FC = () => {
     
     setLoading(true);
     try {
-      await axios.delete(`/api/gastos/${gastoIdToDelete}`, {
+      await api.delete(`/api/gastos/${gastoIdToDelete}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       

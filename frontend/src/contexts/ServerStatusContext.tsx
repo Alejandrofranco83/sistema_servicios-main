@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import axios from 'axios';
+import api from '../services/api'; // Usar instancia global configurada
 
 // Definir la interfaz para el contexto
 interface ServerStatusContextType {
@@ -34,7 +34,7 @@ export const ServerStatusProvider: React.FC<ServerStatusProviderProps> = ({
   const checkServerStatus = async () => {
     try {
       // Intentar hacer una solicitud simple a la API
-      await axios.get('/api/health', { timeout: 5000 });
+      await api.get('/api/health', { timeout: 5000 });
       
       // Si la solicitud es exitosa, el servidor está en línea
       setIsOnline(true);

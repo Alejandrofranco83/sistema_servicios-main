@@ -1,4 +1,4 @@
-import axios from 'axios';
+import api from './api'; // Usar instancia global configurada
 // ELIMINAMOS: import { API_BASE_URL } from '../config';
 
 // Tipos para el sueldo mínimo
@@ -21,22 +21,19 @@ export interface SueldoMinimoInput {
 const sueldoMinimoService = {
   // Obtener todos los registros de sueldo mínimo
   getSueldosMinimos: async (): Promise<SueldoMinimo[]> => {
-    // Usamos ruta relativa con /api/
-    const response = await axios.get('/api/sueldos-minimos');
+    const response = await api.get('/api/sueldos-minimos');
     return response.data;
   },
 
   // Obtener el sueldo mínimo vigente
   getSueldoMinimoVigente: async (): Promise<SueldoMinimo> => {
-    // Usamos ruta relativa con /api/
-    const response = await axios.get('/api/sueldos-minimos/vigente');
+    const response = await api.get('/api/sueldos-minimos/vigente');
     return response.data;
   },
 
   // Crear un nuevo registro de sueldo mínimo
   createSueldoMinimo: async (data: SueldoMinimoInput): Promise<SueldoMinimo> => {
-    // Usamos ruta relativa con /api/
-    const response = await axios.post('/api/sueldos-minimos', data);
+    const response = await api.post('/api/sueldos-minimos', data);
     return response.data;
   }
 };

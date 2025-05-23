@@ -1,4 +1,3 @@
-import axios from 'axios';
 import api from './api';
 
 // Interfaz para las notificaciones

@@ -33,8 +33,10 @@ import {
   Delete as DeleteIcon,
   CreditCard as CreditCardIcon,
 } from '@mui/icons-material';
-import axios from 'axios';
+import { useTheme } from '@mui/material/styles';
+import { scrollbarStyles } from '../../utils/scrollbarStyles';
 import { useAuth } from '../../contexts/AuthContext';
+import api from '../../services/api'; // Usar instancia global configurada
 
 // ELIMINAMOS: const API_BASE_URL = 'http://localhost:3000/api';
 
@@ -56,13 +58,13 @@ interface Pos {
   updatedAt?: string;
 }
 
-// Servicios para POS y Cuentas Bancarias
+// Servicios para POS y Cuentas Bancarias - usando instancia api global
 const posService = {
   // Obtener todos los dispositivos POS
   getAllPos: async (): Promise<Pos[]> => {
     try {
       console.log('Obteniendo dispositivos POS desde: /api/pos');
-      const response = await axios.get('/api/pos'); // Ruta relativa con /api/
+      const response = await api.get('/api/pos');
       console.log('Respuesta del servidor (POS):', response.data);
       return response.data;
     } catch (error: any) {
@@ -80,7 +82,7 @@ const posService = {
       console.log(`Buscando POS con código de barras ${codigo}`);
       console.log('URL:', `/api/pos/codigo/${codigo}`);
       
-      const response = await axios.get(`/api/pos/codigo/${codigo}`); // Ruta relativa con /api/
+      const response = await api.get(`/api/pos/codigo/${codigo}`);
       console.log('Respuesta del servidor (buscar POS por código):', response.data);
       return response.data;
     } catch (error: any) {
@@ -101,7 +103,7 @@ const posService = {
       console.log('Creando dispositivo POS con datos:', pos);
       console.log('URL: /api/pos');
       
-      const response = await axios.post('/api/pos', pos); // Ruta relativa con /api/
+      const response = await api.post('/api/pos', pos);
       console.log('Respuesta del servidor (crear POS):', response.data);
       return response.data;
     } catch (error: any) {
@@ -119,7 +121,7 @@ const posService = {
       console.log(`Actualizando dispositivo POS ${id} con datos:`, pos);
       console.log('URL:', `/api/pos/${id}`);
       
-      const response = await axios.put(`/api/pos/${id}`, pos); // Ruta relativa con /api/
+      const response = await api.put(`/api/pos/${id}`, pos);
       console.log('Respuesta del servidor (actualizar POS):', response.data);
       return response.data;
     } catch (error: any) {
@@ -137,7 +139,7 @@ const posService = {
       console.log(`Eliminando dispositivo POS ${id}`);
       console.log('URL:', `/api/pos/${id}`);
       
-      await axios.delete(`/api/pos/${id}`); // Ruta relativa con /api/
+      await api.delete(`/api/pos/${id}`);
       console.log(`Dispositivo POS ${id} eliminado correctamente`);
     } catch (error: any) {
       console.error(`Error al eliminar dispositivo POS ${id}:`, error.message);
@@ -154,7 +156,7 @@ const cuentaBancariaService = {
   getAllCuentasBancarias: async (): Promise<CuentaBancaria[]> => {
     try {
       console.log('Obteniendo cuentas bancarias desde: /api/cuentas-bancarias');
-      const response = await axios.get('/api/cuentas-bancarias'); // Ruta relativa con /api/
+      const response = await api.get('/api/cuentas-bancarias');
       console.log('Respuesta del servidor (cuentas bancarias):', response.data);
       return response.data;
     } catch (error: any) {

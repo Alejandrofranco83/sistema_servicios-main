@@ -1,4 +1,3 @@
-import axios from 'axios';
 import {
     ComparacionEnCaja,
     // Quitar DiferenciaServicioSimple si no se usa
@@ -522,8 +521,8 @@ export const calcularDetalleDiferencias = async (
 
     } catch (error) {
         console.error(`Error calculando detalle COMPLETO para caja ${cajaId}:`, error);
-        if (axios.isAxiosError(error)) {
-            console.error("Detalle error Axios:", error.response?.data || error.message);
+        if (error && typeof error === 'object' && 'response' in error) {
+            console.error("Detalle error API:", (error as any).response?.data || (error as any).message);
         }
         // Devolver un resultado indicando el error o lanzar para que el componente lo maneje
         throw new Error(`Error al calcular diferencias detalladas para la caja ${cajaInfoBasica.cajaEnteroId}.`);

@@ -27,7 +27,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import esLocale from 'date-fns/locale/es';
-import axios from 'axios';
+import api from '../../services/api';
 import { formatCurrency } from '../../utils/formatUtils';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DownloadIcon from '@mui/icons-material/Download';
@@ -69,7 +69,7 @@ interface WepaGsConfig {
 const cuentaBancariaService = {
   getAllCuentasBancarias: async (): Promise<CuentaBancaria[]> => {
     try {
-      const response = await axios.get('/api/cuentas-bancarias');
+      const response = await api.get('/api/cuentas-bancarias');
       return response.data;
     } catch (error) {
       console.error('Error al obtener cuentas bancarias:', error);
@@ -81,10 +81,10 @@ const cuentaBancariaService = {
 const wepaGsService = {
   getLatestConfig: async (): Promise<WepaGsConfig | null> => {
     try {
-      const response = await axios.get('/api/configuracion/wepa-gs/actual');
+      const response = await api.get('/api/configuracion/wepa-gs/actual');
       return response.data;
-    } catch (error) {
-      if (axios.isAxiosError(error) && error.response?.status === 404) {
+    } catch (error: any) {
+      if (error.response?.status === 404) {
         return null; // No hay configuración
       }
       console.error('Error al obtener configuración actual:', error);
@@ -94,7 +94,7 @@ const wepaGsService = {
   
   getConfigHistory: async (): Promise<WepaGsConfig[]> => {
     try {
-      const response = await axios.get('/api/configuracion/wepa-gs/historial');
+      const response = await api.get('/api/configuracion/wepa-gs/historial');
       return response.data;
     } catch (error) {
       console.error('Error al obtener historial de configuraciones:', error);
@@ -104,7 +104,7 @@ const wepaGsService = {
   
   createConfig: async (formData: FormData): Promise<WepaGsConfig> => {
     try {
-      const response = await axios.post('/api/configuracion/wepa-gs', formData, {
+      const response = await api.post('/api/configuracion/wepa-gs', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -118,7 +118,7 @@ const wepaGsService = {
   
   downloadContrato: async (id: number): Promise<Blob> => {
     try {
-      const response = await axios.get(`/api/configuracion/wepa-gs/${id}/contrato`, {
+      const response = await api.get(`/api/configuracion/wepa-gs/${id}/contrato`, {
         responseType: 'blob'
       });
       return response.data;

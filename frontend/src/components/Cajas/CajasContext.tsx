@@ -1,5 +1,4 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
-import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSucursal } from '../../contexts/SucursalContext';
 import { Caja, Maletin, FormularioApertura, Retiro, OperacionBancaria, Persona, FormRetiro, Pago, FormPago } from './interfaces';
@@ -251,7 +250,7 @@ export const CajasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       // Si el usuario es administrador, cargar todas las cajas
       if (user && user.rol && user.rol.nombre.toUpperCase() === 'ADMINISTRADOR') {
         // Usar la API que devuelve todas las cajas
-        const response = await axios.get('/api/cajas');
+        const response = await api.get('/api/cajas');
         
         // Ordenar cajas por fecha de apertura, de más reciente a menos reciente
         const cajasOrdenadas = [...response.data].sort((a, b) => {
@@ -268,7 +267,7 @@ export const CajasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           backendSucursalId = numericId.toString();
         }
         
-        const response = await axios.get(`/api/cajas/sucursal/${backendSucursalId}`);
+        const response = await api.get(`/api/cajas/sucursal/${backendSucursalId}`);
         
         // Ordenar cajas por fecha de apertura, de más reciente a menos reciente
         const cajasOrdenadas = [...response.data].sort((a, b) => {
@@ -295,7 +294,7 @@ export const CajasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         backendSucursalId = numericId.toString();
       }
       
-      const response = await axios.get(`/api/maletines/sucursal/${backendSucursalId}`);
+      const response = await api.get(`/api/maletines/sucursal/${backendSucursalId}`);
       setMaletines(response.data);
     } catch (error) {
       console.error('Error al cargar maletines:', error);
@@ -308,7 +307,7 @@ export const CajasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     try {
       setBuscandoPersonas(true);
       // Aquí deberíamos usar personaService pero para no complicar, usamos axios directamente
-      const response = await axios.get('/api/personas');
+      const response = await api.get('/api/personas');
       const data = response.data;
       
       // Filtrar solo funcionarios y VIP
@@ -336,7 +335,7 @@ export const CajasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setLoading(true);
     
     // Cargar retiros desde la API
-    axios.get(`/api/cajas/${caja.id}/retiros`)
+    api.get(`/api/cajas/${caja.id}/retiros`)
       .then(response => {
         setRetiros(response.data);
         setListaRetirosDialogOpen(true);
@@ -360,7 +359,7 @@ export const CajasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setLoading(true);
     
     // Cargar operaciones bancarias desde la API
-    axios.get(`/api/cajas/${caja.id}/operaciones-bancarias`)
+    api.get(`/api/cajas/${caja.id}/operaciones-bancarias`)
       .then(response => {
         setOperacionesBancarias(response.data);
         setOperacionesBancariasDialogOpen(true);
@@ -436,7 +435,7 @@ export const CajasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       };
       
       // Llamada a la API para guardar el retiro
-      const response = await axios.post(`/api/cajas/${cajaSeleccionada.id}/retiros`, retiroData);
+      const response = await api.post(`/api/cajas/${cajaSeleccionada.id}/retiros`, retiroData);
       
       const nuevoRetiro = response.data;
       
@@ -475,7 +474,7 @@ export const CajasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     // Verificar si la caja está cerrada pero no tiene saldos finales
     if (caja.estado === 'cerrada' && (!caja.saldoFinal || !caja.saldoFinal.total)) {
       console.log('Caja cerrada sin saldos finales. Cargando datos desde el backend...');
-      axios.get(`/api/cajas/${caja.id}/datos-cierre`)
+      api.get(`/api/cajas/${caja.id}/datos-cierre`)
         .then(response => {
           console.log('Datos de cierre cargados:', response.data);
           // Crear una copia de la caja con los datos de cierre completados
@@ -563,7 +562,7 @@ export const CajasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (caja.estado === 'cerrada') {
       // Cargar los datos de cierre desde el backend para edición
       setLoading(true);
-      axios.get(`/api/cajas/${caja.id}/datos-cierre`)
+      api.get(`/api/cajas/${caja.id}/datos-cierre`)
         .then(response => {
           // Almacenar los datos de cierre en el contexto para su edición
           console.log('Datos de cierre cargados:', response.data);
@@ -649,7 +648,7 @@ export const CajasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         const idsAEliminar = retiroAEliminar.ids || [retiroAEliminar.id];
         
         // Llamada a la API para eliminar el retiro enviando todos los IDs
-        await axios.delete(`/api/cajas/retiros/${confirmarEliminarRetiroId}`, {
+        await api.delete(`/api/cajas/retiros/${confirmarEliminarRetiroId}`, {
           data: { ids: idsAEliminar }
         });
         
@@ -724,7 +723,7 @@ export const CajasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setLoading(true);
     
     // Cargar los pagos desde el backend
-    axios.get(`/api/cajas/${caja.id}/pagos`)
+    api.get(`/api/cajas/${caja.id}/pagos`)
       .then(response => {
         setPagos(response.data);
         setListaPagosDialogOpen(true);
@@ -801,7 +800,7 @@ export const CajasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       }
       
       // Enviar la petición al backend
-      const response = await axios.post(
+      const response = await api.post(
         `/api/cajas/${cajaSeleccionada.id}/pagos`, 
         formData, 
         {
@@ -850,7 +849,7 @@ export const CajasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       }
       
       // Enviar la petición al backend
-      await axios.delete(`/api/cajas/pagos/${confirmarEliminarPagoId}`);
+      await api.delete(`/api/cajas/pagos/${confirmarEliminarPagoId}`);
       
       // Eliminar el pago de la lista
       setPagos(prevPagos => prevPagos.filter(pago => pago.id !== confirmarEliminarPagoId));

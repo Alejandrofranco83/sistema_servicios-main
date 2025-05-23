@@ -35,7 +35,7 @@ import {
   Delete as DeleteIcon,
   PersonAdd as PersonAddIcon
 } from '@mui/icons-material';
-import axios from 'axios';
+import api from '../../services/api'; // Usar instancia api global
 import { scrollbarStyles } from '../../utils/scrollbarStyles';
 
 interface Persona {
@@ -142,7 +142,7 @@ const IPS: React.FC = () => {
     setLoading(true);
     try {
       // Cargar los datos desde la API
-      const response = await axios.get('/api/ips/personas');
+      const response = await api.get('/api/ips/personas');
       if (response.data && Array.isArray(response.data)) {
         console.log('Datos de IPS cargados:', response.data);
         setPersonasIPS(response.data);
@@ -185,7 +185,7 @@ const IPS: React.FC = () => {
     setSearchLoading(true);
     try {
       // Usar el endpoint para buscar personas
-      const response = await axios.get(`/api/personas/buscar-personas?termino=${searchTerm}`);
+      const response = await api.get(`/api/personas/buscar-personas?termino=${searchTerm}`);
       
       if (response.data && Array.isArray(response.data)) {
         console.log('Resultados de búsqueda:', response.data);
@@ -277,7 +277,7 @@ const IPS: React.FC = () => {
       console.log('Fecha a enviar al backend:', fechaFormateada);
       
       // Llamar a la API para agregar a IPS
-      const response = await axios.post('/api/ips/agregar', {
+      const response = await api.post('/api/ips/agregar', {
         personaId: selectedPersona.id,
         fechaInicio: fechaFormateada,
         estado: 'ACTIVO'
@@ -323,7 +323,7 @@ const IPS: React.FC = () => {
       setLoading(true);
       
       // Llamar a la API para eliminar el registro
-      await axios.delete(`/api/ips/eliminar/${personaToDelete}`);
+      await api.delete(`/api/ips/eliminar/${personaToDelete}`);
       
       // Recargar la lista completa
       await cargarPersonasIPS();

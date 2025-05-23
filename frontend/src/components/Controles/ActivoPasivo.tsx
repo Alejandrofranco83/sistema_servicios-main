@@ -28,7 +28,6 @@ import {
   Inventory2 as Inventory2Icon,
   LocalAtm as LocalAtmIcon
 } from '@mui/icons-material';
-import axios from 'axios';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { obtenerPersonasConSaldo, SaldoPersona } from '../../services/usoDevolucionService';
