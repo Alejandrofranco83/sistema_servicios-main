@@ -120,7 +120,7 @@ interface DashboardProps {
 const drawerWidth = 240;
 
 const Dashboard: React.FC<DashboardProps> = ({ onToggleTheme, isDarkMode }) => {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [expandedItems, setExpandedItems] = useState<{ [key: string]: boolean }>({});
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const theme = useTheme();

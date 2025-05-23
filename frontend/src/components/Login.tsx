@@ -97,7 +97,7 @@ const Login: React.FC<LoginProps> = ({ onToggleTheme, isDarkMode }) => {
 
     setChangePasswordLoading(true);
     try {
-      await api.post('/auth/cambiar-password', {
+      await api.post('/api/auth/cambiar-password', {
         username: passwordData.username.toUpperCase(),
         oldPassword: passwordData.oldPassword,
         newPassword: passwordData.newPassword,

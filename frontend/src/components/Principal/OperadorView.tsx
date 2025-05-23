@@ -359,12 +359,6 @@ const OperadorView: React.FC<OperadorViewProps> = ({ username }) => {
               }}
             />
             <CardContent sx={{ pt: 4 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 2 }}>
-                <NotificationsIcon color="secondary" />
-                <Typography variant="h5" component="div" align="center" fontWeight="bold" gutterBottom>
-                  Resumen Financiero
-                </Typography>
-              </Box>
               
               {slides.length > 0 ? (
                 <Box sx={{ position: 'relative', height: 375, overflow: 'hidden', borderRadius: 3 }}>
