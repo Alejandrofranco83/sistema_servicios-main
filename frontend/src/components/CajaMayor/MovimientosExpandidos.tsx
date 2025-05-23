@@ -3,7 +3,6 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions,
   Typography,
   Box,
   Button,
@@ -26,10 +25,10 @@ import {
   Tooltip,
   Divider,
   CircularProgress,
-  Alert
+  Alert,
+  DialogActions
 } from '@mui/material';
 import {
-  Close as CloseIcon,
   ArrowDownward as ArrowDownwardIcon,
   ArrowUpward as ArrowUpwardIcon,
   Search as SearchIcon,
@@ -37,16 +36,20 @@ import {
   Clear as ClearIcon,
   RefreshOutlined as RefreshIcon,
   Edit as EditIcon,
-  Description as DescriptionIcon
+  Description as DescriptionIcon,
+  Print as PrintIcon
 } from '@mui/icons-material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { es } from 'date-fns/locale';
 import { formatCurrency } from '../../utils/formatUtils';
+import { scrollbarStyles } from '../../utils/scrollbarStyles';
 import EditarVale from './EditarVale';
 import EditarUsoDevolucion from './EditarUsoDevolucion';
 import CancelarDeposito from './CancelarDeposito';
+import ImprimirValeDialog from './ImprimirValeDialog';
 import { cajaMayorService } from '../../services/api';
+import api from '../../services/api';
 
 // Definir la interfaz para los movimientos
 interface Movimiento {
@@ -85,6 +88,7 @@ const MovimientosExpandidos: React.FC<MovimientosExpandidosProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ordenDescendente, setOrdenDescendente] = useState(true); // Estado local para el orden
+  const [loadingComprobante, setLoadingComprobante] = useState<boolean>(false);
 
   // --- Estados para filtros --- 
   const [filtroFechaDesde, setFiltroFechaDesde] = useState<Date | null>(null);
@@ -99,6 +103,13 @@ const MovimientosExpandidos: React.FC<MovimientosExpandidosProps> = ({
   const [editarUsoDevolucionOpen, setEditarUsoDevolucionOpen] = useState(false);
   const [cancelarDepositoOpen, setCancelarDepositoOpen] = useState(false);
   const [selectedMovimientoId, setSelectedMovimientoId] = useState<number | null>(null);
+
+  // Estados para impresión de vales
+  const [imprimirValeDialogOpen, setImprimirValeDialogOpen] = useState(false);
+  const [valeParaImprimirId, setValeParaImprimirId] = useState<number | null>(null);
+  const [verificandoEstadoVale, setVerificandoEstadoVale] = useState(false);
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
+  const [errorDialogMessage, setErrorDialogMessage] = useState<string | null>(null);
 
   // --- Función para cargar movimientos paginados --- 
   const cargarMovimientos = useCallback(async () => {
@@ -239,7 +250,7 @@ const MovimientosExpandidos: React.FC<MovimientosExpandidosProps> = ({
 
   // Manejador para editar movimiento
   const handleEditarMovimiento = (movimientoId: number, tipo: string) => {
-      setSelectedMovimientoId(movimientoId);
+    setSelectedMovimientoId(movimientoId);
     console.log(`Editando movimiento tipo: ${tipo} con ID: ${movimientoId}`);
     
     // Determinar qué dialog abrir según el tipo de movimiento
@@ -257,7 +268,249 @@ const MovimientosExpandidos: React.FC<MovimientosExpandidosProps> = ({
     }
   };
 
-  const API_URL = 'http://localhost:3000/api'; // Definir API_URL si no está ya
+  // Función para verificar si un comprobante es válido
+  const esComprobanteValido = (rutaComprobante: string | null | undefined): boolean => {
+    // Añadir log para diagnóstico más detallado
+    console.log('[MovimientosExpandidos] Verificando comprobante:');
+    console.log('  - Valor recibido:', rutaComprobante);
+    console.log('  - Tipo:', typeof rutaComprobante);
+    console.log('  - Es null:', rutaComprobante === null);
+    console.log('  - Es undefined:', rutaComprobante === undefined);
+    console.log('  - Es string vacío:', rutaComprobante === '');
+    
+    // Verificación inicial: debe existir y ser un string no vacío
+    if (!rutaComprobante) {
+      console.log('  - Resultado: FALSE (null, undefined o falsy)');
+      return false;
+    }
+    
+    // Verificar que sea string
+    if (typeof rutaComprobante !== 'string') {
+      console.log('  - Resultado: FALSE (no es string)');
+      return false;
+    }
+    
+    const textoLimpio = rutaComprobante.trim().toLowerCase();
+    console.log('  - Texto limpio:', textoLimpio);
+    
+    // Si está vacío después de trim, no es válido
+    if (textoLimpio === '') {
+      console.log('  - Resultado: FALSE (string vacío después de trim)');
+      return false;
+    }
+    
+    // IMPORTANTE: Los archivos .txt indican que NO hay comprobante adjunto
+    if (textoLimpio.endsWith('.txt')) {
+      console.log('  - Resultado: FALSE (archivo .txt indica sin comprobante)');
+      return false;
+    }
+    
+    // Detectar textos que indican que no hay comprobante
+    const textosInvalidos = [
+      'sin comprobante', 
+      'no hay comprobante',
+      'no disponible',
+      'n/a',
+      'ninguno',
+      'no existe',
+      '-',
+      'null',
+      'undefined',
+      'sin archivo',
+      'no adjuntado',
+      'pendiente'
+    ];
+    
+    // Si contiene alguno de los textos inválidos, no es un comprobante válido
+    for (const texto of textosInvalidos) {
+      if (textoLimpio.includes(texto)) {
+        console.log(`  - Resultado: FALSE (contiene texto inválido: "${texto}")`);
+        return false;
+      }
+    }
+    
+    // Verificar si parece una ruta de archivo válida (excluyendo .txt)
+    const tieneExtensionValida = /\.(pdf|jpg|jpeg|png|gif|tiff|bmp|doc|docx)$/i.test(textoLimpio);
+    console.log('  - Tiene extensión válida (sin .txt):', tieneExtensionValida);
+    
+    if (!tieneExtensionValida) {
+      console.log('  - Resultado: FALSE (sin extensión de archivo válida)');
+      return false;
+    }
+    
+    // Verificar que no sea solo una extensión sin nombre
+    const nombreSinExtension = textoLimpio.replace(/\.(pdf|jpg|jpeg|png|gif|tiff|bmp|doc|docx)$/i, '');
+    if (nombreSinExtension.length < 1) {
+      console.log('  - Resultado: FALSE (solo extensión sin nombre de archivo)');
+      return false;
+    }
+    
+    console.log('  - Resultado: TRUE (comprobante válido)');
+    return true;
+  };
+
+  // Ver comprobante (implementación robusta)
+  const verComprobante = async (nombreArchivo: string) => {
+    try {
+      if (!nombreArchivo || !esComprobanteValido(nombreArchivo)) {
+        setError('Comprobante no disponible o inválido');
+        return;
+      }
+
+      setLoadingComprobante(true);
+      console.log('Ruta de comprobante original:', nombreArchivo);
+      
+      // Extraer el nombre del archivo sin la ruta
+      const nombreArchivoSolo = nombreArchivo.split('/').pop() || nombreArchivo;
+      
+      // Detectar el servicio basado en el nombre del archivo
+      let servicioDetectado = 'caja-mayor'; // Valor por defecto
+      
+      if (nombreArchivoSolo.includes('wepaUsd')) {
+        servicioDetectado = 'wepa-usd';
+      } else if (nombreArchivoSolo.includes('wepaGuaranies')) {
+        servicioDetectado = 'wepa-guaranies';
+      } else if (nombreArchivoSolo.includes('wepa')) {
+        servicioDetectado = 'wepa';
+      } else if (nombreArchivoSolo.includes('aquiPago')) {
+        servicioDetectado = 'aquipago';
+      }
+      
+      console.log('Servicio detectado por nombre de archivo:', servicioDetectado);
+      
+      // Lista de variantes a intentar, en orden de prioridad
+      const intentos = [
+        // 1. Intento basado en el servicio detectado
+        { 
+          url: `/api/${servicioDetectado}/comprobante/${encodeURIComponent(nombreArchivoSolo)}`,
+          desc: `Intentando con servicio detectado: ${servicioDetectado}`
+        },
+        // 2. Intento con caja-mayor (coincide con el servicio actual)
+        { 
+          url: `/api/caja-mayor/comprobante/${encodeURIComponent(nombreArchivoSolo)}`,
+          desc: 'Intentando con endpoint caja-mayor'
+        },
+        // 3. Intento específico para depositos
+        { 
+          url: `/api/depositos/comprobante/${encodeURIComponent(nombreArchivoSolo)}`,
+          desc: 'Intentando con endpoint depositos'
+        },
+        // 4. Intento para wepa-usd 
+        { 
+          url: `/api/wepa-usd/comprobante/${encodeURIComponent(nombreArchivoSolo)}`,
+          desc: 'Intentando con endpoint wepa-usd'
+        },
+        // 5. Intento para aquipago
+        { 
+          url: `/api/aquipago/comprobante/${encodeURIComponent(nombreArchivoSolo)}`,
+          desc: 'Intentando con endpoint aquipago'
+        },
+        // 6. Intento con endpoint genérico
+        { 
+          url: `/api/comprobantes/${encodeURIComponent(nombreArchivoSolo)}`,
+          desc: 'Intentando con endpoint genérico de comprobantes'
+        },
+        // 7. Intento directo con uploads (último recurso)
+        {
+          url: `/uploads/${encodeURIComponent(nombreArchivoSolo)}`,
+          desc: 'Intentando con ruta directa en uploads'
+        }
+      ];
+      
+      // Probar cada intento secuencialmente
+      for (const intento of intentos) {
+        try {
+          console.log(intento.desc);
+          const response = await api.get(intento.url, {
+            responseType: 'blob'
+          });
+          
+          const blob = new Blob([response.data], { type: response.headers['content-type'] });
+          const url = window.URL.createObjectURL(blob);
+          window.open(url, '_blank');
+          window.URL.revokeObjectURL(url);
+          
+          console.log('Éxito con:', intento.url);
+          return; // Salir si tiene éxito
+        } catch (error) {
+          console.log(`Falló intento con: ${intento.url}`);
+          // Continuar con el siguiente intento
+        }
+      }
+      
+      // Si llegamos aquí, todos los intentos fallaron
+      // Intentar un último recurso: la URL original directamente
+      console.log('Intentando con URL original:', nombreArchivo);
+      try {
+        // Obtener la URL base configurada para la aplicación
+        const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+        
+        // Construir la URL completa
+        const comprobanteUrl = `${apiBaseUrl}/uploads/${nombreArchivo}`;
+        
+        console.log('URL final del comprobante:', comprobanteUrl);
+        window.open(comprobanteUrl, '_blank');
+      } catch (error) {
+        console.error('Error al abrir URL original:', error);
+        setError('No se pudo visualizar el comprobante solicitado');
+      }
+      
+    } catch (err) {
+      console.error('Error al ver comprobante:', err);
+      setError('Error al visualizar el comprobante solicitado');
+    } finally {
+      setLoadingComprobante(false);
+    }
+  };
+
+  // Función para abrir el diálogo de impresión de vale
+  const handleAbrirDialogoImprimirVale = async (movimientoId: number) => {
+    if (verificandoEstadoVale) return; 
+    
+    setVerificandoEstadoVale(true);
+    setError(null); // Limpiar errores generales previos
+    console.log(`[MovimientosExpandidos] Verificando estado para imprimir vale (Movimiento ID: ${movimientoId})...`);
+
+    try {
+      const movimientoResponse = await api.get(`/api/caja_mayor_movimientos/${movimientoId}`);
+      const operacionId = movimientoResponse.data?.operacionId;
+
+      if (!operacionId) {
+        throw new Error('No se pudo obtener el ID de operación del vale.');
+      }
+
+      const valeResponse = await api.get(`/api/vales/${operacionId}`);
+      const estadoVale = valeResponse.data?.estado;
+      const motivoCancelacion = valeResponse.data?.motivo_cancelacion; 
+
+      console.log(`[MovimientosExpandidos] Estado del vale ${operacionId}:`, estadoVale);
+
+      if (estadoVale && estadoVale.toLowerCase() === 'cancelado') {
+          let errorMsg = 'Este vale ha sido cancelado y no se puede imprimir.';
+          if (motivoCancelacion) {
+              errorMsg += ` Motivo: ${motivoCancelacion}`;
+          }
+          setErrorDialogMessage(errorMsg);
+          setErrorDialogOpen(true);
+          console.warn(`[MovimientosExpandidos] Intento de imprimir vale cancelado (Movimiento ID: ${movimientoId}, Vale ID: ${operacionId})`);
+      } else {
+        setValeParaImprimirId(movimientoId);
+        setImprimirValeDialogOpen(true);
+      }
+
+    } catch (err: any) {
+      console.error('[MovimientosExpandidos] Error al verificar estado del vale antes de imprimir:', err);
+      setError(err.response?.data?.error || err.message || 'Error al verificar el estado del vale.');
+    } finally {
+       setVerificandoEstadoVale(false);
+    }
+  };
+
+  // Función para cerrar el diálogo de error
+  const handleCloseErrorDialog = () => {
+      setErrorDialogOpen(false);
+      setErrorDialogMessage(null);
+  };
 
   return (
     <Dialog
@@ -269,6 +522,11 @@ const MovimientosExpandidos: React.FC<MovimientosExpandidosProps> = ({
         <Typography variant="h6">
           Movimientos en {monedaActiva === 'guaranies' ? 'Guaraníes' : monedaActiva === 'dolares' ? 'Dólares' : 'Reales'}
         </Typography>
+        {verificandoEstadoVale && 
+          <Alert severity="info" sx={{ py: 0, px: 1 }}>
+            Verificando estado del vale...
+          </Alert>
+        }
       </DialogTitle>
       
       <Divider />
@@ -391,7 +649,7 @@ const MovimientosExpandidos: React.FC<MovimientosExpandidosProps> = ({
         </Paper>
         
         {/* Tabla de movimientos */}
-        <TableContainer component={Paper} sx={{ flexGrow: 1, overflowY: 'auto' }}>
+        <TableContainer component={Paper} sx={{ flexGrow: 1, overflowY: 'auto', ...scrollbarStyles }}>
           {loading && (
              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
                <CircularProgress />
@@ -446,7 +704,6 @@ const MovimientosExpandidos: React.FC<MovimientosExpandidosProps> = ({
                     
                     // Determinar si es un depósito para mostrar icono de comprobante
                     const isDeposito = movimiento.tipo.toLowerCase().includes('depósito') || movimiento.tipo.toLowerCase().includes('deposito');
-                    const hasComprobante = !!movimiento.rutaComprobante;
                     
                     return (
                       <TableRow key={movimiento.id} hover>
@@ -471,15 +728,41 @@ const MovimientosExpandidos: React.FC<MovimientosExpandidosProps> = ({
                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                <span>{movimiento.concepto}</span>
                                 {
+                                  // Icono para imprimir vale
+                                  movimiento.tipo === 'Vales' &&
+                                  (() => {
+                                    const isEsteMovimientoCancelacion = movimiento.concepto.toLowerCase().includes('cancelado');
+                                    return (
+                                      <Tooltip title={isEsteMovimientoCancelacion ? "Movimiento de cancelación (no se puede imprimir)" : "Imprimir Vale"}>
+                                        <span style={{ marginLeft: '4px' }}>
+                                          <IconButton
+                                            size="small"
+                                            color="info"
+                                            onClick={() => !isEsteMovimientoCancelacion && handleAbrirDialogoImprimirVale(movimiento.id)}
+                                            disabled={isEsteMovimientoCancelacion}
+                                            sx={{ p: 0.25 }}
+                                          >
+                                            <PrintIcon fontSize="small" />
+                                          </IconButton>
+                                        </span>
+                                      </Tooltip>
+                                    );
+                                  })()
+                                }
+                                {
                                   // Icono para ver comprobante de depósito
-                                  isDeposito && hasComprobante && !isDepositoCancelacion && (
-                                      <Tooltip title="Ver Comprobante">
+                                  isDeposito && !isDepositoCancelacion && (
+                                      <Tooltip title={esComprobanteValido(movimiento.rutaComprobante) ? "Ver Comprobante" : "Comprobante no disponible"}>
                                           <span style={{ marginLeft: '4px' }}>
                                               <IconButton
                                                   size="small"
                                                   color="secondary"
-                                                  sx={{ p: 0.25 }}
-                                                  onClick={() => window.open(`${API_URL}/uploads/${movimiento.rutaComprobante}`, '_blank')}
+                                                  sx={{ 
+                                                    p: 0.25, 
+                                                    opacity: esComprobanteValido(movimiento.rutaComprobante) ? 1 : 0.5
+                                                  }}
+                                                  onClick={() => esComprobanteValido(movimiento.rutaComprobante) ? verComprobante(movimiento.rutaComprobante ?? '') : null}
+                                                  disabled={!esComprobanteValido(movimiento.rutaComprobante)}
                                               >
                                                   <DescriptionIcon fontSize="small" />
                                               </IconButton>
@@ -487,7 +770,25 @@ const MovimientosExpandidos: React.FC<MovimientosExpandidosProps> = ({
                                       </Tooltip>
                                   )
                                 }
-                                {/* Podríamos añadir otros iconos aquí si fuera necesario, como el de imprimir vale */} 
+                                {/* Icono para ver comprobante de pago de servicio */}
+                                {movimiento.tipo.toLowerCase().includes('pago') && !isGenericCancelacion && (
+                                    <Tooltip title={esComprobanteValido(movimiento.rutaComprobante) ? "Ver Comprobante del Pago" : "Comprobante no disponible"}>
+                                        <span style={{ marginLeft: '4px' }}>
+                                            <IconButton
+                                                size="small"
+                                                color="info"
+                                                sx={{ 
+                                                  p: 0.25, 
+                                                  opacity: esComprobanteValido(movimiento.rutaComprobante) ? 1 : 0.5
+                                                }}
+                                                onClick={() => esComprobanteValido(movimiento.rutaComprobante) ? verComprobante(movimiento.rutaComprobante ?? '') : null}
+                                                disabled={!esComprobanteValido(movimiento.rutaComprobante)}
+                                            >
+                                                <DescriptionIcon fontSize="small" />
+                                            </IconButton>
+                                        </span>
+                                    </Tooltip>
+                                )}
                             </Box>
                         </TableCell>
                         <TableCell align="right" sx={{ color: movimiento.esIngreso ? 'success.main' : 'inherit' }}>
@@ -578,6 +879,35 @@ const MovimientosExpandidos: React.FC<MovimientosExpandidosProps> = ({
         movimientoId={selectedMovimientoId}
       />
       )}
+
+      {/* Diálogo para imprimir vales */}
+      <ImprimirValeDialog
+        open={imprimirValeDialogOpen}
+        onClose={() => setImprimirValeDialogOpen(false)}
+        movimientoId={valeParaImprimirId}
+      />
+
+      {/* Diálogo de error para vales cancelados */}
+      <Dialog
+        open={errorDialogOpen}
+        onClose={handleCloseErrorDialog}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">
+          {"Vale Cancelado"}
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" id="alert-dialog-description">
+            {errorDialogMessage}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseErrorDialog} color="primary" autoFocus>
+            Aceptar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Dialog>
   );
 };

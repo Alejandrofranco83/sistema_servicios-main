@@ -13,7 +13,8 @@ import {
   Slide,
   Fade,
   useTheme,
-  alpha
+  alpha,
+  GlobalStyles
 } from '@mui/material';
 import {
   PointOfSale as PointOfSaleIcon,
@@ -25,6 +26,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { globalScrollbarStyles } from '../../utils/scrollbarStyles';
 
 // Interfaces para los datos del carrusel y panel informativo
 interface CarouselSlide {
@@ -207,6 +209,9 @@ const OperadorView: React.FC<OperadorViewProps> = ({ username }) => {
 
   return (
     <Box sx={{ p: 3, backgroundColor: alpha(theme.palette.background.default, 0.5) }}>
+      {/* Aplicar estilos globales de scrollbar */}
+      <GlobalStyles styles={globalScrollbarStyles} />
+      
       <Box sx={{ 
         mb: 4, 
         p: 2, 

@@ -90,6 +90,7 @@ import NotificacionesPage from '../../pages/Notificaciones/NotificacionesPage';
 import TestNotificaciones from '../../pages/Notificaciones/TestNotificaciones';
 import GestionNotificaciones from '../Configuracion/GestionNotificaciones';
 import ImpresorasTermicas from '../Configuracion/ImpresorasTermicas';
+import { scrollbarStyles } from '../../utils/scrollbarStyles';
 
 // Definir interfaz para elementos del menú
 interface SubMenuItem {
@@ -624,23 +625,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onToggleTheme, isDarkMode }) => {
           display: 'flex',
           flexDirection: 'column',
           height: '100%',
-          // Estilos para la barra de desplazamiento en navegadores webkit (Chrome, Safari, Edge)
-          '&::-webkit-scrollbar': {
-            width: '8px',
-          },
-          '&::-webkit-scrollbar-track': {
-            background: 'rgba(0, 0, 0, 0.1)',
-          },
-          '&::-webkit-scrollbar-thumb': {
-            background: 'rgba(0, 0, 0, 0.5)',
-            borderRadius: '4px',
-            '&:hover': {
-              background: 'rgba(0, 0, 0, 0.7)',
-            },
-          },
-          // Estilos para la barra de desplazamiento en Firefox
-          scrollbarWidth: 'thin',
-          scrollbarColor: 'rgba(0, 0, 0, 0.5) rgba(0, 0, 0, 0.1)',
+          ...scrollbarStyles,
         }}>
           <List>
             {menuItems.map((item) => (

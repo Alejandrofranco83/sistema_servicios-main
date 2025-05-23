@@ -32,6 +32,7 @@ import { formatCurrency } from '../../utils/formatUtils';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { depositoBancarioService, MovimientoCajaInput } from '../../services/depositoBancarioService';
+import { scrollbarStyles } from '../../utils/scrollbarStyles';
 
 interface DepositoBancarioProps {
   open: boolean;
@@ -251,10 +252,15 @@ const DepositoBancario: React.FC<DepositoBancarioProps> = ({ open, onClose, onGu
       setComprobante(file);
       setSuccessMessage(`Comprobante ${file.name} subido correctamente`);
       
-      // Limpiar mensaje después de 2 segundos
+      // Mantener el mensaje de éxito por 5 segundos para que sea más visible
       setTimeout(() => {
-        setSuccessMessage(null);
-      }, 2000);
+        // Solo limpiar el mensaje si sigue siendo el mismo (podría haber cambiado)
+        setSuccessMessage(prevMessage => 
+          prevMessage === `Comprobante ${file.name} subido correctamente` 
+            ? null 
+            : prevMessage
+        );
+      }, 5000);
     }
   };
   
@@ -495,17 +501,25 @@ const DepositoBancario: React.FC<DepositoBancarioProps> = ({ open, onClose, onGu
       </DialogTitle>
       
       <DialogContent dividers>
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-        
-        {successMessage && (
-          <Alert severity="success" sx={{ mb: 2 }}>
-            {successMessage}
-          </Alert>
-        )}
+        {/* Contenedor con altura fija para mensajes de alerta */}
+        <Box sx={{ minHeight: 64, mb: 2 }}>
+          {error && (
+            <Alert severity="error" sx={{ width: '100%' }}>
+              {error}
+            </Alert>
+          )}
+          
+          {successMessage && (
+            <Alert severity="success" sx={{ width: '100%' }}>
+              {successMessage}
+            </Alert>
+          )}
+
+          {/* Si no hay mensajes, mantenemos el espacio vacío */}
+          {!error && !successMessage && (
+            <Box sx={{ height: 64 }} /> 
+          )}
+        </Box>
         
         <Grid container spacing={3}>
           {/* Selección de Banco y Cuenta */}
@@ -547,7 +561,8 @@ const DepositoBancario: React.FC<DepositoBancarioProps> = ({ open, onClose, onGu
                         maxHeight: 200, 
                         overflow: 'auto',
                         mb: 2,
-                        p: cuentasFiltradas.length ? 1 : 0
+                        p: cuentasFiltradas.length ? 1 : 0,
+                        ...scrollbarStyles
                       }}
                     >
                       {cuentasFiltradas.length > 0 ? (
@@ -677,39 +692,61 @@ const DepositoBancario: React.FC<DepositoBancarioProps> = ({ open, onClose, onGu
                 onClick={(e) => (e.target as HTMLInputElement).select()}
               />
               
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                <Button
-                  variant="outlined"
-                  component="label"
-                  startIcon={<AttachFileIcon />}
-                  disabled={loading || !cuentaActual}
-                >
-                  Adjuntar Comprobante
-                  <input
-                    type="file"
-                    hidden
-                    accept="image/*,.pdf"
-                    onChange={handleFileUpload}
+              {/* Área de altura fija para archivos adjuntos */}
+              <Box sx={{ mb: 2, minHeight: 50 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Button
+                    variant="outlined"
+                    component="label"
+                    startIcon={<AttachFileIcon />}
                     disabled={loading || !cuentaActual}
-                  />
-                </Button>
-                {comprobante && (
-                  <>
-                    <Typography variant="body2" noWrap sx={{ maxWidth: 150 }} title={comprobante.name}>
-                      {comprobante.name}
+                  >
+                    Adjuntar Comprobante
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/*,.pdf"
+                      onChange={handleFileUpload}
+                      disabled={loading || !cuentaActual}
+                    />
+                  </Button>
+                  {comprobante ? (
+                    <Box 
+                      sx={{ 
+                        display: 'flex',
+                        alignItems: 'center', 
+                        gap: 1,
+                        p: 0.5,
+                        pl: 1,
+                        border: '1px solid',
+                        borderColor: 'success.light',
+                        borderRadius: 1,
+                        backgroundColor: 'success.light',
+                        opacity: 0.8
+                      }}
+                    >
+                      <Typography variant="body2" noWrap sx={{ maxWidth: 150, color: 'white' }} title={comprobante.name}>
+                        {comprobante.name}
+                      </Typography>
+                      <Tooltip title="Ver comprobante">
+                        <IconButton 
+                          size="small" 
+                          color="info"
+                          onClick={handleVerComprobante}
+                          disabled={loading}
+                          sx={{ bgcolor: 'white', '&:hover': { bgcolor: '#f5f5f5' } }}
+                        >
+                          <VisibilityIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  ) : (
+                    // Espacio reservado cuando no hay archivo para mantener la altura consistente
+                    <Typography variant="body2" color="text.secondary" sx={{ opacity: 0.7 }}>
+                      Ningún archivo seleccionado
                     </Typography>
-                    <Tooltip title="Ver comprobante">
-                      <IconButton 
-                        size="small" 
-                        color="info"
-                        onClick={handleVerComprobante}
-                        disabled={loading}
-                      >
-                        <VisibilityIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </>
-                )}
+                  )}
+                </Box>
               </Box>
             </Paper>
           </Grid>
@@ -733,13 +770,20 @@ const DepositoBancario: React.FC<DepositoBancarioProps> = ({ open, onClose, onGu
         )}
       </DialogContent>
       
-      <DialogActions>
+      <DialogActions sx={{ 
+        py: 2, 
+        px: 3,
+        height: 76, // Altura fija para los botones de acción
+        display: 'flex',
+        justifyContent: 'space-between'
+      }}>
         <Button 
           onClick={handleClose} 
           color="inherit"
           disabled={loading}
+          variant="outlined"
         >
-          Cancelar
+          CANCELAR
         </Button>
         
         <Button
@@ -750,7 +794,7 @@ const DepositoBancario: React.FC<DepositoBancarioProps> = ({ open, onClose, onGu
           disabled={loading || !cuentaActual || !monto}
           startIcon={loading ? <CircularProgress size={20} /> : null}
         >
-          {loading ? 'Procesando...' : 'Guardar Depósito'}
+          {loading ? 'Procesando...' : 'GUARDAR DEPÓSITO'}
         </Button>
       </DialogActions>
     </Dialog>

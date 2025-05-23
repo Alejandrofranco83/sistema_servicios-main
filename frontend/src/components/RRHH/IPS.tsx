@@ -36,6 +36,7 @@ import {
   PersonAdd as PersonAddIcon
 } from '@mui/icons-material';
 import axios from 'axios';
+import { scrollbarStyles } from '../../utils/scrollbarStyles';
 
 interface Persona {
   id: number;
@@ -422,7 +423,8 @@ const IPS: React.FC = () => {
                 zIndex: 1000,
                 maxHeight: 300,
                 overflow: 'auto',
-                mt: 0.5
+                mt: 0.5,
+                ...scrollbarStyles
               }}
             >
               <List dense sx={{ p: 0 }}>

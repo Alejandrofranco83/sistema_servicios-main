@@ -46,6 +46,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import PersonIcon from '@mui/icons-material/Person';
 import StoreIcon from '@mui/icons-material/Store';
+import api from '../../services/api';
 
 // Interfaces
 interface MovimientoCaja {
@@ -169,43 +170,41 @@ const BalanceAquipago: React.FC = () => {
         return;
       }
 
-      // Normalizar la ruta (reemplazar backslashes por forward slashes)
-      let archivoParam = nombreArchivo.replace(/\\/g, '/');
+      console.log('Ruta de comprobante original:', nombreArchivo);
       
-      // Limpiar múltiples slashes - Versión más estricta
-      while (archivoParam.includes('//')) {
-        archivoParam = archivoParam.replace(/\/\//g, '/');
+      // Intentar primero con el nombre del archivo solo (última parte de la ruta)
+      try {
+        const nombreArchivoSolo = nombreArchivo.split('/').pop() || nombreArchivo;
+        console.log('Intentando con solo el nombre del archivo:', nombreArchivoSolo);
+        
+        const response = await api.get(`/api/aquipago/comprobante/${encodeURIComponent(nombreArchivoSolo)}`, {
+          responseType: 'blob'
+        });
+        
+        const blob = new Blob([response.data], { type: response.headers['content-type'] });
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        window.URL.revokeObjectURL(url);
+        return;
+      } catch (error) {
+        console.log('Error con nombre de archivo, intentando con ruta completa...');
       }
       
-      // Asegurarnos que no empiece con barra
-      while (archivoParam.startsWith('/')) {
-        archivoParam = archivoParam.substring(1);
+      // Si falla, intentar con la ruta completa
+      try {
+        console.log('Intentando con ruta completa');
+        const response = await api.get(`/api/aquipago/comprobante/${encodeURIComponent(nombreArchivo)}`, {
+          responseType: 'blob'
+        });
+        
+        const blob = new Blob([response.data], { type: response.headers['content-type'] });
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        window.URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error('Error al obtener comprobante:', error);
+        setError('No se pudo visualizar el comprobante solicitado');
       }
-      
-      // Quitar prefijos no deseados (ya no debería haber prefijos con '/' al inicio)
-      if (archivoParam.startsWith('uploads/')) {
-        archivoParam = archivoParam.substring(8); // Quitamos 'uploads/'
-      } else if (archivoParam.startsWith('comprobantes/')) {
-        archivoParam = archivoParam.substring(12); // Quitamos 'comprobantes/'
-      }
-      
-      // ¡Asegurarse de nuevo que no empiece con barra antes de la llamada!
-      while (archivoParam.startsWith('/')) {
-        archivoParam = archivoParam.substring(1);
-      }
-      
-      console.log('Ruta de comprobante final para API:', archivoParam);
-      
-      // Usar la nueva API para obtener el comprobante
-      const response = await axios.get(`/api/aquipago/comprobante/${archivoParam}`, { 
-        responseType: 'blob' 
-      });
-      
-      // Crear una URL y abrir en una nueva ventana
-      const blob = new Blob([response.data], { type: response.headers['content-type'] });
-      const url = window.URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      window.URL.revokeObjectURL(url); // Liberar memoria
     } catch (err) {
       console.error('Error al ver comprobante:', err);
       setError('Error al visualizar el comprobante solicitado');

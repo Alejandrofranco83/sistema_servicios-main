@@ -23,4 +23,33 @@ contextBridge.exposeInMainWorld('printerAPI', {
    * @param config Configuración de impresora a guardar
    */
   savePrinterConfig: (config: any) => ipcRenderer.invoke('save-printer-config', config)
+});
+
+// Exponer API segura para el manejo de zoom
+contextBridge.exposeInMainWorld('zoomAPI', {
+  /**
+   * Obtiene el nivel de zoom actual
+   */
+  getZoomLevel: () => ipcRenderer.invoke('get-zoom-level'),
+  
+  /**
+   * Establece un nivel de zoom específico
+   * @param zoomLevel Nivel de zoom (-3 a 3, donde 0 es 100%)
+   */
+  setZoomLevel: (zoomLevel: number) => ipcRenderer.invoke('set-zoom-level', zoomLevel),
+  
+  /**
+   * Aumenta el zoom
+   */
+  zoomIn: () => ipcRenderer.invoke('zoom-in'),
+  
+  /**
+   * Disminuye el zoom
+   */
+  zoomOut: () => ipcRenderer.invoke('zoom-out'),
+  
+  /**
+   * Resetea el zoom al 100%
+   */
+  resetZoom: () => ipcRenderer.invoke('reset-zoom')
 }); 

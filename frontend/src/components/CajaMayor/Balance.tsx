@@ -295,6 +295,8 @@ const Balance: React.FC = () => {
   const [dialogoDevolverRetiroOpen, setDialogoDevolverRetiroOpen] = useState(false);
   const [retiroIdSeleccionado, setRetiroIdSeleccionado] = useState('');
 
+  const [loadingComprobante, setLoadingComprobante] = useState<boolean>(false);
+
   // Cargar la preferencia de orden desde localStorage al inicio
   useEffect(() => {
     const ordenGuardado = localStorage.getItem('ordenMovimientosCaja');
@@ -357,6 +359,9 @@ const Balance: React.FC = () => {
       });
       
       console.log(`[Balance] Movimientos recibidos para ${monedaActiva}:`, response.movimientos);
+      // Añadir log detallado de la respuesta API completa
+      console.log(`[Balance] Respuesta API completa:`, JSON.stringify(response, null, 2));
+      
       setMovimientosMonedaActiva(response.movimientos || []);
       
     } catch (err: any) {
@@ -872,6 +877,168 @@ const Balance: React.FC = () => {
     setRetiroIdSeleccionado('');
   };
 
+  // Función para verificar si un comprobante es válido
+  const esComprobanteValido = (rutaComprobante: string | undefined): boolean => {
+    // Añadir log para diagnóstico
+    console.log('[Balance] Verificando comprobante:', rutaComprobante);
+    
+    if (!rutaComprobante) return false;
+    
+    const textoLimpio = rutaComprobante.trim().toLowerCase();
+    
+    // Si está vacío, no es válido
+    if (textoLimpio === '') return false;
+    
+    // IMPORTANTE: Los archivos .txt indican que NO hay comprobante adjunto
+    if (textoLimpio.endsWith('.txt')) {
+      console.log('[Balance] Resultado: FALSE (archivo .txt indica sin comprobante)');
+      return false;
+    }
+    
+    // Detectar textos que indican que no hay comprobante
+    const textosInvalidos = [
+      'sin comprobante', 
+      'no hay comprobante',
+      'no disponible',
+      'n/a',
+      'ninguno',
+      'no existe',
+      '-'
+    ];
+    
+    // Si contiene alguno de los textos inválidos, no es un comprobante válido
+    for (const texto of textosInvalidos) {
+      if (textoLimpio.includes(texto)) {
+        return false;
+      }
+    }
+    
+    // Verificar si parece una ruta de archivo válida (excluyendo .txt)
+    const tieneExtension = /\.(pdf|jpg|jpeg|png|gif|tiff|bmp)$/i.test(textoLimpio);
+    
+    // Si no tiene extensión de archivo válida, probablemente no sea un comprobante válido
+    if (!tieneExtension) {
+      console.log('[Balance] Comprobante sin extensión de archivo válida:', rutaComprobante);
+      return false;
+    }
+    
+    return true;
+  };
+
+  // Ver comprobante (implementación robusta)
+  const verComprobante = async (nombreArchivo: string) => {
+    try {
+      if (!nombreArchivo || !esComprobanteValido(nombreArchivo)) {
+        setError('Comprobante no disponible o inválido');
+        return;
+      }
+
+      setLoadingComprobante(true);
+      console.log('Ruta de comprobante original:', nombreArchivo);
+      
+      // Extraer el nombre del archivo sin la ruta
+      const nombreArchivoSolo = nombreArchivo.split('/').pop() || nombreArchivo;
+      
+      // Detectar el servicio basado en el nombre del archivo
+      let servicioDetectado = 'caja-mayor'; // Valor por defecto
+      
+      if (nombreArchivoSolo.includes('wepaUsd')) {
+        servicioDetectado = 'wepa-usd';
+      } else if (nombreArchivoSolo.includes('wepaGuaranies')) {
+        servicioDetectado = 'wepa-guaranies';
+      } else if (nombreArchivoSolo.includes('wepa')) {
+        servicioDetectado = 'wepa';
+      } else if (nombreArchivoSolo.includes('aquiPago')) {
+        servicioDetectado = 'aquipago';
+      }
+      
+      console.log('Servicio detectado por nombre de archivo:', servicioDetectado);
+      
+      // Lista de variantes a intentar, en orden de prioridad
+      const intentos = [
+        // 1. Intento basado en el servicio detectado
+        { 
+          url: `/api/${servicioDetectado}/comprobante/${encodeURIComponent(nombreArchivoSolo)}`,
+          desc: `Intentando con servicio detectado: ${servicioDetectado}`
+        },
+        // 2. Intento con caja-mayor (coincide con el servicio actual)
+        { 
+          url: `/api/caja-mayor/comprobante/${encodeURIComponent(nombreArchivoSolo)}`,
+          desc: 'Intentando con endpoint caja-mayor'
+        },
+        // 3. Intento específico para depositos
+        { 
+          url: `/api/depositos/comprobante/${encodeURIComponent(nombreArchivoSolo)}`,
+          desc: 'Intentando con endpoint depositos'
+        },
+        // 4. Intento para wepa-usd 
+        { 
+          url: `/api/wepa-usd/comprobante/${encodeURIComponent(nombreArchivoSolo)}`,
+          desc: 'Intentando con endpoint wepa-usd'
+        },
+        // 5. Intento para aquipago
+        { 
+          url: `/api/aquipago/comprobante/${encodeURIComponent(nombreArchivoSolo)}`,
+          desc: 'Intentando con endpoint aquipago'
+        },
+        // 6. Intento con endpoint genérico
+        { 
+          url: `/api/comprobantes/${encodeURIComponent(nombreArchivoSolo)}`,
+          desc: 'Intentando con endpoint genérico de comprobantes'
+        },
+        // 7. Intento directo con uploads (último recurso)
+        {
+          url: `/uploads/${encodeURIComponent(nombreArchivoSolo)}`,
+          desc: 'Intentando con ruta directa en uploads'
+        }
+      ];
+      
+      // Probar cada intento secuencialmente
+      for (const intento of intentos) {
+        try {
+          console.log(intento.desc);
+          const response = await api.get(intento.url, {
+            responseType: 'blob'
+          });
+          
+          const blob = new Blob([response.data], { type: response.headers['content-type'] });
+          const url = window.URL.createObjectURL(blob);
+          window.open(url, '_blank');
+          window.URL.revokeObjectURL(url);
+          
+          console.log('Éxito con:', intento.url);
+          return; // Salir si tiene éxito
+        } catch (error) {
+          console.log(`Falló intento con: ${intento.url}`);
+          // Continuar con el siguiente intento
+        }
+      }
+      
+      // Si llegamos aquí, todos los intentos fallaron
+      // Intentar un último recurso: la URL original directamente
+      console.log('Intentando con URL original:', nombreArchivo);
+      try {
+        // Obtener la URL base configurada para la aplicación
+        const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+        
+        // Construir la URL completa
+        const comprobanteUrl = `${apiBaseUrl}/uploads/${nombreArchivo}`;
+        
+        console.log('URL final del comprobante:', comprobanteUrl);
+        window.open(comprobanteUrl, '_blank');
+      } catch (error) {
+        console.error('Error al abrir URL original:', error);
+        setError('No se pudo visualizar el comprobante solicitado');
+      }
+      
+    } catch (err) {
+      console.error('Error al ver comprobante:', err);
+      setError('Error al visualizar el comprobante solicitado');
+    } finally {
+      setLoadingComprobante(false);
+    }
+  };
+
   return (
     <Box sx={{ p: 2 }}>
       {/* Aplicar estilos globales de scrollbar a TODA la aplicación */}
@@ -910,8 +1077,8 @@ const Balance: React.FC = () => {
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <Typography variant="h5" sx={{ mr: 2 }}>
-              Balance de Caja Mayor
-            </Typography>
+            Balance de Caja Mayor
+          </Typography>
             {verificandoEstadoVale && 
               <Alert severity="info" sx={{ py: 0, px: 1, mr: 2 }}>
                 Verificando estado del vale...
@@ -1253,6 +1420,14 @@ const Balance: React.FC = () => {
                   <TableBody>
                     {movimientosMonedaActiva.length > 0 ? (
                       movimientosMonedaActiva.map((movimiento: Movimiento) => {
+                        // Añadir log para diagnosticar tipos de movimiento
+                        console.log(`[Balance] Tipo de movimiento: "${movimiento.tipo}", tiene comprobante: ${!!movimiento.rutaComprobante}`);
+                        
+                        // Añadir un log detallado para pagos de servicio
+                        if (movimiento.tipo === 'Pago Servicio') {
+                          console.log('[Balance] Detalles completos del Pago Servicio:', JSON.stringify(movimiento, null, 2));
+                        }
+                        
                         const isCambioCancelacion = movimiento.tipo === 'Cambio' && movimiento.concepto.startsWith('Cancelación de cambio');
                         const isDepositoCancelacion = movimiento.tipo === 'Cancelación depósito';
                         const isValeCancelacion = movimiento.tipo === 'Vales' && movimiento.concepto.toLowerCase().includes('cancelado');
@@ -1333,23 +1508,45 @@ const Balance: React.FC = () => {
                                       </Tooltip>
                                     )
                                   }
-                                  {
-                                    // Icono para ver comprobante de depósito
-                                    isDeposito && hasComprobante && !isDepositoCancelacion && (
-                                        <Tooltip title="Ver Comprobante">
+                                  {/* Icono para ver comprobante de depósito */}
+                                  {isDeposito && !isDepositoCancelacion && (
+                                      <Tooltip title={esComprobanteValido(movimiento.rutaComprobante) ? "Ver Comprobante" : "Comprobante no disponible"}>
                                              <span style={{ marginLeft: '4px' }}>
                                                 <IconButton
                                                     size="small"
                                                     color="secondary"
-                                                    sx={{ p: 0.25 }}
-                                                    onClick={() => window.open(`http://localhost:3000/uploads/${movimiento.rutaComprobante}`, '_blank')}
+                                                  sx={{ 
+                                                    p: 0.25, 
+                                                    opacity: esComprobanteValido(movimiento.rutaComprobante) ? 1 : 0.5
+                                                  }}
+                                                  onClick={() => esComprobanteValido(movimiento.rutaComprobante) ? verComprobante(movimiento.rutaComprobante || '') : null}
+                                                  disabled={!esComprobanteValido(movimiento.rutaComprobante)}
                                                 >
                                                     <DescriptionIcon fontSize="small" />
                                                 </IconButton>
                                             </span>
                                         </Tooltip>
-                                    )
-                                  }
+                                  )}
+                                  
+                                  {/* Icono para ver comprobante de pago de servicio - Implementación final */}
+                                  {movimiento.tipo.toLowerCase().includes('pago') && !isGenericCancelacion && (
+                                      <Tooltip title={esComprobanteValido(movimiento.rutaComprobante) ? "Ver Comprobante del Pago" : "Comprobante no disponible"}>
+                                           <span style={{ marginLeft: '4px' }}>
+                                              <IconButton
+                                                  size="small"
+                                                  color="info"
+                                                  sx={{ 
+                                                    p: 0.25, 
+                                                    opacity: esComprobanteValido(movimiento.rutaComprobante) ? 1 : 0.5
+                                                  }}
+                                                  onClick={() => esComprobanteValido(movimiento.rutaComprobante) ? verComprobante(movimiento.rutaComprobante || '') : null}
+                                                  disabled={!esComprobanteValido(movimiento.rutaComprobante)}
+                                              >
+                                                  <DescriptionIcon fontSize="small" />
+                                              </IconButton>
+                                          </span>
+                                      </Tooltip>
+                                  )}
                               </Box>
                             </TableCell>
                             <TableCell align="right" sx={{ color: movimiento.esIngreso ? 'success.main' : 'inherit' }}>

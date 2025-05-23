@@ -42,6 +42,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
+import { scrollbarStyles } from '../../utils/scrollbarStyles';
 
 // Interfaz para los slides del carrusel
 interface CarouselSlide {
@@ -645,7 +646,8 @@ const CarruselConfig: React.FC = () => {
                   sx={{ 
                     minHeight: '30vh', 
                     fontSize: '1.1rem',
-                    overflow: 'auto'
+                    overflow: 'auto',
+                    ...scrollbarStyles
                   }}
                 >
                   {infoPanel.content}
@@ -844,7 +846,8 @@ const CarruselConfig: React.FC = () => {
                     sx={{ 
                       minHeight: '30vh', 
                       fontSize: '1.1rem',
-                      overflow: 'auto'
+                      overflow: 'auto',
+                      ...scrollbarStyles
                     }}
                   >
                     {infoPanel.content}

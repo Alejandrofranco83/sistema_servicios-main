@@ -16,6 +16,35 @@ declare module 'electron' {
   }
 }
 
+// Tipos para electron-store
+declare module 'electron-store' {
+  interface Options<T> {
+    name?: string;
+    defaults?: T;
+    cwd?: string;
+    encryptionKey?: string;
+    clearInvalidConfig?: boolean;
+    serialize?: (value: T) => string;
+    deserialize?: (text: string) => T;
+    projectSuffix?: string;
+    schema?: any;
+  }
+
+  export default class Store<T = Record<string, unknown>> {
+    constructor(options?: Options<T>);
+    get<K extends keyof T>(key: K): T[K];
+    get<K extends keyof T>(key: K, defaultValue: T[K]): T[K];
+    set<K extends keyof T>(key: K, value: T[K]): void;
+    set(object: Partial<T>): void;
+    has<K extends keyof T>(key: K): boolean;
+    delete<K extends keyof T>(key: K): void;
+    clear(): void;
+    reset(...keys: Array<keyof T>): void;
+    size: number;
+    store: T;
+  }
+}
+
 declare module '@plick/electron-pos-printer' {
   export interface PosPrintOptions {
     printerName: string;
@@ -68,7 +97,35 @@ declare global {
         error?: string;
         message?: string;
       }>;
-    }
+    };
+    
+    zoomAPI: {
+      /**
+       * Obtiene el nivel de zoom actual guardado
+       */
+      getZoomLevel: () => Promise<number>;
+      
+      /**
+       * Establece un nivel de zoom específico
+       * @param zoomLevel Nivel de zoom (-3 a 3, donde 0 es 100%)
+       */
+      setZoomLevel: (zoomLevel: number) => Promise<number>;
+      
+      /**
+       * Aumenta el zoom en 0.5 niveles
+       */
+      zoomIn: () => Promise<number>;
+      
+      /**
+       * Disminuye el zoom en 0.5 niveles
+       */
+      zoomOut: () => Promise<number>;
+      
+      /**
+       * Resetea el zoom al 100% (nivel 0)
+       */
+      resetZoom: () => Promise<number>;
+    };
   }
 }
 

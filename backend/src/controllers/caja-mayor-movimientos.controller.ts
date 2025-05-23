@@ -209,6 +209,10 @@ export const CajaMayorMovimientosController = {
         },
         deposito: { 
           select: { rutaComprobante: true }
+        },
+        // Añadir relación con PagoServicio para obtener la ruta del comprobante
+        pagoServicio: {
+          select: { rutaComprobante: true }
         }
       };
 
@@ -265,12 +269,20 @@ export const CajaMayorMovimientosController = {
       // Mapear resultados (igual que antes)
       const movimientosFinales = movimientos.map(mov => {
         const movimientoConRuta = { ...mov };
+        // Añadir rutaComprobante desde deposito si existe
         if (mov.deposito) {
           (movimientoConRuta as any).rutaComprobante = mov.deposito.rutaComprobante || null;
-        } else {
+        }
+        // Añadir rutaComprobante desde pagoServicio si existe
+        else if (mov.pagoServicio) {
+          (movimientoConRuta as any).rutaComprobante = mov.pagoServicio.rutaComprobante || null;
+        } 
+        else {
           (movimientoConRuta as any).rutaComprobante = null;
         }
+        // Limpiar objetos relacionados para reducir tamaño de respuesta
         delete (movimientoConRuta as any).deposito;
+        delete (movimientoConRuta as any).pagoServicio;
         return movimientoConRuta;
       });
 

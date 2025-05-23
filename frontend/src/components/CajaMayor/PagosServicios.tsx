@@ -434,6 +434,9 @@ const PagosServicios: React.FC<PagosServiciosProps> = ({ open, onClose, onGuarda
         }
       });
       
+      // Añadir log para ver la respuesta de la API
+      console.log('Respuesta API al guardar pago:', response.data);
+      
       // Llamar a la función de refresco del componente padre
       onGuardarExito();
       
@@ -470,10 +473,15 @@ const PagosServicios: React.FC<PagosServiciosProps> = ({ open, onClose, onGuarda
       setComprobante(file);
       setSuccessMessage(`Comprobante ${file.name} subido correctamente`);
       
-      // Limpiar mensaje después de 2 segundos
+      // Mantener el mensaje de éxito por 5 segundos para que sea más visible
       setTimeout(() => {
-        setSuccessMessage(null);
-      }, 2000);
+        // Solo limpiar el mensaje si sigue siendo el mismo (podría haber cambiado)
+        setSuccessMessage(prevMessage => 
+          prevMessage === `Comprobante ${file.name} subido correctamente` 
+            ? null 
+            : prevMessage
+        );
+      }, 5000);
     }
   };
 
@@ -527,17 +535,25 @@ const PagosServicios: React.FC<PagosServiciosProps> = ({ open, onClose, onGuarda
       </DialogTitle>
       
       <DialogContent dividers>
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-        
-        {successMessage && (
-          <Alert severity="success" sx={{ mb: 2 }}>
-            {successMessage}
-          </Alert>
-        )}
+        {/* Contenedor con altura fija para mensajes de alerta */}
+        <Box sx={{ minHeight: 64, mb: 2 }}>
+          {error && (
+            <Alert severity="error" sx={{ width: '100%' }}>
+              {error}
+            </Alert>
+          )}
+          
+          {successMessage && (
+            <Alert severity="success" sx={{ width: '100%' }}>
+              {successMessage}
+            </Alert>
+          )}
+
+          {/* Si no hay mensajes, mantenemos el espacio vacío */}
+          {!error && !successMessage && (
+            <Box sx={{ height: 64 }} /> 
+          )}
+        </Box>
         
         <Grid container spacing={3}>
           {/* Selección de Sucursal y Caja */}
@@ -728,39 +744,61 @@ const PagosServicios: React.FC<PagosServiciosProps> = ({ open, onClose, onGuarda
                 sx={{ mb: 2 }}
               />
               
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                <Button
-                  variant="outlined"
-                  component="label"
-                  startIcon={<AttachFileIcon />}
-                  disabled={loading}
-                >
-                  Adjuntar Comprobante (Opcional)
-                  <input
-                    type="file"
-                    hidden
-                    accept="image/*"
-                    onChange={handleFileUpload}
+              {/* Creamos un área de altura fija para la sección del adjunto */}
+              <Box sx={{ mb: 2, minHeight: 50 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Button
+                    variant="outlined"
+                    component="label"
+                    startIcon={<AttachFileIcon />}
                     disabled={loading}
-                  />
-                </Button>
-                {comprobante && (
-                  <>
-                    <Typography variant="body2" noWrap sx={{ maxWidth: 150 }} title={comprobante.name}>
-                      {comprobante.name}
+                  >
+                    Adjuntar Comprobante (Opcional)
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      disabled={loading}
+                    />
+                  </Button>
+                  {comprobante ? (
+                    <Box 
+                      sx={{ 
+                        display: 'flex',
+                        alignItems: 'center', 
+                        gap: 1,
+                        p: 0.5,
+                        pl: 1,
+                        border: '1px solid',
+                        borderColor: 'success.light',
+                        borderRadius: 1,
+                        backgroundColor: 'success.light',
+                        opacity: 0.8
+                      }}
+                    >
+                      <Typography variant="body2" noWrap sx={{ maxWidth: 150, color: 'white' }} title={comprobante.name}>
+                        {comprobante.name}
+                      </Typography>
+                      <Tooltip title="Ver comprobante">
+                        <IconButton 
+                          size="small" 
+                          color="info"
+                          onClick={handleVerComprobante}
+                          disabled={loading}
+                          sx={{ bgcolor: 'white', '&:hover': { bgcolor: '#f5f5f5' } }}
+                        >
+                          <VisibilityIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  ) : (
+                    // Espacio reservado cuando no hay archivo para mantener la altura consistente
+                    <Typography variant="body2" color="text.secondary" sx={{ opacity: 0.7 }}>
+                      Ningún archivo seleccionado
                     </Typography>
-                    <Tooltip title="Ver comprobante">
-                      <IconButton 
-                        size="small" 
-                        color="info"
-                        onClick={handleVerComprobante}
-                        disabled={loading}
-                      >
-                        <VisibilityIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </>
-                )}
+                  )}
+                </Box>
               </Box>
             </Paper>
           </Grid>
@@ -784,11 +822,18 @@ const PagosServicios: React.FC<PagosServiciosProps> = ({ open, onClose, onGuarda
         )}
       </DialogContent>
       
-      <DialogActions>
+      <DialogActions sx={{ 
+        py: 2, 
+        px: 3,
+        height: 76, // Altura fija para los botones de acción
+        display: 'flex',
+        justifyContent: 'space-between'
+      }}>
         <Button 
           onClick={handleClose} 
           color="inherit"
           disabled={loading}
+          variant="outlined"
         >
           CANCELAR
         </Button>

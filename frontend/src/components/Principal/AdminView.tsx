@@ -15,7 +15,8 @@ import {
   Card,
   CardContent,
   IconButton,
-  Stack
+  Stack,
+  GlobalStyles
 } from '@mui/material';
 import {
   AccountBalance as AccountBalanceIcon,
@@ -40,13 +41,15 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
+import { globalScrollbarStyles } from '../../utils/scrollbarStyles';
+import ZoomControls from '../Common/ZoomControls';
 
 interface AdminViewProps {
   hasPermission: (modulo: string, pantalla?: string) => boolean;
 }
 
 // URL base para las llamadas a la API
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+const API_URL = (process.env.REACT_APP_API_URL || 'http://localhost:3000').replace(/\/api$/, '') + '/api';
 
 // Tipo para almacenar detalles de un valor por depositar
 interface ValorDepositar {
@@ -391,7 +394,20 @@ const AdminView: React.FC<AdminViewProps> = ({ hasPermission }) => {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 3, position: 'relative' }}>
+      {/* Aplicar estilos globales de scrollbar */}
+      <GlobalStyles styles={globalScrollbarStyles} />
+      
+      {/* Controles de zoom flotantes en la esquina superior derecha */}
+      <Box sx={{ 
+        position: 'fixed', 
+        top: 16, 
+        right: 16, 
+        zIndex: 1000 
+      }}>
+        <ZoomControls compact orientation="horizontal" />
+      </Box>
+      
       <Typography variant="h4" gutterBottom>
         Panel de Administración
       </Typography>
@@ -412,13 +428,22 @@ const AdminView: React.FC<AdminViewProps> = ({ hasPermission }) => {
               borderRadius: 2,
               borderLeft: `4px solid ${theme.palette.primary.main}`,
               transition: 'transform 0.2s',
+              overflow: 'hidden',
               '&:hover': {
                 transform: 'translateY(-5px)',
                 boxShadow: theme.shadows[8]
               }
             }}
           >
-            <Typography variant="h6" gutterBottom>
+            <Typography 
+              variant="subtitle1" 
+              sx={{ 
+                fontSize: { xs: '0.8rem', sm: '0.9rem', md: '1rem' },
+                fontWeight: 600,
+                mb: 1,
+                lineHeight: 1.1
+              }}
+            >
               Valores por Depositar
             </Typography>
             {cargandoValoresDepositar ? (
@@ -426,14 +451,36 @@ const AdminView: React.FC<AdminViewProps> = ({ hasPermission }) => {
                 <CircularProgress size={30} color="primary" />
               </Box>
             ) : (
-              <>
-                <Typography variant="h3" component="div" sx={{ flexGrow: 1, fontWeight: 'bold' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1, justifyContent: 'space-between' }}>
+                <Typography 
+                  component="div" 
+                  sx={{ 
+                    fontSize: { xs: '1.2rem', sm: '1.5rem', md: '1.8rem', lg: '2rem' },
+                    fontWeight: 'bold',
+                    lineHeight: 1,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
                   Gs. {formatCurrency(calcularTotalPorDepositarGs())}
                 </Typography>
-                <Typography variant="body2">
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                    lineHeight: 1.2,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    mt: 'auto'
+                  }}
+                >
                   {generarTextoWepaUsd()}
                 </Typography>
-              </>
+              </Box>
             )}
           </Paper>
         </Grid>
@@ -449,13 +496,22 @@ const AdminView: React.FC<AdminViewProps> = ({ hasPermission }) => {
               borderRadius: 2,
               borderLeft: `4px solid ${theme.palette.secondary.main}`,
               transition: 'transform 0.2s',
+              overflow: 'hidden',
               '&:hover': {
                 transform: 'translateY(-5px)',
                 boxShadow: theme.shadows[8]
               }
             }}
           >
-            <Typography variant="h6" gutterBottom>
+            <Typography 
+              variant="subtitle1" 
+              sx={{ 
+                fontSize: { xs: '0.8rem', sm: '0.9rem', md: '1rem' },
+                fontWeight: 600,
+                mb: 1,
+                lineHeight: 1.1
+              }}
+            >
               Saldo Total
             </Typography>
             {cargandoSaldo ? (
@@ -463,13 +519,32 @@ const AdminView: React.FC<AdminViewProps> = ({ hasPermission }) => {
                 <CircularProgress size={30} color="secondary" />
               </Box>
             ) : (
-              <Typography variant="h3" component="div" sx={{ flexGrow: 1, fontWeight: 'bold' }}>
-                Gs. {formatCurrency(calcularSaldoTotalEnGuaranies())}
-              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1, justifyContent: 'space-between' }}>
+                <Typography 
+                  component="div" 
+                  sx={{ 
+                    fontSize: { xs: '1.2rem', sm: '1.5rem', md: '1.8rem', lg: '2rem' },
+                    fontWeight: 'bold',
+                    lineHeight: 1,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  Gs. {formatCurrency(calcularSaldoTotalEnGuaranies())}
+                </Typography>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                    lineHeight: 1.2,
+                    mt: 'auto'
+                  }}
+                >
+                  Efectivo en caja mayor
+                </Typography>
+              </Box>
             )}
-            <Typography variant="body2">
-              Efectivo en caja mayor
-            </Typography>
           </Paper>
         </Grid>
         <Grid item xs={12} md={6} lg={3}>
@@ -484,22 +559,63 @@ const AdminView: React.FC<AdminViewProps> = ({ hasPermission }) => {
               borderRadius: 2,
               borderLeft: `4px solid ${theme.palette.success.main}`,
               transition: 'transform 0.2s',
+              overflow: 'hidden',
               '&:hover': {
                 transform: 'translateY(-5px)',
                 boxShadow: theme.shadows[8]
               }
             }}
           >
-            <Typography variant="h6" gutterBottom>
+            <Typography 
+              variant="subtitle1" 
+              sx={{ 
+                fontSize: { xs: '0.8rem', sm: '0.9rem', md: '1rem' },
+                fontWeight: 600,
+                mb: 1,
+                lineHeight: 1.1
+              }}
+            >
               Cotización Vigente
             </Typography>
             {cotizacionVigente && cotizacionVigente.valorDolar ? (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                <Typography variant="h5" component="div" sx={{ fontWeight: 'bold' }}>
-                  USD: Gs. {formatCurrency(cotizacionVigente.valorDolar)}
-                </Typography>
-                <Typography variant="h5" component="div" sx={{ fontWeight: 'bold' }}>
-                  BRL: Gs. {formatCurrency(cotizacionVigente.valorReal)}
+              <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1, justifyContent: 'space-between' }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.3 }}>
+                  <Typography 
+                    component="div" 
+                    sx={{ 
+                      fontSize: { xs: '0.9rem', sm: '1rem', md: '1.1rem' },
+                      fontWeight: 'bold',
+                      lineHeight: 1.1,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    USD: Gs. {formatCurrency(cotizacionVigente.valorDolar)}
+                  </Typography>
+                  <Typography 
+                    component="div" 
+                    sx={{ 
+                      fontSize: { xs: '0.9rem', sm: '1rem', md: '1.1rem' },
+                      fontWeight: 'bold',
+                      lineHeight: 1.1,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    BRL: Gs. {formatCurrency(cotizacionVigente.valorReal)}
+                  </Typography>
+                </Box>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                    lineHeight: 1.2,
+                    mt: 'auto'
+                  }}
+                >
+                  Valores actuales
                 </Typography>
               </Box>
             ) : (
@@ -507,9 +623,6 @@ const AdminView: React.FC<AdminViewProps> = ({ hasPermission }) => {
                 <CircularProgress size={30} color="success" />
               </Box>
             )}
-            <Typography variant="body2">
-              Valores actuales
-            </Typography>
           </Paper>
         </Grid>
         <Grid item xs={12} md={6} lg={3}>
@@ -524,21 +637,47 @@ const AdminView: React.FC<AdminViewProps> = ({ hasPermission }) => {
               borderRadius: 2,
               borderLeft: `4px solid ${theme.palette.warning.main}`,
               transition: 'transform 0.2s',
+              overflow: 'hidden',
               '&:hover': {
                 transform: 'translateY(-5px)',
                 boxShadow: theme.shadows[8]
               }
             }}
           >
-            <Typography variant="h6" gutterBottom>
+            <Typography 
+              variant="subtitle1" 
+              sx={{ 
+                fontSize: { xs: '0.8rem', sm: '0.9rem', md: '1rem' },
+                fontWeight: 600,
+                mb: 1,
+                lineHeight: 1.1
+              }}
+            >
               Pendientes
             </Typography>
-            <Typography variant="h3" component="div" sx={{ flexGrow: 1, fontWeight: 'bold' }}>
-              {estadisticas.pendientesConciliacion}
-            </Typography>
-            <Typography variant="body2">
-              En construcción
-            </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1, justifyContent: 'space-between' }}>
+              <Typography 
+                component="div" 
+                sx={{ 
+                  fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
+                  fontWeight: 'bold',
+                  lineHeight: 1,
+                  textAlign: 'center'
+                }}
+              >
+                {estadisticas.pendientesConciliacion}
+              </Typography>
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                  lineHeight: 1.2,
+                  mt: 'auto'
+                }}
+              >
+                En construcción
+              </Typography>
+            </Box>
           </Paper>
         </Grid>
       </Grid>

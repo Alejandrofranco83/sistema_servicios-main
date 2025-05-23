@@ -40,6 +40,7 @@ import { usuarioService, Usuario, UsuarioInput } from '../../services/usuarioSer
 import { personaService, Persona } from '../../services/personaService';
 import { rolService, Rol } from '../../services/rolService';
 import { useTheme } from '@mui/material/styles';
+import { scrollbarStyles } from '../../utils/scrollbarStyles';
 
 interface UsuarioFormData {
   username: string;
@@ -406,7 +407,7 @@ const Usuarios: React.FC = () => {
                     sx={{ mb: 2 }}
                   />
 
-                  <Box sx={{ maxHeight: 200, overflow: 'auto', mb: 2 }}>
+                  <Box sx={{ maxHeight: 200, overflow: 'auto', mb: 2, ...scrollbarStyles }}>
                     <List>
                       {filteredPersonas.map(persona => (
                         <React.Fragment key={persona.id}>

@@ -18,6 +18,7 @@ import {
 import { useCajas } from '../CajasContext';
 import { formatearIdCaja } from '../helpers';
 import { handleInputClick } from '../../../utils/inputUtils';
+import { scrollbarStyles } from '../../../utils/scrollbarStyles';
 
 interface FormRetiroProps {
   open: boolean;
@@ -347,7 +348,8 @@ const FormRetiro: React.FC<FormRetiroProps> = ({ open, onClose }) => {
                       maxHeight: 200, 
                       overflow: 'auto',
                       bgcolor: '#444',
-                      zIndex: 1000 
+                      zIndex: 1000,
+                      ...scrollbarStyles
                     }}
                   >
                     <List dense sx={{ p: 0 }}>

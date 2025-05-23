@@ -537,8 +537,48 @@ const VerMovimientosDialog: React.FC<VerMovimientosDialogProps> = ({ open, onClo
         api.get(`/api/cajas/${cajaSeleccionada.id}/comprobante/${tipoBackend}`)
           .then(response => {
             if (response.data && response.data.url) {
+              // Obtener la URL base configurada para la aplicación
+              const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+              
+              // Obtener solo la parte de la ruta después del dominio
+              let urlOriginal = response.data.url;
+              let rutaComprobante = '';
+              
+              // Si la URL contiene localhost, extraer la parte de la ruta después de localhost
+              if (urlOriginal.includes('localhost')) {
+                // Extraer la ruta relativa después del dominio (localhost:XXXX)
+                const matches = urlOriginal.match(/localhost(:\d+)?(.+)/);
+                if (matches && matches[2]) {
+                  rutaComprobante = matches[2]; // La parte después de localhost:XXXX
+                }
+              } else if (urlOriginal.startsWith('http')) {
+                // Si es otra URL absoluta, intentar extraer la parte después del dominio
+                try {
+                  const urlObj = new URL(urlOriginal);
+                  rutaComprobante = urlObj.pathname + urlObj.search;
+                } catch (e) {
+                  console.error('Error al parsear URL:', e);
+                  rutaComprobante = urlOriginal;
+                }
+              } else {
+                // Si parece ser una ruta relativa, usarla directamente
+                rutaComprobante = urlOriginal;
+              }
+              
+              // Si la ruta no comienza con /, añadirlo
+              if (rutaComprobante && !rutaComprobante.startsWith('/')) {
+                rutaComprobante = '/' + rutaComprobante;
+              }
+              
+              // Construir la URL final usando la base API configurada
+              const comprobanteUrl = apiBaseUrl + rutaComprobante;
+              
+              console.log('URL original:', urlOriginal);
+              console.log('Ruta extraída:', rutaComprobante);
+              console.log('URL final del comprobante:', comprobanteUrl);
+              
               // Abrir en una nueva ventana
-              window.open(response.data.url, '_blank');
+              window.open(comprobanteUrl, '_blank');
             } else {
               setErrorMessage('No se pudo obtener la URL del comprobante');
             }

@@ -48,6 +48,7 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
+import { scrollbarStyles } from '../../utils/scrollbarStyles';
 
 // Interfaz extendida para incluir datos adicionales de persona
 interface SaldoPersonaExtendido extends SaldoPersona {
@@ -523,7 +524,7 @@ const BalancePersonas: React.FC = () => {
               </Grid>
             </Grid>
             
-            <TableContainer sx={{ flexGrow: 1, overflowY: 'auto' }}>
+            <TableContainer sx={{ flexGrow: 1, overflowY: 'auto', ...scrollbarStyles }}>
               <Table size="small" stickyHeader>
                 <TableHead sx={{ bgcolor: 'primary.main' }}>
                   <TableRow>
@@ -625,7 +626,7 @@ const BalancePersonas: React.FC = () => {
             </Typography>
             
             {/* Contenedor para el contenido dinámico (movimientos/gráfico) */}
-            <Box sx={{ flexGrow: 1, overflow: 'auto' }}> 
+            <Box sx={{ flexGrow: 1, overflow: 'auto', ...scrollbarStyles }}> 
               {!personaSeleccionada && (
                   <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
                       <Typography color="text.secondary">

@@ -40,7 +40,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import esLocale from 'date-fns/locale/es';
 import { formatCurrency } from '../../utils/formatUtils';
-import axios from 'axios';
+import api from '../../services/api';
 import SearchIcon from '@mui/icons-material/Search';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
@@ -52,6 +52,7 @@ import ReceiptIcon from '@mui/icons-material/Receipt';
 import PersonIcon from '@mui/icons-material/Person';
 import StoreIcon from '@mui/icons-material/Store';
 import CloseIcon from '@mui/icons-material/Close';
+import { scrollbarStyles } from '../../utils/scrollbarStyles';
 
 // Interfaces
 interface MovimientoCaja {
@@ -122,7 +123,7 @@ const BalanceWenoGs: React.FC = () => {
   const cargarBalanceGlobal = async () => {
     try {
       // Consultar el endpoint para obtener el saldo global a depositar
-      const response = await axios.get('/api/weno-gs/balance-global');
+      const response = await api.get('/api/weno-gs/balance-global');
       
       if (response.data && response.data.totalADepositar !== undefined) {
         setTotalADepositar(response.data.totalADepositar);
@@ -146,7 +147,7 @@ const BalanceWenoGs: React.FC = () => {
       const fin = fechaFin.toISOString().split('T')[0];
       
       // Usar la nueva API específica para Wepa Gs
-      const response = await axios.get<ApiResponse>(`/api/weno-gs/movimientos?fechaInicio=${inicio}&fechaFin=${fin}`);
+      const response = await api.get<ApiResponse>(`/api/weno-gs/movimientos?fechaInicio=${inicio}&fechaFin=${fin}`);
       
       // Procesar la respuesta de la API
       if (response.data) {
@@ -203,44 +204,88 @@ const BalanceWenoGs: React.FC = () => {
       setLoadingComprobante(true);
       console.log('Ruta de comprobante original:', nombreArchivo);
       
-      // Obtener solo el nombre del archivo
-      const nombreArchivoSolo = nombreArchivo.split('/').pop() || nombreArchivo.split('\\').pop() || nombreArchivo;
+      // Extraer el nombre del archivo sin la ruta
+      const nombreArchivoSolo = nombreArchivo.split('/').pop() || nombreArchivo;
       
-      // Intentar varias estrategias para obtener la URL del comprobante
-      let url = '';
+      // Observación importante: El nombre del archivo contiene "wepaGuaranies" pero
+      // estamos intentando usar el endpoint "weno-gs". Es posible que el backend
+      // esté esperando una API diferente basada en el prefijo del nombre del archivo.
       
-      // Estrategia 1: Usar la API directamente
-      try {
-        const response = await axios.get(`/api/weno-gs/comprobante/${encodeURIComponent(nombreArchivo)}`, { 
-          responseType: 'blob' 
-        });
-        
-        // Crear URL del blob
-        const blob = new Blob([response.data], { type: response.headers['content-type'] });
-        url = URL.createObjectURL(blob);
-      } catch (err) {
-        console.log('Error en estrategia 1, intentando estrategia 2...');
-        
-        // Estrategia 2: Probar con el nombre de archivo limpio
+      // Detectar el servicio basado en el nombre del archivo
+      let servicioDetectado = 'weno-gs'; // Valor por defecto
+      
+      if (nombreArchivoSolo.includes('wepaGuaranies')) {
+        servicioDetectado = 'wepa-guaranies';
+      } else if (nombreArchivoSolo.includes('wepa')) {
+        servicioDetectado = 'wepa';
+      } else if (nombreArchivoSolo.includes('aquiPago')) {
+        servicioDetectado = 'aquipago';
+      }
+      
+      console.log('Servicio detectado por nombre de archivo:', servicioDetectado);
+      
+      // Lista de variantes a intentar, en orden de prioridad
+      const intentos = [
+        // 1. Intento basado en el servicio detectado
+        { 
+          url: `/api/${servicioDetectado}/comprobante/${encodeURIComponent(nombreArchivoSolo)}`,
+          desc: `Intentando con servicio detectado: ${servicioDetectado}`
+        },
+        // 2. Intento con wepa-guaranies (coincide con el prefijo del archivo)
+        { 
+          url: `/api/wepa-guaranies/comprobante/${encodeURIComponent(nombreArchivoSolo)}`,
+          desc: 'Intentando con endpoint wepa-guaranies'
+        },
+        // 3. Intento específico para wepa 
+        { 
+          url: `/api/wepa/comprobante/${encodeURIComponent(nombreArchivoSolo)}`,
+          desc: 'Intentando con endpoint wepa (sin gs)'
+        },
+        // 4. Intento para aquipago (para probar con el mismo endpoint que funciona)
+        { 
+          url: `/api/aquipago/comprobante/${encodeURIComponent(nombreArchivoSolo)}`,
+          desc: 'Intentando con endpoint aquipago'
+        },
+        // 5. Intento con el endpoint original
+        { 
+          url: `/api/weno-gs/comprobante/${encodeURIComponent(nombreArchivoSolo)}`,
+          desc: 'Intentando con endpoint weno-gs'
+        },
+        // 6. Intento con endpoint genérico
+        { 
+          url: `/api/comprobantes/${encodeURIComponent(nombreArchivoSolo)}`,
+          desc: 'Intentando con endpoint genérico de comprobantes'
+        }
+      ];
+      
+      // Probar cada intento secuencialmente
+      for (const intento of intentos) {
         try {
-          const response = await axios.get(`/api/weno-gs/comprobante/${encodeURIComponent(nombreArchivoSolo)}`, { 
-            responseType: 'blob' 
+          console.log(intento.desc);
+          const response = await api.get(intento.url, {
+            responseType: 'blob'
           });
           
           const blob = new Blob([response.data], { type: response.headers['content-type'] });
-          url = URL.createObjectURL(blob);
-        } catch (err) {
-          console.log('Error en estrategia 2, intentando estrategia 3...');
+          const url = window.URL.createObjectURL(blob);
+          window.open(url, '_blank');
+          window.URL.revokeObjectURL(url);
           
-          // Estrategia 3: Usar la ruta directa
-          // Asumimos que el archivo está servido estáticamente en /uploads o /comprobante
-          url = `/uploads/${encodeURIComponent(nombreArchivoSolo)}`;
+          console.log('Éxito con:', intento.url);
+          return; // Salir si tiene éxito
+        } catch (error) {
+          console.log(`Falló intento con: ${intento.url}`);
+          // Continuar con el siguiente intento
         }
       }
       
-      // Establecer la URL y abrir el modal
-      setComprobanteUrl(url);
-      setModalOpen(true);
+      // Si llegamos aquí, todos los intentos fallaron
+      // Mostrar un mensaje más detallado para facilitar la depuración
+      console.error('Todos los intentos para obtener el comprobante fallaron');
+      console.error('Nombre del archivo:', nombreArchivoSolo);
+      console.error('Ruta original:', nombreArchivo);
+      setError('No se pudo visualizar el comprobante solicitado');
+      
     } catch (err) {
       console.error('Error al ver comprobante:', err);
       setError('Error al visualizar el comprobante solicitado');
@@ -745,7 +790,7 @@ const BalanceWenoGs: React.FC = () => {
                 <CircularProgress />
               </Box>
             ) : comprobanteUrl ? (
-              <Box sx={{ maxWidth: '100%', maxHeight: '70vh', overflow: 'auto' }}>
+              <Box sx={{ maxWidth: '100%', maxHeight: '70vh', overflow: 'auto', ...scrollbarStyles }}>
                 <img 
                   src={comprobanteUrl} 
                   alt="Comprobante" 

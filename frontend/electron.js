@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const url = require('url');
 const { initialize, enable } = require('@electron/remote/main');
@@ -6,24 +6,64 @@ const { initialize, enable } = require('@electron/remote/main');
 // Inicializar @electron/remote
 initialize();
 
+let store;
+
+// Función para inicializar store de forma asíncrona
+async function initializeStore() {
+  try {
+    const Store = await import('electron-store');
+    store = new Store.default({
+      name: 'user-preferences',
+      defaults: {
+        zoomLevel: 0, // Nivel de zoom por defecto (0 = 100%)
+        windowBounds: {
+          width: 1280,
+          height: 800
+        }
+      }
+    });
+    return store;
+  } catch (error) {
+    console.error('Error al inicializar electron-store:', error);
+    // Fallback en caso de error
+    return {
+      get: (key, defaultValue) => {
+        const stored = localStorage?.getItem(key);
+        return stored ? JSON.parse(stored) : defaultValue;
+      },
+      set: (key, value) => {
+        localStorage?.setItem(key, JSON.stringify(value));
+      }
+    };
+  }
+}
+
 // Mantener una referencia global del objeto window para evitar que la ventana 
 // se cierre automáticamente cuando el objeto JavaScript es recolectado por el GC.
 let mainWindow;
 
-function createWindow() {
+async function createWindow() {
   console.log('Creando ventana de Electron...');
+  
+  // Inicializar store
+  await initializeStore();
+  
+  // Obtener configuraciones guardadas
+  const savedBounds = store.get('windowBounds', { width: 1280, height: 800 });
+  const savedZoomLevel = store.get('zoomLevel', 0);
   
   // Crear la ventana del navegador.
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
+    width: savedBounds.width,
+    height: savedBounds.height,
     minWidth: 1024,
     minHeight: 768,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: true, // Activado para seguridad
       enableRemoteModule: true, // Habilitamos el módulo remote
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.js'),
+      zoomFactor: Math.pow(1.2, savedZoomLevel), // Convertir nivel a factor de zoom
     },
     // Configuraciones adicionales para una mejor apariencia
     show: false, // No mostrar hasta que esté listo
@@ -33,6 +73,31 @@ function createWindow() {
 
   // Habilitar @electron/remote para esta ventana
   enable(mainWindow.webContents);
+
+  // Restaurar el nivel de zoom guardado
+  mainWindow.webContents.once('did-finish-load', () => {
+    if (mainWindow) {
+      mainWindow.webContents.setZoomLevel(savedZoomLevel);
+      console.log(`Zoom restaurado a nivel: ${savedZoomLevel}`);
+    }
+  });
+
+  // Escuchar cambios de zoom y guardarlos
+  mainWindow.webContents.on('zoom-changed', (event, zoomDirection) => {
+    if (mainWindow && store) {
+      const currentZoomLevel = mainWindow.webContents.getZoomLevel();
+      store.set('zoomLevel', currentZoomLevel);
+      console.log(`Zoom cambiado a nivel: ${currentZoomLevel}`);
+    }
+  });
+
+  // Guardar dimensiones de ventana al redimensionar
+  mainWindow.on('resize', () => {
+    if (mainWindow && store) {
+      const bounds = mainWindow.getBounds();
+      store.set('windowBounds', { width: bounds.width, height: bounds.height });
+    }
+  });
 
   // Determinar la URL a cargar
   const startUrl = process.env.ELECTRON_START_URL || url.format({
@@ -60,6 +125,58 @@ function createWindow() {
     mainWindow = null;
   });
 }
+
+// Manejar IPC para zoom desde el renderer
+ipcMain.handle('get-zoom-level', () => {
+  return store ? store.get('zoomLevel', 0) : 0;
+});
+
+ipcMain.handle('set-zoom-level', (event, zoomLevel) => {
+  if (store) {
+    store.set('zoomLevel', zoomLevel);
+  }
+  if (mainWindow) {
+    mainWindow.webContents.setZoomLevel(zoomLevel);
+  }
+  return zoomLevel;
+});
+
+ipcMain.handle('zoom-in', () => {
+  if (mainWindow) {
+    const currentLevel = mainWindow.webContents.getZoomLevel();
+    const newLevel = Math.min(currentLevel + 0.5, 3); // Máximo zoom +3
+    mainWindow.webContents.setZoomLevel(newLevel);
+    if (store) {
+      store.set('zoomLevel', newLevel);
+    }
+    return newLevel;
+  }
+  return 0;
+});
+
+ipcMain.handle('zoom-out', () => {
+  if (mainWindow) {
+    const currentLevel = mainWindow.webContents.getZoomLevel();
+    const newLevel = Math.max(currentLevel - 0.5, -3); // Mínimo zoom -3
+    mainWindow.webContents.setZoomLevel(newLevel);
+    if (store) {
+      store.set('zoomLevel', newLevel);
+    }
+    return newLevel;
+  }
+  return 0;
+});
+
+ipcMain.handle('reset-zoom', () => {
+  if (mainWindow) {
+    mainWindow.webContents.setZoomLevel(0);
+    if (store) {
+      store.set('zoomLevel', 0);
+    }
+    return 0;
+  }
+  return 0;
+});
 
 // Este método será llamado cuando Electron haya terminado
 // la inicialización y esté listo para crear ventanas de navegador.

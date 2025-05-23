@@ -3,6 +3,7 @@ import { Box, Typography, Grid, TextField, Button, Stack, GlobalStyles } from '@
 import DiferenciaMaletinesList from './DiferenciaMaletinesList';
 import DiferenciaSaldosCajasList from './DiferenciaSaldosCajasList';
 import DiferenciaEnCajaList from './DiferenciaEnCajaList';
+import { globalScrollbarStyles } from '../../../utils/scrollbarStyles';
 
 const DiferenciasScreen: React.FC = () => {
   const [globalCajaNroInput, setGlobalCajaNroInput] = useState<string>('');
@@ -20,32 +21,7 @@ const DiferenciasScreen: React.FC = () => {
   return (
     <Box sx={{ flexGrow: 1, p: 2 }}>
       {/* Aplicar estilos globales de scrollbar */}
-      <GlobalStyles
-        styles={{
-          '*::-webkit-scrollbar': {
-            width: '12px',
-            height: '12px',
-          },
-          '*::-webkit-scrollbar-track': {
-            backgroundColor: '#121212', // Casi negro
-          },
-          '*::-webkit-scrollbar-thumb': {
-            backgroundColor: '#333', // Gris muy oscuro
-            borderRadius: '6px',
-            '&:hover': {
-              backgroundColor: '#444', // Ligeramente más claro al pasar el mouse
-            },
-          },
-          'html': {
-            scrollbarColor: '#333 #121212', // Formato: thumb track
-            scrollbarWidth: 'thin',
-          },
-          'body': {
-            scrollbarColor: '#333 #121212',
-            scrollbarWidth: 'thin',
-          }
-        }}
-      />
+      <GlobalStyles styles={globalScrollbarStyles} />
       
       <Typography variant="h5" gutterBottom sx={{ mb: 1 }}>
         Análisis de Diferencias

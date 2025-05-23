@@ -440,7 +440,10 @@ const GestionGastos: React.FC = () => {
 
   // Función para abrir el comprobante en una nueva ventana
   const handleViewComprobante = (comprobanteUrl: string | null) => {
-    if (!comprobanteUrl) return;
+    if (!comprobanteUrl) {
+      setErrorMsg('No hay comprobante disponible para este gasto');
+      return;
+    }
     
     // Si el comprobanteUrl es un File (nueva carga), crear una URL temporal para visualizarlo
     if (gasto.comprobante instanceof File) {
@@ -452,7 +455,15 @@ const GestionGastos: React.FC = () => {
     
     // Es un archivo ya guardado, extraer nombre y usar ruta al servidor
     const nombreArchivo = comprobanteUrl.split('/').pop();
-    window.open(`http://localhost:3000/uploads/comprobantes/${nombreArchivo}`, '_blank');
+    
+    // Obtener la URL base configurada para la aplicación
+    const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+    
+    // Construir la URL completa
+    const comprobanteUrlCompleta = `${apiBaseUrl}/uploads/comprobantes/${nombreArchivo}`;
+    
+    console.log('URL final del comprobante:', comprobanteUrlCompleta);
+    window.open(comprobanteUrlCompleta, '_blank');
   };
 
   // Efecto para cargar datos iniciales
