@@ -3,7 +3,7 @@ import debugService from '../services/debugService';
 import api from '../services/api'; // Importar la instancia api global
 
 // Configuración base para Axios - usar variable de entorno
-axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://192.168.100.31:3001/api';
 axios.defaults.headers.common['Accept'] = 'application/json';
 axios.defaults.headers.post['Content-Type'] = 'application/json';
 

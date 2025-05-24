@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
+import api from '../../services/api'; // Importar instancia api configurada
 
 const StyledCard = styled(Card)(({ theme }) => ({
   maxWidth: 400,
@@ -35,22 +36,12 @@ const LoginForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:3000/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: formData.username.toUpperCase(),
-          password: formData.password,
-        }),
+      const response = await api.post('/auth/login', {
+        username: formData.username.toUpperCase(),
+        password: formData.password,
       });
 
-      if (!response.ok) {
-        throw new Error('Error de autenticación');
-      }
-
-      const data = await response.json();
+      const data = response.data;
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       // Aquí puedes redirigir al usuario a la página principal
