@@ -23,11 +23,10 @@ import api from '../services/api'; // Usar instancia api global
 import { useAuth } from '../contexts/AuthContext';
 
 interface LoginProps {
-  onToggleTheme: () => void;
-  isDarkMode: boolean;
+  // Props de tema eliminadas ya que solo usamos modo oscuro
 }
 
-const Login: React.FC<LoginProps> = ({ onToggleTheme, isDarkMode }) => {
+const Login: React.FC<LoginProps> = () => {
   const navigate = useNavigate();
   // const theme = useTheme(); // Si no se usa, se puede quitar
   const { login, loading: authLoading, error: authError } = useAuth();
@@ -205,11 +204,6 @@ const Login: React.FC<LoginProps> = ({ onToggleTheme, isDarkMode }) => {
                 onClick={openChangePasswordDialog} sx={{ textDecoration: 'none' }}
               >
                 Cambiar Contraseña
-              </Link>
-              <Link component="button" type="button" variant="body2"
-                onClick={onToggleTheme} sx={{ textDecoration: 'none' }}
-              >
-                Modo {isDarkMode ? 'Claro' : 'Oscuro'}
               </Link>
             </Box>
             <Button type="submit" fullWidth variant="contained"

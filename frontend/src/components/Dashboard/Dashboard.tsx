@@ -113,13 +113,12 @@ interface MenuItem {
 
 // Definir la interfaz para las props
 interface DashboardProps {
-  onToggleTheme: () => void;
-  isDarkMode: boolean;
+  // Props de tema eliminadas ya que solo usamos modo oscuro
 }
 
 const drawerWidth = 240;
 
-const Dashboard: React.FC<DashboardProps> = ({ onToggleTheme, isDarkMode }) => {
+const Dashboard: React.FC<DashboardProps> = () => {
   const [open, setOpen] = useState(false);
   const [expandedItems, setExpandedItems] = useState<{ [key: string]: boolean }>({});
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);

@@ -56,14 +56,8 @@ const ProtectedRoute: React.FC = () => {
 
 const App: React.FC = () => {
   const [mode, setMode] = useState<'light' | 'dark'>(
-    localStorage.getItem('themeMode') === 'dark' ? 'dark' : 'light'
+    localStorage.getItem('themeMode') === 'light' ? 'light' : 'dark'
   );
-
-  const toggleTheme = () => {
-    const newMode = mode === 'light' ? 'dark' : 'light';
-    setMode(newMode);
-    localStorage.setItem('themeMode', newMode);
-  };
 
   const theme = React.useMemo(
     () =>
@@ -86,9 +80,9 @@ const App: React.FC = () => {
             <SucursalProvider>
               <ServerStatusProvider>
                 <Routes>
-                  <Route path="/login" element={<Login onToggleTheme={toggleTheme} isDarkMode={mode === 'dark'} />} />
+                  <Route path="/login" element={<Login />} />
                   <Route element={<ProtectedRoute />}>
-                    <Route path="/*" element={<Dashboard onToggleTheme={toggleTheme} isDarkMode={mode === 'dark'} />} />
+                    <Route path="/*" element={<Dashboard />} />
                   </Route>
                 </Routes>
               </ServerStatusProvider>
