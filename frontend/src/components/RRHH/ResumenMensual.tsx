@@ -421,7 +421,7 @@ const ResumenMensual: React.FC = () => {
         try {
             const token = localStorage.getItem('token');
             // Modificar para usar el mismo endpoint que en CajasContext
-            const response = await api.get<Persona[]>('/personas', {
+            const response = await api.get<Persona[]>('/api/personas', {
                 headers: { Authorization: `Bearer ${token}` }
             });
             
@@ -523,7 +523,7 @@ const ResumenMensual: React.FC = () => {
         setFetchMovimientosError(null);
         try {
             const token = localStorage.getItem('token');
-            const response = await api.get(`/rrhh/movimientos/${selectedPerson.id}`, {
+            const response = await api.get(`/api/rrhh/movimientos/${selectedPerson.id}`, {
                 params: { mes: selectedMonth, anio: selectedYear },
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -581,7 +581,7 @@ const ResumenMensual: React.FC = () => {
     if (selectedPerson && selectedYear && selectedMonth) {
       try {
         const token = localStorage.getItem('token');
-        const response = await api.get(`/rrhh/estado-mes/${selectedPerson.id}`, {
+        const response = await api.get(`/api/rrhh/estado-mes/${selectedPerson.id}`, {
           params: { mes: selectedMonth, anio: selectedYear },
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -817,7 +817,7 @@ const ResumenMensual: React.FC = () => {
         return;
       }
 
-      const response = await api.delete(`/rrhh/movimientos/${id}`, {
+      const response = await api.delete(`/api/rrhh/movimientos/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 

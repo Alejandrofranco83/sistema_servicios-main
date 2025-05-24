@@ -98,7 +98,7 @@ const CategoriasGastos: React.FC = () => {
   const cargarCategorias = async () => {
     try {
       // Usamos ruta relativa con /api/
-      const response = await api.get(`/categorias-gastos`);
+      const response = await api.get(`/api/categorias-gastos`);
       setCategorias(response.data);
     } catch (error) {
       console.error('Error al cargar categorías:', error);
@@ -110,7 +110,7 @@ const CategoriasGastos: React.FC = () => {
   const cargarSubcategorias = async () => {
     try {
       // Usamos ruta relativa con /api/
-      const response = await api.get(`/subcategorias-gastos`);
+      const response = await api.get(`/api/subcategorias-gastos`);
       setSubcategorias(response.data);
     } catch (error) {
       console.error('Error al cargar subcategorías:', error);
@@ -159,7 +159,7 @@ const CategoriasGastos: React.FC = () => {
       if (categoriaEditando) {
         // Actualizar categoría existente
         // Usamos ruta relativa con /api/
-        response = await api.put(`/categorias-gastos/${categoriaEditando.id}`, {
+        response = await api.put(`/api/categorias-gastos/${categoriaEditando.id}`, {
           nombre: nombreCategoria,
           activo: activoCategoria
         });
@@ -167,7 +167,7 @@ const CategoriasGastos: React.FC = () => {
       } else {
         // Crear nueva categoría
         // Usamos ruta relativa con /api/
-        response = await api.post(`/categorias-gastos`, {
+        response = await api.post(`/api/categorias-gastos`, {
           nombre: nombreCategoria,
           activo: activoCategoria
         });
@@ -191,7 +191,7 @@ const CategoriasGastos: React.FC = () => {
     if (categoriaAEliminar !== null) {
       try {
         // Usamos ruta relativa con /api/
-        await api.delete(`/categorias-gastos/${categoriaAEliminar}`);
+        await api.delete(`/api/categorias-gastos/${categoriaAEliminar}`);
         mostrarSnackbar('Categoría eliminada correctamente', 'success');
         cargarCategorias();
         cargarSubcategorias(); // También recargar subcategorías ya que pueden haberse eliminado
@@ -244,7 +244,7 @@ const CategoriasGastos: React.FC = () => {
       if (subcategoriaEditando) {
         // Actualizar subcategoría existente
         // Usamos ruta relativa con /api/
-        response = await api.put(`/subcategorias-gastos/${subcategoriaEditando.id}`, {
+        response = await api.put(`/api/subcategorias-gastos/${subcategoriaEditando.id}`, {
           nombre: nombreSubcategoria,
           categoriaId: categoriaSeleccionada,
           activo: activoSubcategoria
@@ -253,7 +253,7 @@ const CategoriasGastos: React.FC = () => {
       } else {
         // Crear nueva subcategoría
         // Usamos ruta relativa con /api/
-        response = await api.post(`/subcategorias-gastos`, {
+        response = await api.post(`/api/subcategorias-gastos`, {
           nombre: nombreSubcategoria,
           categoriaId: categoriaSeleccionada,
           activo: activoSubcategoria
@@ -278,7 +278,7 @@ const CategoriasGastos: React.FC = () => {
     if (subcategoriaAEliminar !== null) {
       try {
         // Usamos ruta relativa con /api/
-        await api.delete(`/subcategorias-gastos/${subcategoriaAEliminar}`);
+        await api.delete(`/api/subcategorias-gastos/${subcategoriaAEliminar}`);
         mostrarSnackbar('Subcategoría eliminada correctamente', 'success');
         cargarSubcategorias();
       } catch (error) {
