@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -9,7 +9,6 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CotizacionProvider } from './contexts/CotizacionContext';
 import { SucursalProvider } from './contexts/SucursalContext';
 import { ServerStatusProvider } from './contexts/ServerStatusContext';
-import Cajas from './components/Cajas';
 
 // Al iniciar la aplicación, verificar si hay un token guardado
 const token = localStorage.getItem('token');
@@ -55,9 +54,7 @@ const ProtectedRoute: React.FC = () => {
 };
 
 const App: React.FC = () => {
-  const [mode, setMode] = useState<'light' | 'dark'>(
-    localStorage.getItem('themeMode') === 'light' ? 'light' : 'dark'
-  );
+  const mode: 'dark' = 'dark'; // Siempre usar modo oscuro
 
   const theme = React.useMemo(
     () =>

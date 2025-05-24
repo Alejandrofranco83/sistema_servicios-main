@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -27,7 +26,6 @@ interface LoginProps {
 }
 
 const Login: React.FC<LoginProps> = () => {
-  const navigate = useNavigate();
   // const theme = useTheme(); // Si no se usa, se puede quitar
   const { login, loading: authLoading, error: authError } = useAuth();
   
