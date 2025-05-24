@@ -1,0 +1,38 @@
+name: Build Linux App
+
+on:
+  workflow_dispatch:  # Permite ejecutar manualmente
+  push:
+    branches: [ main ]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout código
+      uses: actions/checkout@v3
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+        
+    - name: Instalar dependencias
+      working-directory: frontend
+      run: npm install
+      
+    - name: Construir para Linux
+      working-directory: frontend
+      run: npm run electron-build -- --linux
+      
+    - name: Subir artefactos Linux
+      uses: actions/upload-artifact@v3
+      with:
+        name: linux-packages
+        path: |
+          frontend/dist/*.rpm
+          frontend/dist/*.deb
+          frontend/dist/*.AppImage 
