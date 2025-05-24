@@ -43,13 +43,14 @@
     "start": "concurrently --kill-others \"npm run react-start\" \"npm run wait-electron\"",
     "wait-electron": "wait-on http://localhost:3000 && npm run electron-dev",
     "build": "react-scripts build",
+    "build-no-warnings": "cross-env CI=false react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "electron-dev": "set ELECTRON_START_URL=http://localhost:3000 && electron .",
     "electron-node": "node electron-start.js",
     "electron": "electron .",
-    "electron-build": "npm run build && electron-builder",
-    "release": "npm run build && electron-builder --publish=always",
+    "electron-build": "npm run build-no-warnings && electron-builder",
+    "release": "npm run build-no-warnings && electron-builder --publish=always",
     "dev": "concurrently --kill-others \"npm run react-start\" \"npm run wait-electron\""
   },
   "eslintConfig": {
@@ -72,6 +73,7 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
     "electron": "^28.3.0",
     "electron-builder": "^24.13.3",
     "wait-on": "^7.2.0"
@@ -103,15 +105,21 @@
       "target": [
         {
           "target": "rpm",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
-          "target": "deb", 
-          "arch": ["x64"]
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "AppImage",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "category": "Utility",
