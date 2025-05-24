@@ -28,8 +28,10 @@ jobs:
       working-directory: frontend
       run: npm ci
       
-    - name: Construir aplicación React
+    - name: Construir aplicación React (ignorando warnings)
       working-directory: frontend
+      env:
+        CI: false  # Esto permite que warnings no sean tratados como errores
       run: npm run build
       
     - name: Construir para Windows

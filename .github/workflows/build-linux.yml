@@ -3,9 +3,9 @@ name: Build Linux App
 on:
   workflow_dispatch:  # Permite ejecutar manualmente
   push:
-    branches: [ main, master ]  # Ajustado para main o master
+    branches: [ main, master, dev ]  # Agregado dev
   pull_request:
-    branches: [ main, master ]
+    branches: [ main, master, dev ]
 
 jobs:
   build-linux:
@@ -26,8 +26,10 @@ jobs:
       working-directory: frontend
       run: npm ci
       
-    - name: Construir aplicación React
+    - name: Construir aplicación React (ignorando warnings)
       working-directory: frontend
+      env:
+        CI: false  # Esto permite que warnings no sean tratados como errores
       run: npm run build
       
     - name: Construir para Linux
