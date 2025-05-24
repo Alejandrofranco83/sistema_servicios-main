@@ -6,32 +6,17 @@ const { initialize, enable } = require('@electron/remote/main');
 // Inicializar @electron/remote
 initialize();
 
-// Optimizaciones SOLO para Linux - Windows queda intacto
+// Optimizaciones simplificadas SOLO para Linux - mantener Windows intacto
 if (process.platform === 'linux') {
-  console.log('Aplicando optimizaciones para Linux...');
+  console.log('Aplicando optimizaciones básicas para Linux...');
   
-  // Habilitar aceleración de hardware para Linux
+  // Solo optimizaciones básicas y seguras
   app.commandLine.appendSwitch('enable-gpu-rasterization');
-  app.commandLine.appendSwitch('enable-zero-copy');
-  app.commandLine.appendSwitch('ignore-gpu-blocklist');
-  app.commandLine.appendSwitch('enable-gpu-memory-buffer-video-frames');
-  app.commandLine.appendSwitch('enable-native-gpu-memory-buffers');
-  
-  // Optimizaciones de rendering para Linux
-  app.commandLine.appendSwitch('enable-gpu-compositing');
-  app.commandLine.appendSwitch('enable-smooth-scrolling');
   app.commandLine.appendSwitch('enable-accelerated-2d-canvas');
-  app.commandLine.appendSwitch('enable-accelerated-video-decode');
-  
-  // Configuraciones específicas para Wayland/X11
-  app.commandLine.appendSwitch('enable-features', 'VaapiVideoDecoder,VaapiVideoEncoder');
-  app.commandLine.appendSwitch('use-gl', 'desktop');
+  app.commandLine.appendSwitch('ignore-gpu-blocklist');
   
   // Desactivar sandbox solo en Linux para mejor compatibilidad
   app.commandLine.appendSwitch('no-sandbox');
-  
-  // Optimización de memoria en Linux
-  app.commandLine.appendSwitch('max_old_space_size', '4096');
 }
 
 let store;
@@ -80,35 +65,39 @@ async function createWindow() {
   const savedBounds = store.get('windowBounds', { width: 1280, height: 800 });
   const savedZoomLevel = store.get('zoomLevel', 0);
   
-  // Configuración base (igual para todas las plataformas)
-  const baseWebPreferences = {
+  // Configuración base simplificada para todas las plataformas
+  const webPreferences = {
     nodeIntegration: true,
-    contextIsolation: true, // Activado para seguridad
-    enableRemoteModule: true, // Habilitamos el módulo remote
+    contextIsolation: true,
+    enableRemoteModule: true,
     preload: path.join(__dirname, 'preload.js'),
-    zoomFactor: Math.pow(1.2, savedZoomLevel), // Convertir nivel a factor de zoom
+    zoomFactor: Math.pow(1.2, savedZoomLevel),
+    // Configuraciones básicas para Linux
+    ...(process.platform === 'linux' && {
+      hardwareAcceleration: true,
+      backgroundThrottling: false
+    })
   };
 
-  // Optimizaciones ADICIONALES solo para Linux
-  const linuxWebPreferences = process.platform === 'linux' ? {
-    ...baseWebPreferences,
-    hardwareAcceleration: true, // Forzar aceleración de hardware solo en Linux
-    backgroundThrottling: false, // Evitar throttling en segundo plano solo en Linux
-    experimentalFeatures: true, // Solo en Linux
-    enableBlinkFeatures: 'CSSBackdropFilter,WebAssembly', // Solo en Linux
-  } : baseWebPreferences;
-
-  // Crear la ventana del navegador.
+  // Crear la ventana del navegador con configuración mejorada para Linux
   mainWindow = new BrowserWindow({
     width: savedBounds.width,
     height: savedBounds.height,
     minWidth: 1024,
     minHeight: 768,
-    webPreferences: linuxWebPreferences,
-    // Configuraciones adicionales para una mejor apariencia
-    show: false, // No mostrar hasta que esté listo
+    webPreferences: webPreferences,
+    show: false,
     backgroundColor: '#2e2c29',
-    autoHideMenuBar: true // Ocultar la barra de menú por defecto
+    autoHideMenuBar: true,
+    // Configuraciones específicas para Linux
+    ...(process.platform === 'linux' && {
+      frame: true, // Asegurar que tenga marco en Linux
+      titleBarStyle: 'default', // Estilo de barra de título por defecto
+      resizable: true, // Asegurar que sea redimensionable
+      maximizable: true, // Asegurar que sea maximizable
+      minimizable: true, // Asegurar que sea minimizable
+      icon: path.join(__dirname, 'public/electron-icon.png') // Icono para Linux
+    })
   });
 
   // Habilitar @electron/remote para esta ventana
@@ -119,21 +108,6 @@ async function createWindow() {
     if (mainWindow) {
       mainWindow.webContents.setZoomLevel(savedZoomLevel);
       console.log(`Zoom restaurado a nivel: ${savedZoomLevel}`);
-      
-      // Optimizaciones post-carga SOLO para Linux
-      if (process.platform === 'linux') {
-        console.log('Aplicando optimizaciones post-carga para Linux...');
-        // Forzar repaint para resolver posibles problemas de rendering
-        mainWindow.webContents.invalidate();
-        
-        // Configurar framerate óptimo
-        mainWindow.webContents.setFrameRate(60);
-        
-        // Optimización adicional de throttling
-        setTimeout(() => {
-          mainWindow.webContents.setBackgroundThrottling(false);
-        }, 1000);
-      }
     }
   });
 
@@ -166,17 +140,36 @@ async function createWindow() {
   // Cargar la URL en la ventana
   mainWindow.loadURL(startUrl);
 
-  // Mostrar la ventana cuando esté lista
+  // Mostrar la ventana cuando esté lista - configuración mejorada
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
-    mainWindow.maximize();
+    
+    // Intentar maximizar en un timeout para Linux
+    if (process.platform === 'linux') {
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          console.log('Intentando maximizar ventana en Linux...');
+          mainWindow.maximize();
+        }
+      }, 500);
+    } else {
+      mainWindow.maximize();
+    }
   });
+
+  // Manejar evento de maximizar explícitamente para Linux
+  if (process.platform === 'linux') {
+    mainWindow.on('maximize', () => {
+      console.log('Ventana maximizada en Linux');
+    });
+    
+    mainWindow.on('unmaximize', () => {
+      console.log('Ventana des-maximizada en Linux');
+    });
+  }
 
   // Emitido cuando la ventana es cerrada.
   mainWindow.on('closed', function () {
-    // Desreferencia el objeto window, normalmente guardarías las ventanas
-    // en un array si tu aplicación soporta múltiples ventanas, este es el momento
-    // en el que deberías borrar el elemento correspondiente.
     mainWindow = null;
   });
 }
