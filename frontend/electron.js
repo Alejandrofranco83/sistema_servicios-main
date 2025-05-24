@@ -6,22 +6,17 @@ const { initialize, enable } = require('@electron/remote/main');
 // Inicializar @electron/remote
 initialize();
 
-// Optimizaciones simplificadas SOLO para Linux - mantener Windows intacto
+// Optimizaciones básicas y compatibles para Linux - mantener Windows intacto
 if (process.platform === 'linux') {
-  console.log('Aplicando optimizaciones básicas para Linux...');
+  console.log('Aplicando configuración básica para Linux...');
   
-  // Solo optimizaciones básicas y seguras
-  app.commandLine.appendSwitch('enable-gpu-rasterization');
-  app.commandLine.appendSwitch('enable-accelerated-2d-canvas');
-  app.commandLine.appendSwitch('ignore-gpu-blocklist');
-  
-  // Configuración para GNOME/Wayland
-  app.commandLine.appendSwitch('enable-features', 'UseOzonePlatform');
-  app.commandLine.appendSwitch('ozone-platform', 'wayland');
-  app.commandLine.appendSwitch('enable-wayland-ime');
-  
-  // Desactivar sandbox solo en Linux para mejor compatibilidad
+  // Solo optimizaciones básicas y probadas
   app.commandLine.appendSwitch('no-sandbox');
+  app.commandLine.appendSwitch('disable-dev-shm-usage');
+  
+  // NO forzar Wayland - detectar automáticamente
+  // Solo habilitar aceleración GPU si está disponible
+  app.commandLine.appendSwitch('ignore-gpu-blocklist');
 }
 
 let store;
@@ -94,16 +89,13 @@ async function createWindow() {
     show: false,
     backgroundColor: '#2e2c29',
     autoHideMenuBar: true,
-    // Configuraciones específicas para Linux
+    // Configuraciones específicas para Linux (simplificadas)
     ...(process.platform === 'linux' && {
-      frame: true, // Asegurar que tenga marco en Linux
-      titleBarStyle: 'default', // Estilo de barra de título por defecto
-      resizable: true, // Asegurar que sea redimensionable
-      maximizable: true, // Asegurar que sea maximizable
-      minimizable: true, // Asegurar que sea minimizable
-      fullscreenable: true, // Agregar soporte para pantalla completa
-      center: true, // Centrar la ventana al inicio
-      icon: path.join(__dirname, 'public/electron-icon.png') // Icono para Linux
+      frame: true,
+      resizable: true,
+      maximizable: true,
+      minimizable: true,
+      icon: path.join(__dirname, 'public/electron-icon.png')
     })
   });
 
@@ -147,37 +139,19 @@ async function createWindow() {
   // Cargar la URL en la ventana
   mainWindow.loadURL(startUrl);
 
-  // Mostrar la ventana cuando esté lista - configuración mejorada
+  // Mostrar la ventana cuando esté lista
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
     
-    // Estrategia mejorada de maximización para Linux
+    // Maximización simplificada para Linux
     if (process.platform === 'linux') {
-      // Intentar múltiples veces con diferentes delays para GNOME
-      const tryMaximize = (attempt = 1) => {
-        setTimeout(() => {
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            console.log(`Intento ${attempt} de maximizar ventana en Linux...`);
-            try {
-              mainWindow.maximize();
-              
-              // Verificar si se maximizó correctamente
-              setTimeout(() => {
-                if (mainWindow && !mainWindow.isMaximized() && attempt < 3) {
-                  console.log(`Intento ${attempt} falló, reintentando...`);
-                  tryMaximize(attempt + 1);
-                } else if (mainWindow && mainWindow.isMaximized()) {
-                  console.log('Ventana maximizada exitosamente en Linux');
-                }
-              }, 200);
-            } catch (error) {
-              console.error('Error al maximizar ventana:', error);
-            }
-          }
-        }, attempt === 1 ? 500 : 1000);
-      };
-      
-      tryMaximize();
+      // Esperar un poco y luego maximizar
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          console.log('Maximizando ventana en Linux...');
+          mainWindow.maximize();
+        }
+      }, 1000);
     } else {
       mainWindow.maximize();
     }
