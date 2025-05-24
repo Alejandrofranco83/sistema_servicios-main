@@ -23,7 +23,7 @@ const getConfigPath = () => {
 const isWindows = () => os.platform() === 'win32';
 const isLinux = () => os.platform() === 'linux';
 
-// Función auxiliar para imprimir en Linux
+// Función auxiliar para imprimir en Linux usando CUPS
 async function printToLinuxPrinter(printerName, content) {
   try {
     const { exec } = require('child_process');
@@ -31,23 +31,26 @@ async function printToLinuxPrinter(printerName, content) {
     const execAsync = promisify(exec);
     const tmpPath = path.join(os.tmpdir(), `ticket_${Date.now()}.txt`);
     
+    console.log(`Imprimiendo en CUPS - Impresora: ${printerName}`);
+    
     // Escribir contenido a archivo temporal
     fs.writeFileSync(tmpPath, content, 'utf8');
     
     let command;
     
     if (printerName && printerName !== 'Por Defecto') {
-      // Imprimir a impresora específica
-      command = `lpr -P "${printerName}" "${tmpPath}"`;
+      // Imprimir a impresora específica usando lp (CUPS)
+      command = `lp -d "${printerName}" "${tmpPath}"`;
     } else {
       // Imprimir a impresora por defecto
-      command = `lpr "${tmpPath}"`;
+      command = `lp "${tmpPath}"`;
     }
     
-    console.log(`Ejecutando comando de impresión: ${command}`);
+    console.log(`Ejecutando comando CUPS: ${command}`);
     
     try {
-      await execAsync(command);
+      const result = await execAsync(command);
+      console.log('Resultado CUPS:', result.stdout);
       
       // Limpiar archivo temporal
       setTimeout(() => {
@@ -60,15 +63,17 @@ async function printToLinuxPrinter(printerName, content) {
       
       return { 
         success: true, 
-        message: 'Documento enviado a la impresora silenciosamente' 
+        message: 'Documento enviado a la impresora CUPS silenciosamente' 
       };
       
     } catch (printError) {
-      // Si falla con impresora específica, intentar con impresora por defecto
+      console.error('Error en comando CUPS:', printError.message);
+      
+      // Intentar con impresora por defecto si falla
       if (printerName && printerName !== 'Por Defecto') {
-        console.warn(`Fallo con impresora ${printerName}, intentando con impresora por defecto...`);
+        console.log('Intentando con impresora por defecto...');
         try {
-          await execAsync(`lpr "${tmpPath}"`);
+          await execAsync(`lp "${tmpPath}"`);
           
           setTimeout(() => {
             try {
@@ -80,27 +85,27 @@ async function printToLinuxPrinter(printerName, content) {
           
           return { 
             success: true, 
-            message: 'Documento enviado a la impresora por defecto silenciosamente' 
+            message: 'Documento enviado a la impresora por defecto CUPS' 
           };
         } catch (defaultError) {
           return { 
             success: false, 
-            error: `Error al imprimir: ${defaultError.message}. Verifique que hay impresoras configuradas.` 
+            error: `Error CUPS: ${defaultError.message}. Verifique la configuración de CUPS.` 
           };
         }
       } else {
         return { 
           success: false, 
-          error: `Error al imprimir: ${printError.message}. Verifique que hay impresoras configuradas.` 
+          error: `Error CUPS: ${printError.message}. Verifique la configuración de impresoras.` 
         };
       }
     }
     
   } catch (error) {
-    console.error('Error en impresión Linux:', error);
+    console.error('Error general en impresión CUPS:', error);
     return { 
       success: false, 
-      error: `Error de impresión en Linux: ${error.message}` 
+      error: `Error de impresión: ${error.message}` 
     };
   }
 }
@@ -121,41 +126,108 @@ contextBridge.exposeInMainWorld('printerAPI', {
           }))
         };
       } else if (isLinux()) {
-        // En Linux, obtener impresoras reales del sistema
+        // En Linux, obtener impresoras usando CUPS con soporte multiidioma
         const { exec } = require('child_process');
         const { promisify } = require('util');
         const execAsync = promisify(exec);
         
         try {
-          // Obtener impresoras usando lpstat
-          const { stdout } = await execAsync('lpstat -p -d 2>/dev/null || true');
-          const printers = [];
+          console.log('Detectando impresoras CUPS...');
           
-          if (stdout) {
-            const lines = stdout.split('\n');
-            let defaultPrinter = '';
-            
-            // Buscar impresora por defecto
-            const defaultMatch = stdout.match(/system default destination: (.+)/);
-            if (defaultMatch) {
-              defaultPrinter = defaultMatch[1].trim();
+          // Usar lpstat -a para impresoras que aceptan trabajos
+          const { stdout: activeStdout } = await execAsync('lpstat -a 2>/dev/null || true');
+          console.log('lpstat -a output:', activeStdout);
+          
+          // También obtener información detallada
+          const { stdout: detailStdout } = await execAsync('lpstat -p 2>/dev/null || true');
+          console.log('lpstat -p output:', detailStdout);
+          
+          // Obtener impresora por defecto
+          const { stdout: defaultStdout } = await execAsync('lpstat -d 2>/dev/null || true');
+          console.log('lpstat -d output:', defaultStdout);
+          
+          const printers = [];
+          let defaultPrinter = '';
+          
+          // Buscar impresora por defecto (múltiples idiomas)
+          const defaultPatterns = [
+            /system default destination: (.+)/,           // Inglés
+            /destino padrão do sistema: (.+)/,           // Portugués
+            /destination par défaut du système: (.+)/,    // Francés
+            /destino predeterminado del sistema: (.+)/    // Español
+          ];
+          
+          for (const pattern of defaultPatterns) {
+            const match = defaultStdout.match(pattern);
+            if (match) {
+              defaultPrinter = match[1].trim();
+              console.log('Impresora por defecto encontrada:', defaultPrinter);
+              break;
             }
-            
-            // Extraer impresoras
+          }
+          
+          // Procesar impresoras activas (lpstat -a)
+          if (activeStdout) {
+            const lines = activeStdout.split('\n');
             lines.forEach(line => {
-              const match = line.match(/printer (.+) is/);
-              if (match) {
-                const printerName = match[1].trim();
-                printers.push({
-                  name: printerName,
-                  isDefault: printerName === defaultPrinter
-                });
+              // Patrones para diferentes idiomas
+              const patterns = [
+                /^(\S+)\s+accepting/,                    // Inglés: "printer accepting"
+                /^(\S+)\s+está aceitando/,              // Portugués: "printer está aceitando"
+                /^(\S+)\s+acepta/,                      // Español: "printer acepta"
+                /^(\S+)\s+accepte/                      // Francés: "printer accepte"
+              ];
+              
+              for (const pattern of patterns) {
+                const match = line.match(pattern);
+                if (match) {
+                  const printerName = match[1].trim();
+                  console.log('Impresora activa encontrada:', printerName);
+                  printers.push({
+                    name: printerName,
+                    isDefault: printerName === defaultPrinter
+                  });
+                  break;
+                }
               }
             });
           }
           
-          // Si no hay impresoras específicas, agregar opción genérica
+          // Si lpstat -a no funcionó, usar lpstat -p como respaldo
+          if (printers.length === 0 && detailStdout) {
+            const lines = detailStdout.split('\n');
+            lines.forEach(line => {
+              // Patrones para diferentes idiomas en lpstat -p
+              const patterns = [
+                /printer (.+) is/,                      // Inglés: "printer X is"
+                /impressora (.+) está/,                 // Portugués: "impressora X está"
+                /impresora (.+) está/,                  // Español: "impresora X está"
+                /imprimante (.+) est/                   // Francés: "imprimante X est"
+              ];
+              
+              for (const pattern of patterns) {
+                const match = line.match(pattern);
+                if (match) {
+                  const printerName = match[1].trim();
+                  if (!printers.find(p => p.name === printerName)) {
+                    console.log('Impresora configurada encontrada:', printerName);
+                    printers.push({
+                      name: printerName,
+                      isDefault: printerName === defaultPrinter
+                    });
+                  }
+                  break;
+                }
+              }
+            });
+          }
+          
+          console.log('Total de impresoras encontradas:', printers.length);
+          console.log('Impresoras:', printers);
+          
+          // Si no se encontraron impresoras, agregar opción genérica
           if (printers.length === 0) {
+            console.log('No se encontraron impresoras, agregando opción por defecto');
             printers.push({
               name: 'Por Defecto',
               isDefault: true
@@ -167,8 +239,7 @@ contextBridge.exposeInMainWorld('printerAPI', {
             printers: printers
           };
         } catch (linuxError) {
-          console.warn('No se pudieron obtener impresoras de Linux:', linuxError.message);
-          // Retornar impresora por defecto
+          console.error('Error obteniendo impresoras CUPS:', linuxError);
           return {
             success: true,
             printers: [

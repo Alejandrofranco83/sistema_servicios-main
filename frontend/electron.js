@@ -15,6 +15,11 @@ if (process.platform === 'linux') {
   app.commandLine.appendSwitch('enable-accelerated-2d-canvas');
   app.commandLine.appendSwitch('ignore-gpu-blocklist');
   
+  // Configuración para GNOME/Wayland
+  app.commandLine.appendSwitch('enable-features', 'UseOzonePlatform');
+  app.commandLine.appendSwitch('ozone-platform', 'wayland');
+  app.commandLine.appendSwitch('enable-wayland-ime');
+  
   // Desactivar sandbox solo en Linux para mejor compatibilidad
   app.commandLine.appendSwitch('no-sandbox');
 }
@@ -96,6 +101,8 @@ async function createWindow() {
       resizable: true, // Asegurar que sea redimensionable
       maximizable: true, // Asegurar que sea maximizable
       minimizable: true, // Asegurar que sea minimizable
+      fullscreenable: true, // Agregar soporte para pantalla completa
+      center: true, // Centrar la ventana al inicio
       icon: path.join(__dirname, 'public/electron-icon.png') // Icono para Linux
     })
   });
@@ -144,14 +151,33 @@ async function createWindow() {
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
     
-    // Intentar maximizar en un timeout para Linux
+    // Estrategia mejorada de maximización para Linux
     if (process.platform === 'linux') {
-      setTimeout(() => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          console.log('Intentando maximizar ventana en Linux...');
-          mainWindow.maximize();
-        }
-      }, 500);
+      // Intentar múltiples veces con diferentes delays para GNOME
+      const tryMaximize = (attempt = 1) => {
+        setTimeout(() => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            console.log(`Intento ${attempt} de maximizar ventana en Linux...`);
+            try {
+              mainWindow.maximize();
+              
+              // Verificar si se maximizó correctamente
+              setTimeout(() => {
+                if (mainWindow && !mainWindow.isMaximized() && attempt < 3) {
+                  console.log(`Intento ${attempt} falló, reintentando...`);
+                  tryMaximize(attempt + 1);
+                } else if (mainWindow && mainWindow.isMaximized()) {
+                  console.log('Ventana maximizada exitosamente en Linux');
+                }
+              }, 200);
+            } catch (error) {
+              console.error('Error al maximizar ventana:', error);
+            }
+          }
+        }, attempt === 1 ? 500 : 1000);
+      };
+      
+      tryMaximize();
     } else {
       mainWindow.maximize();
     }
