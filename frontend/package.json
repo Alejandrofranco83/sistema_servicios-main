@@ -1,6 +1,11 @@
 {
   "name": "sistema-servicios-frontend",
   "version": "0.1.0",
+  "description": "Sistema de gestión para puntos de cobranza - Frontend",
+  "author": {
+    "name": "Alejandro Franco",
+    "email": "alejandrofran@gmail.com"
+  },
   "private": true,
   "main": "electron.js",
   "homepage": "./",
@@ -123,7 +128,9 @@
         }
       ],
       "category": "Utility",
-      "icon": "public/electron-icon.png"
+      "icon": "public/electron-icon.png",
+      "maintainer": "Alejandro Franco <alejandrofran@gmail.com>",
+      "vendor": "Alejandro Franco"
     },
     "asarUnpack": [
       "**/node_modules/pdf-to-printer/dist/**"
