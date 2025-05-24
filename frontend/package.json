@@ -130,7 +130,14 @@
       "category": "Utility",
       "icon": "public/electron-icon.png",
       "maintainer": "Alejandro Franco <alejandrofran@gmail.com>",
-      "vendor": "Alejandro Franco"
+      "vendor": "Alejandro Franco",
+      "executableArgs": [
+        "--enable-gpu-rasterization",
+        "--enable-zero-copy",
+        "--ignore-gpu-blocklist",
+        "--enable-accelerated-2d-canvas",
+        "--no-sandbox"
+      ]
     },
     "asarUnpack": [
       "**/node_modules/pdf-to-printer/dist/**"

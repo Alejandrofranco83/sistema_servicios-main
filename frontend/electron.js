@@ -6,6 +6,34 @@ const { initialize, enable } = require('@electron/remote/main');
 // Inicializar @electron/remote
 initialize();
 
+// Optimizaciones SOLO para Linux - Windows queda intacto
+if (process.platform === 'linux') {
+  console.log('Aplicando optimizaciones para Linux...');
+  
+  // Habilitar aceleración de hardware para Linux
+  app.commandLine.appendSwitch('enable-gpu-rasterization');
+  app.commandLine.appendSwitch('enable-zero-copy');
+  app.commandLine.appendSwitch('ignore-gpu-blocklist');
+  app.commandLine.appendSwitch('enable-gpu-memory-buffer-video-frames');
+  app.commandLine.appendSwitch('enable-native-gpu-memory-buffers');
+  
+  // Optimizaciones de rendering para Linux
+  app.commandLine.appendSwitch('enable-gpu-compositing');
+  app.commandLine.appendSwitch('enable-smooth-scrolling');
+  app.commandLine.appendSwitch('enable-accelerated-2d-canvas');
+  app.commandLine.appendSwitch('enable-accelerated-video-decode');
+  
+  // Configuraciones específicas para Wayland/X11
+  app.commandLine.appendSwitch('enable-features', 'VaapiVideoDecoder,VaapiVideoEncoder');
+  app.commandLine.appendSwitch('use-gl', 'desktop');
+  
+  // Desactivar sandbox solo en Linux para mejor compatibilidad
+  app.commandLine.appendSwitch('no-sandbox');
+  
+  // Optimización de memoria en Linux
+  app.commandLine.appendSwitch('max_old_space_size', '4096');
+}
+
 let store;
 
 // Función para inicializar store de forma asíncrona
@@ -52,19 +80,31 @@ async function createWindow() {
   const savedBounds = store.get('windowBounds', { width: 1280, height: 800 });
   const savedZoomLevel = store.get('zoomLevel', 0);
   
+  // Configuración base (igual para todas las plataformas)
+  const baseWebPreferences = {
+    nodeIntegration: true,
+    contextIsolation: true, // Activado para seguridad
+    enableRemoteModule: true, // Habilitamos el módulo remote
+    preload: path.join(__dirname, 'preload.js'),
+    zoomFactor: Math.pow(1.2, savedZoomLevel), // Convertir nivel a factor de zoom
+  };
+
+  // Optimizaciones ADICIONALES solo para Linux
+  const linuxWebPreferences = process.platform === 'linux' ? {
+    ...baseWebPreferences,
+    hardwareAcceleration: true, // Forzar aceleración de hardware solo en Linux
+    backgroundThrottling: false, // Evitar throttling en segundo plano solo en Linux
+    experimentalFeatures: true, // Solo en Linux
+    enableBlinkFeatures: 'CSSBackdropFilter,WebAssembly', // Solo en Linux
+  } : baseWebPreferences;
+
   // Crear la ventana del navegador.
   mainWindow = new BrowserWindow({
     width: savedBounds.width,
     height: savedBounds.height,
     minWidth: 1024,
     minHeight: 768,
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: true, // Activado para seguridad
-      enableRemoteModule: true, // Habilitamos el módulo remote
-      preload: path.join(__dirname, 'preload.js'),
-      zoomFactor: Math.pow(1.2, savedZoomLevel), // Convertir nivel a factor de zoom
-    },
+    webPreferences: linuxWebPreferences,
     // Configuraciones adicionales para una mejor apariencia
     show: false, // No mostrar hasta que esté listo
     backgroundColor: '#2e2c29',
@@ -79,6 +119,21 @@ async function createWindow() {
     if (mainWindow) {
       mainWindow.webContents.setZoomLevel(savedZoomLevel);
       console.log(`Zoom restaurado a nivel: ${savedZoomLevel}`);
+      
+      // Optimizaciones post-carga SOLO para Linux
+      if (process.platform === 'linux') {
+        console.log('Aplicando optimizaciones post-carga para Linux...');
+        // Forzar repaint para resolver posibles problemas de rendering
+        mainWindow.webContents.invalidate();
+        
+        // Configurar framerate óptimo
+        mainWindow.webContents.setFrameRate(60);
+        
+        // Optimización adicional de throttling
+        setTimeout(() => {
+          mainWindow.webContents.setBackgroundThrottling(false);
+        }, 1000);
+      }
     }
   });
 
