@@ -293,12 +293,16 @@ const TicketCierreCaja: React.FC<TicketProps> = (props) => {
     
     // Método tradicional de impresión (como respaldo)
     imprimirTicketTradicional = () => {
+      console.log('=== USANDO MÉTODO TRADICIONAL DE IMPRESIÓN ===');
+      
       // Crear un iframe oculto para la impresión
       const printIframe = document.createElement('iframe');
       printIframe.style.position = 'absolute';
       printIframe.style.top = '-9999px';
       printIframe.style.left = '-9999px';
       document.body.appendChild(printIframe);
+      
+      console.log('Iframe creado para impresión tradicional');
       
       // Obtener el documento del iframe
       const iframeDoc = printIframe.contentDocument || printIframe.contentWindow?.document;
@@ -484,12 +488,16 @@ const TicketCierreCaja: React.FC<TicketProps> = (props) => {
         // Imprimir y luego eliminar el iframe
         setTimeout(() => {
           try {
+            console.log('Iniciando impresión tradicional...');
             printIframe.focus();
             printIframe.contentWindow?.print();
+            
+            console.log('Impresión tradicional enviada');
             
             // Eliminar el iframe después de imprimir
             setTimeout(() => {
               document.body.removeChild(printIframe);
+              console.log('Iframe eliminado después de impresión');
             }, 500);
           } catch (error) {
             console.error('Error al imprimir:', error);
@@ -504,12 +512,25 @@ const TicketCierreCaja: React.FC<TicketProps> = (props) => {
     // Función para intentar usar la impresora térmica
     const intentarImpresionTermica = async () => {
       try {
+        console.log('=== INICIANDO IMPRESIÓN TICKET CIERRE ===');
+        
         // Importar dinámicamente el servicio
         const module = await import('../../../services/ElectronPrinterService');
         const electronPrinterService = module.default;
         
+        // Verificar que el servicio esté disponible
+        console.log('Servicio de impresión cargado');
+        
         // Acceder a las diferencias desde props
         const { diferenciasEfectivo, diferenciasServicios, diferenciaTotal } = props;
+        
+        console.log('Datos para impresión:', {
+          cajaId: cajaSeleccionada.cajaEnteroId,
+          estado: cajaSeleccionada.estado,
+          diferenciasEfectivo,
+          diferenciasServicios,
+          diferenciaTotal
+        });
         
         // Crear contenido HTML personalizado para la impresora térmica
         const htmlContent = [
@@ -1176,16 +1197,29 @@ const TicketCierreCaja: React.FC<TicketProps> = (props) => {
           htmlContent: htmlContent
         };
         
+        console.log('Contenido de ticket preparado:', {
+          htmlContentLength: htmlContent.length,
+          hasQR: htmlContent.some(item => item.type === 'qrCode'),
+          firstItems: htmlContent.slice(0, 3)
+        });
+        
         // Intentar imprimir usando la impresora térmica
+        console.log('Enviando a imprimir...');
         const printResult = await electronPrinterService.printTicket(ticketContent);
+        
+        console.log('Resultado de impresión:', printResult);
         
         if (!printResult.success) {
           console.error('Error al imprimir con impresora térmica:', printResult.error);
           // Si falla la impresión térmica, usar el método tradicional
+          console.log('Fallback a método tradicional de impresión');
           imprimirTicketTradicional();
+        } else {
+          console.log('=== IMPRESIÓN TICKET CIERRE EXITOSA ===');
         }
       } catch (error) {
         console.error('Error al preparar la impresión térmica:', error);
+        console.log('Error capturado, usando método tradicional');
         // En caso de error, usar el método tradicional
         imprimirTicketTradicional();
       }
