@@ -31,10 +31,32 @@ async function printToLinuxPrinter(printerName, content) {
     const execAsync = promisify(exec);
     const tmpPath = path.join(os.tmpdir(), `ticket_${Date.now()}.txt`);
     
-    console.log(`Imprimiendo en CUPS - Impresora: ${printerName}`);
+    console.log(`=== FUNCIÓN PRINT LINUX - INICIANDO ===`);
+    console.log(`Impresora: ${printerName}`);
+    console.log(`Tipo de contenido recibido:`, typeof content);
+    console.log(`Contenido recibido:`, content);
+    
+    let textoParaImprimir = '';
+    
+    // Si es un string, usarlo directamente
+    if (typeof content === 'string') {
+      textoParaImprimir = content;
+    } else {
+      // Si no es string, intentar convertir a string
+      textoParaImprimir = String(content);
+    }
+    
+    console.log(`Texto final para imprimir (longitud: ${textoParaImprimir.length}):`);
+    console.log(`"${textoParaImprimir}"`);
     
     // Escribir contenido a archivo temporal
-    fs.writeFileSync(tmpPath, content, 'utf8');
+    fs.writeFileSync(tmpPath, textoParaImprimir, 'utf8');
+    console.log(`Archivo temporal creado: ${tmpPath}`);
+    
+    // Verificar que el archivo se creó correctamente
+    const fileExists = fs.existsSync(tmpPath);
+    const fileSize = fileExists ? fs.statSync(tmpPath).size : 0;
+    console.log(`Archivo existe: ${fileExists}, Tamaño: ${fileSize} bytes`);
     
     let command;
     
@@ -50,16 +72,20 @@ async function printToLinuxPrinter(printerName, content) {
     
     try {
       const result = await execAsync(command);
-      console.log('Resultado CUPS:', result.stdout);
+      console.log('Resultado CUPS stdout:', result.stdout);
+      console.log('Resultado CUPS stderr:', result.stderr);
       
-      // Limpiar archivo temporal
+      // Limpiar archivo temporal después de un delay
       setTimeout(() => {
         try {
-          fs.unlinkSync(tmpPath);
+          if (fs.existsSync(tmpPath)) {
+            fs.unlinkSync(tmpPath);
+            console.log('Archivo temporal eliminado exitosamente');
+          }
         } catch (e) {
           console.warn('No se pudo eliminar archivo temporal:', e.message);
         }
-      }, 3000);
+      }, 5000); // Aumentado a 5 segundos
       
       return { 
         success: true, 
@@ -68,26 +94,34 @@ async function printToLinuxPrinter(printerName, content) {
       
     } catch (printError) {
       console.error('Error en comando CUPS:', printError.message);
+      console.error('CUPS stderr:', printError.stderr);
       
       // Intentar con impresora por defecto si falla
       if (printerName && printerName !== 'Por Defecto') {
         console.log('Intentando con impresora por defecto...');
         try {
-          await execAsync(`lp "${tmpPath}"`);
+          const defaultCommand = `lp "${tmpPath}"`;
+          console.log(`Comando por defecto: ${defaultCommand}`);
+          const defaultResult = await execAsync(defaultCommand);
+          console.log('Resultado impresora por defecto:', defaultResult.stdout);
           
           setTimeout(() => {
             try {
-              fs.unlinkSync(tmpPath);
+              if (fs.existsSync(tmpPath)) {
+                fs.unlinkSync(tmpPath);
+                console.log('Archivo temporal eliminado exitosamente (fallback)');
+              }
             } catch (e) {
-              console.warn('No se pudo eliminar archivo temporal:', e.message);
+              console.warn('No se pudo eliminar archivo temporal (fallback):', e.message);
             }
-          }, 3000);
+          }, 5000);
           
           return { 
             success: true, 
             message: 'Documento enviado a la impresora por defecto CUPS' 
           };
         } catch (defaultError) {
+          console.error('Error con impresora por defecto:', defaultError.message);
           return { 
             success: false, 
             error: `Error CUPS: ${defaultError.message}. Verifique la configuración de CUPS.` 
@@ -394,7 +428,7 @@ contextBridge.exposeInMainWorld('printerAPI', {
     }
   },
   
-  printReceipt: async (ticket) => {
+  printReceipt: async (ticketContent) => {
     try {
       // Obtener la configuración de la impresora guardada en el archivo
       const configPath = getConfigPath();
@@ -404,7 +438,7 @@ contextBridge.exposeInMainWorld('printerAPI', {
       const configData = fs.readFileSync(configPath, 'utf8');
       const fileConfig = JSON.parse(configData);
       
-      if (!fileConfig.printerName && !(ticket.options && ticket.options.printerName)) {
+      if (!fileConfig.printerName && !(ticketContent.options && ticketContent.options.printerName)) {
         return { success: false, error: 'No hay impresora seleccionada.' };
       }
 
@@ -414,55 +448,55 @@ contextBridge.exposeInMainWorld('printerAPI', {
         
         // Preparar el contenido HTML para la impresión (esto se mantiene igual)
         const htmlContent = [];
-        if (ticket.htmlContent && Array.isArray(ticket.htmlContent)) {
+        if (ticketContent.htmlContent && Array.isArray(ticketContent.htmlContent)) {
           // Si se proporciona htmlContent, se usa directamente
-          ticket.htmlContent.forEach(item => htmlContent.push(item));
+          ticketContent.htmlContent.forEach(item => htmlContent.push(item));
         } else {
           // Lógica anterior para construir htmlContent a partir de header, lines, footer, etc.
-          if (ticket.header) {
+          if (ticketContent.header) {
             htmlContent.push({
               type: 'text',
-              value: ticket.header,
+              value: ticketContent.header,
               style: { fontSize: '18px', fontWeight: 'bold', textAlign: 'center' }
             });
           }
-          for (const line of ticket.lines) {
+          for (const line of ticketContent.lines) {
             htmlContent.push({
               type: 'text',
               value: line,
               style: { fontSize: '14px', marginTop: '5px' }
             });
           }
-          if (ticket.barcode) {
+          if (ticketContent.barcode) {
             htmlContent.push({
               type: 'barCode',
-              value: ticket.barcode,
+              value: ticketContent.barcode,
               height: 40,
               width: 2,
               displayValue: true,
               position: 'center'
             });
           }
-          if (ticket.qr) {
+          if (ticketContent.qr) {
             htmlContent.push({
               type: 'qrCode',
-              value: ticket.qr,
+              value: ticketContent.qr,
               height: 80,
               width: 80,
               position: 'center'
             });
           }
-          if (ticket.total) {
+          if (ticketContent.total) {
             htmlContent.push({
               type: 'text',
-              value: `TOTAL: ${ticket.total}`,
+              value: `TOTAL: ${ticketContent.total}`,
               style: { fontSize: '16px', fontWeight: 'bold', marginTop: '10px' }
             });
           }
-          if (ticket.footer) {
+          if (ticketContent.footer) {
             htmlContent.push({
               type: 'text',
-              value: ticket.footer,
+              value: ticketContent.footer,
               style: { fontSize: '14px', fontWeight: 'normal', textAlign: 'center', marginTop: '10px' }
             });
           }
@@ -470,7 +504,7 @@ contextBridge.exposeInMainWorld('printerAPI', {
         
         // Combinar opciones: las del ticket tienen prioridad sobre las del archivo de configuración
         const baseOptions = { ...(fileConfig || {}) };
-        const ticketOptions = { ...(ticket.options || {}) };
+        const ticketOptions = { ...(ticketContent.options || {}) };
         
         const combinedOptions = {
           ...baseOptions,
@@ -530,29 +564,83 @@ contextBridge.exposeInMainWorld('printerAPI', {
         return { success: true };
         
       } else if (isLinux()) {
-        // Implementación para Linux
-        const printerName = ticket.options?.printerName || fileConfig.printerName;
+        // LINUX: Usar CUPS para impresión directa
+        console.log('=== IMPRESIÓN LINUX - PROCESANDO CONTENIDO ===');
+        console.log('Ticket content recibido:', ticketContent);
         
-        let content = '';
-        if (ticket.header) {
-          content += ticket.header + '\n';
+        // Función para convertir htmlContent a texto plano
+        function convertirHtmlContentATexto(htmlContent) {
+          if (!htmlContent || !Array.isArray(htmlContent)) {
+            console.log('htmlContent no es array válido, usando contenido por defecto');
+            return "Error: Contenido de ticket no válido";
+          }
+          
+          console.log(`Procesando ${htmlContent.length} elementos de htmlContent`);
+          
+          let textoCompleto = [];
+          
+          htmlContent.forEach((item, index) => {
+            console.log(`Procesando item ${index}:`, item);
+            
+            if (item.type === 'text') {
+              // Para texto, usar el valor directamente
+              let texto = item.value || '';
+              
+              // Aplicar alineación si está especificada
+              if (item.style && item.style.textAlign === 'center') {
+                // Centrar texto (aproximadamente 32 caracteres por línea)
+                const lineWidth = 32;
+                const padding = Math.max(0, Math.floor((lineWidth - texto.length) / 2));
+                texto = ' '.repeat(padding) + texto;
+              }
+              
+              textoCompleto.push(texto);
+              
+            } else if (item.type === 'qrCode') {
+              // Para QR, agregar un placeholder
+              textoCompleto.push('');
+              textoCompleto.push('        [CÓDIGO QR]');
+              textoCompleto.push('');
+              
+            } else {
+              console.warn(`Tipo de item no reconocido: ${item.type}`);
+            }
+          });
+          
+          const resultado = textoCompleto.join('\n');
+          console.log('Texto final convertido (primeros 500 chars):', resultado.substring(0, 500));
+          console.log('Longitud total del texto:', resultado.length);
+          
+          return resultado;
         }
         
-        if (ticket.lines && Array.isArray(ticket.lines)) {
-          content += ticket.lines.join('\n') + '\n';
+        let contenidoParaImprimir;
+        
+        // Verificar si tiene htmlContent (formato del ticket de cierre)
+        if (ticketContent.htmlContent && Array.isArray(ticketContent.htmlContent)) {
+          console.log('Detectado ticket con htmlContent, convirtiendo...');
+          contenidoParaImprimir = convertirHtmlContentATexto(ticketContent.htmlContent);
+        } 
+        // Verificar si tiene lines (formato tradicional)
+        else if (ticketContent.lines && Array.isArray(ticketContent.lines)) {
+          console.log('Detectado ticket con lines tradicional');
+          contenidoParaImprimir = ticketContent.lines.join('\n');
+        } 
+        // Si es un string directo
+        else if (typeof ticketContent === 'string') {
+          console.log('Detectado contenido string directo');
+          contenidoParaImprimir = ticketContent;
+        } 
+        // Fallback: convertir a string
+        else {
+          console.warn('Formato de ticket no reconocido, usando fallback');
+          contenidoParaImprimir = JSON.stringify(ticketContent, null, 2);
         }
         
-        if (ticket.total) {
-          content += `\nTOTAL: ${ticket.total}\n`;
-        }
+        console.log('Contenido final preparado para impresión (longitud):', contenidoParaImprimir.length);
         
-        if (ticket.footer) {
-          content += ticket.footer + '\n';
-        }
-        
-        content += '\n\n\n'; // Espacios para corte de papel
-        
-        return await printToLinuxPrinter(printerName, content);
+        // Llamar a la función de impresión CUPS
+        return await printToLinuxPrinter(ticketContent.options?.printerName || fileConfig.printerName, contenidoParaImprimir);
       } else {
         return { success: false, error: 'Sistema operativo no soportado para impresión' };
       }
