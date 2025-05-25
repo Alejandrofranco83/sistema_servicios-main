@@ -578,25 +578,59 @@ contextBridge.exposeInMainWorld('printerAPI', {
           console.log(`Procesando ${htmlContent.length} elementos de htmlContent`);
           
           let textoCompleto = [];
+          let lineaActual = '';
+          let esperandoInlineBlock = false;
           
           htmlContent.forEach((item, index) => {
             console.log(`Procesando item ${index}:`, item);
             
             if (item.type === 'text') {
-              // Para texto, usar el valor directamente
               let texto = item.value || '';
               
-              // Aplicar alineación si está especificada
-              if (item.style && item.style.textAlign === 'center') {
-                // Centrar texto (aproximadamente 32 caracteres por línea)
-                const lineWidth = 32;
-                const padding = Math.max(0, Math.floor((lineWidth - texto.length) / 2));
-                texto = ' '.repeat(padding) + texto;
+              // Verificar si es un elemento inline-block
+              const esInlineBlock = item.style && item.style.display === 'inline-block';
+              
+              if (esInlineBlock) {
+                if (esperandoInlineBlock) {
+                  // Si ya tenemos una línea iniciada, agregar a la derecha
+                  const espaciosNecesarios = Math.max(1, 32 - lineaActual.length - texto.length);
+                  lineaActual += ' '.repeat(espaciosNecesarios) + texto;
+                  // Terminar la línea
+                  textoCompleto.push(lineaActual);
+                  lineaActual = '';
+                  esperandoInlineBlock = false;
+                } else {
+                  // Iniciar nueva línea con el elemento izquierdo
+                  lineaActual = texto;
+                  esperandoInlineBlock = true;
+                }
+              } else {
+                // Si tenemos una línea pendiente, terminarla primero
+                if (esperandoInlineBlock) {
+                  textoCompleto.push(lineaActual);
+                  lineaActual = '';
+                  esperandoInlineBlock = false;
+                }
+                
+                // Aplicar alineación si está especificada para elementos block
+                if (item.style && item.style.textAlign === 'center') {
+                  // Centrar texto (aproximadamente 32 caracteres por línea)
+                  const lineWidth = 32;
+                  const padding = Math.max(0, Math.floor((lineWidth - texto.length) / 2));
+                  texto = ' '.repeat(padding) + texto;
+                }
+                
+                textoCompleto.push(texto);
               }
               
-              textoCompleto.push(texto);
-              
             } else if (item.type === 'qrCode') {
+              // Si tenemos una línea pendiente, terminarla primero
+              if (esperandoInlineBlock) {
+                textoCompleto.push(lineaActual);
+                lineaActual = '';
+                esperandoInlineBlock = false;
+              }
+              
               // Para QR, agregar un placeholder
               textoCompleto.push('');
               textoCompleto.push('        [CÓDIGO QR]');
@@ -606,6 +640,11 @@ contextBridge.exposeInMainWorld('printerAPI', {
               console.warn(`Tipo de item no reconocido: ${item.type}`);
             }
           });
+          
+          // Si quedó una línea pendiente al final, agregarla
+          if (esperandoInlineBlock && lineaActual) {
+            textoCompleto.push(lineaActual);
+          }
           
           const resultado = textoCompleto.join('\n');
           console.log('Texto final convertido (primeros 500 chars):', resultado.substring(0, 500));
