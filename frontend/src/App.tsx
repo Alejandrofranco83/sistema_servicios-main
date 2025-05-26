@@ -29,8 +29,8 @@ api.interceptors.response.use(
       console.error('[Interceptor Auth Error] Respuesta del servidor:', error.response.data);
       console.error('[Interceptor Auth Error] Configuración de la petición:', error.config);
       
-      if (error.config.url && error.config.url.includes('/api/rrhh/')) {
-        console.warn('[Interceptor] Ignorando error de autenticación en módulo RRHH para debugging');
+      if (error.config.url && (error.config.url.includes('/api/rrhh/') || error.config.url.includes('/api/personas'))) {
+        console.warn('[Interceptor] Ignorando error de autenticación en módulo RRHH/Personas para debugging');
       } else {
         localStorage.removeItem('token');
         localStorage.removeItem('user');

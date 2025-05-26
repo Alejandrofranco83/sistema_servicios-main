@@ -801,10 +801,11 @@ const Roles: React.FC = () => {
       // Buscar los permisos necesarios
       const permisosExistentes = await rolService.getPermisos();
       
-      // Permisos requeridos para OPERADOR
+      // Permisos requeridos para OPERADOR (incluyendo acceso a personas para retiros)
       const permisosRequeridos = [
-        { modulo: 'PRINCIPAL', pantalla: 'VER' },
-        { modulo: 'OPERACIONES', pantalla: 'CAJAS' }
+        { modulo: 'Principal', pantalla: 'Dashboard' },
+        { modulo: 'Operaciones', pantalla: 'Cajas' },
+        { modulo: 'Recursos Humanos', pantalla: 'Ver' } // Permiso exacto que espera el backend para /api/personas
       ];
       
       // IDs de permisos a asignar
@@ -818,15 +819,18 @@ const Roles: React.FC = () => {
         );
         
         if (permisoExistente) {
+          console.log(`Permiso encontrado: ${req.modulo}/${req.pantalla} (ID: ${permisoExistente.id})`);
           permisosIds.push(permisoExistente.id);
         } else {
           // Crear permiso si no existe
+          console.log(`Creando permiso: ${req.modulo}/${req.pantalla}`);
           try {
             const nuevoPermiso = await rolService.createPermiso({
               modulo: req.modulo,
               pantalla: req.pantalla,
               descripcion: `Permiso para ${req.pantalla} en ${req.modulo}`
             });
+            console.log(`Permiso creado: ${nuevoPermiso.modulo}/${nuevoPermiso.pantalla} (ID: ${nuevoPermiso.id})`);
             permisosIds.push(nuevoPermiso.id);
           } catch (err) {
             console.error(`Error al crear permiso ${req.modulo}/${req.pantalla}:`, err);
@@ -837,6 +841,8 @@ const Roles: React.FC = () => {
       // Combinar permisos actuales con los nuevos (sin duplicados)
       const todosLosPermisos = Array.from(new Set([...permisosActuales, ...permisosIds]));
       
+      console.log(`Asignando ${todosLosPermisos.length} permisos al rol OPERADOR`);
+      
       // Actualizar el rol
       await rolService.updateRol(rolOperador.id, {
         nombre: rolOperador.nombre,
@@ -844,8 +850,13 @@ const Roles: React.FC = () => {
         permisos: todosLosPermisos
       });
       
-      setSuccessMessage('Permisos asignados al rol OPERADOR correctamente');
+      setSuccessMessage('Permisos asignados al rol OPERADOR correctamente (incluyendo acceso a personas para retiros)');
       await loadRoles();
+      
+      // Actualizar la lista de permisos para reflejar los cambios
+      const permisosActualizados = await rolService.getPermisos();
+      setPermisos(permisosActualizados);
+      
     } catch (err) {
       console.error('Error al asignar permisos al OPERADOR:', err);
       setError('Error al asignar permisos al OPERADOR');
