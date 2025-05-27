@@ -9,7 +9,12 @@ import {
   Button,
   Box,
   CircularProgress,
-  Tooltip
+  Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions
 } from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
@@ -17,6 +22,8 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
+import CloseIcon from '@mui/icons-material/Close';
+import LaunchIcon from '@mui/icons-material/Launch';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -30,6 +37,11 @@ const NotificacionesMenu: React.FC = () => {
   const [cargando, setCargando] = useState<boolean>(false);
   const [errorCarga, setErrorCarga] = useState<boolean>(false);
   const [datosInicializados, setDatosInicializados] = useState<boolean>(false);
+  
+  // Estados para el diálogo de notificación
+  const [dialogoAbierto, setDialogoAbierto] = useState<boolean>(false);
+  const [notificacionSeleccionada, setNotificacionSeleccionada] = useState<Notificacion | null>(null);
+  
   const abierto = Boolean(anchorEl);
   const navigate = useNavigate();
   
@@ -163,10 +175,27 @@ const NotificacionesMenu: React.FC = () => {
     }
   };
 
-  // Manejar el clic en una notificación
-  const manejarClicNotificacion = async (notificacion: Notificacion) => {
+  // Abrir el diálogo de notificación
+  const abrirDialogoNotificacion = (notificacion: Notificacion) => {
+    setNotificacionSeleccionada(notificacion);
+    setDialogoAbierto(true);
+    cerrarMenu(); // Cerrar el menú desplegable
+    
+    // Marcar como leída si no lo está
+    if (!notificacion.leida) {
+      marcarNotificacionComoLeida(notificacion);
+    }
+  };
+
+  // Cerrar el diálogo de notificación
+  const cerrarDialogoNotificacion = () => {
+    setDialogoAbierto(false);
+    setNotificacionSeleccionada(null);
+  };
+
+  // Marcar una notificación específica como leída
+  const marcarNotificacionComoLeida = async (notificacion: Notificacion) => {
     try {
-      // Marcar como leída
       await notificacionService.marcarComoLeida(notificacion.id);
       
       // Actualizar la UI
@@ -174,16 +203,16 @@ const NotificacionesMenu: React.FC = () => {
         prev.map(n => n.id === notificacion.id ? { ...n, leida: true } : n)
       );
       setCantidadNoLeidas(prev => Math.max(0, prev - 1));
-      
-      // Cerrar el menú
-      cerrarMenu();
-      
-      // Navegar a la URL si existe
-      if (notificacion.url) {
-        navigate(notificacion.url);
-      }
     } catch (error) {
-      console.error('Error al procesar clic en notificación:', error);
+      console.error('Error al marcar notificación como leída:', error);
+    }
+  };
+
+  // Navegar desde el diálogo
+  const navegarDesdeDialogo = () => {
+    if (notificacionSeleccionada?.url) {
+      cerrarDialogoNotificacion();
+      navigate(notificacionSeleccionada.url as string);
     }
   };
 
@@ -337,9 +366,9 @@ const NotificacionesMenu: React.FC = () => {
         ) : (
           <>
             {notificaciones.map((notificacion) => (
-              <MenuItem 
-                key={notificacion.id} 
-                onClick={() => manejarClicNotificacion(notificacion)}
+                              <MenuItem 
+                  key={notificacion.id} 
+                  onClick={() => abrirDialogoNotificacion(notificacion)}
                 sx={{
                   borderLeft: 4,
                   borderColor: (theme) => {
@@ -388,6 +417,79 @@ const NotificacionesMenu: React.FC = () => {
           </>
         )}
       </Menu>
+      
+             <Dialog
+         open={dialogoAbierto}
+         onClose={cerrarDialogoNotificacion}
+         aria-labelledby="notificacion-dialog-title"
+         aria-describedby="notificacion-dialog-description"
+         maxWidth="sm"
+         fullWidth
+       >
+         <DialogTitle 
+           id="notificacion-dialog-title"
+           sx={{ 
+             display: 'flex', 
+             alignItems: 'center',
+             pb: 1
+           }}
+         >
+           <Box sx={{ mr: 1.5 }}>
+             {notificacionSeleccionada && obtenerIconoNotificacion(notificacionSeleccionada.tipo)}
+           </Box>
+           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+             {notificacionSeleccionada?.titulo}
+           </Typography>
+           <IconButton
+             aria-label="cerrar"
+             onClick={cerrarDialogoNotificacion}
+             sx={{ color: 'grey.500' }}
+           >
+             <CloseIcon />
+           </IconButton>
+         </DialogTitle>
+         <DialogContent>
+           <DialogContentText 
+             id="notificacion-dialog-description"
+             sx={{ 
+               whiteSpace: 'pre-wrap',
+               fontSize: '0.95rem',
+               lineHeight: 1.6
+             }}
+           >
+             {notificacionSeleccionada?.mensaje}
+           </DialogContentText>
+           {notificacionSeleccionada?.fechaCreacion && (
+             <Typography 
+               variant="caption" 
+               color="text.secondary" 
+               sx={{ mt: 2, display: 'block' }}
+             >
+               {formatearFecha(notificacionSeleccionada.fechaCreacion)}
+             </Typography>
+           )}
+         </DialogContent>
+         <DialogActions sx={{ px: 3, pb: 2 }}>
+           <Button 
+             onClick={cerrarDialogoNotificacion} 
+             color="inherit"
+             startIcon={<CloseIcon />}
+           >
+             Cerrar
+           </Button>
+           {notificacionSeleccionada?.url && (
+             <Button
+               onClick={navegarDesdeDialogo}
+               color="primary"
+               variant="contained"
+               autoFocus
+               startIcon={<LaunchIcon />}
+             >
+               Ir al enlace
+             </Button>
+           )}
+         </DialogActions>
+       </Dialog>
     </>
   );
 };
