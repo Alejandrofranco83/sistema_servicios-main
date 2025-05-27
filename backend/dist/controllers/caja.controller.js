@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.agregarComprobantesBatch = exports.actualizarComprobante = exports.actualizarDatosCierre = exports.obtenerDatosCierre = exports.actualizarDatosApertura = exports.obtenerComprobante = exports.obtenerMovimientos = exports.getOperacionesBancariasByCaja = exports.updatePago = exports.deletePago = exports.createPago = exports.getPagosByCaja = exports.deleteRetiro = exports.createRetiro = exports.getRetirosByCaja = exports.agregarComprobante = exports.agregarMovimiento = exports.cerrarCaja = exports.abrirCaja = exports.getCajaById = exports.getCajasBySucursal = exports.getCajas = void 0;
+exports.getPersonasElegibles = exports.agregarComprobantesBatch = exports.actualizarComprobante = exports.actualizarDatosCierre = exports.obtenerDatosCierre = exports.actualizarDatosApertura = exports.obtenerComprobante = exports.obtenerMovimientos = exports.getOperacionesBancariasByCaja = exports.updatePago = exports.deletePago = exports.createPago = exports.getPagosByCaja = exports.deleteRetiro = exports.createRetiro = exports.getRetirosByCaja = exports.agregarComprobante = exports.agregarMovimiento = exports.cerrarCaja = exports.abrirCaja = exports.getCajaById = exports.getCajasBySucursal = exports.getCajas = void 0;
 const client_1 = require("@prisma/client");
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
@@ -1847,4 +1847,39 @@ const agregarComprobantesBatch = (req, res) => __awaiter(void 0, void 0, void 0,
     }
 }); // Fin agregarComprobantesBatch
 exports.agregarComprobantesBatch = agregarComprobantesBatch;
+// Obtener personas elegibles para retiros de caja (funcionarios y VIP)
+const getPersonasElegibles = (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        // Buscar solo personas de tipo Funcionario y Vip
+        const personas = yield prisma.persona.findMany({
+            where: {
+                tipo: {
+                    in: ['Funcionario', 'Vip']
+                }
+            },
+            select: {
+                id: true,
+                nombreCompleto: true,
+                documento: true,
+                tipo: true
+            },
+            orderBy: {
+                nombreCompleto: 'asc'
+            }
+        });
+        // Formatear para el frontend
+        const personasFormateadas = personas.map(persona => ({
+            id: persona.id.toString(),
+            nombreCompleto: persona.nombreCompleto,
+            documento: persona.documento || '',
+            tipo: persona.tipo
+        }));
+        return res.json(personasFormateadas);
+    }
+    catch (error) {
+        console.error('Error al obtener personas elegibles para retiros:', error);
+        return res.status(500).json({ error: 'Error al obtener las personas elegibles' });
+    }
+});
+exports.getPersonasElegibles = getPersonasElegibles;
 //# sourceMappingURL=caja.controller.js.map

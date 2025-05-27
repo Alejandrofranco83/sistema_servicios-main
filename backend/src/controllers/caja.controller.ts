@@ -1920,3 +1920,39 @@ export const agregarComprobantesBatch = async (req: Request, res: Response) => {
     return res.status(500).json({ error: errorMessage });
   }
 }; // Fin agregarComprobantesBatch
+
+// Obtener personas elegibles para retiros de caja (funcionarios y VIP)
+export const getPersonasElegibles = async (_req: Request, res: Response) => {
+  try {
+    // Buscar solo personas de tipo Funcionario y Vip
+    const personas = await prisma.persona.findMany({
+      where: {
+        tipo: {
+          in: ['Funcionario', 'Vip']
+        }
+      },
+      select: {
+        id: true,
+        nombreCompleto: true,
+        documento: true,
+        tipo: true
+      },
+      orderBy: {
+        nombreCompleto: 'asc'
+      }
+    });
+
+    // Formatear para el frontend
+    const personasFormateadas = personas.map(persona => ({
+      id: persona.id.toString(),
+      nombreCompleto: persona.nombreCompleto,
+      documento: persona.documento || '',
+      tipo: persona.tipo
+    }));
+
+    return res.json(personasFormateadas);
+  } catch (error) {
+    console.error('Error al obtener personas elegibles para retiros:', error);
+    return res.status(500).json({ error: 'Error al obtener las personas elegibles' });
+  }
+};

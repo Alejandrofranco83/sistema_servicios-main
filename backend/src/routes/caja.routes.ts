@@ -21,11 +21,17 @@ import {
   obtenerDatosCierre,
   actualizarDatosCierre,
   actualizarComprobante,
-  agregarComprobantesBatch
+  agregarComprobantesBatch,
+  getPersonasElegibles
 } from '../controllers/caja.controller';
 import { uploadMiddleware } from '../middleware/upload.middleware';
 
 const router = express.Router();
+
+// IMPORTANTE: Ruta específica DEBE ir ANTES de las rutas con parámetros
+// Ruta para obtener personas elegibles para retiros (solo funcionarios y VIP)
+// SIN middlewares para que funcione igual que las demás rutas de cajas
+router.get('/personas-elegibles', getPersonasElegibles);
 
 // Rutas públicas para desarrollo
 router.get('/', getCajas);

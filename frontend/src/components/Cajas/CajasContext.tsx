@@ -306,17 +306,13 @@ export const CajasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const loadPersonasElegibles = async () => {
     try {
       setBuscandoPersonas(true);
-      // Aquí deberíamos usar personaService pero para no complicar, usamos axios directamente
-      const response = await api.get('/api/personas');
+      // Usar el nuevo endpoint específico de cajas que no requiere permisos de RRHH
+      const response = await api.get('/api/cajas/personas-elegibles');
       const data = response.data;
       
-      // Filtrar solo funcionarios y VIP
-      const personasElegibles = data.filter(
-        (persona: Persona) => persona.tipo === 'Funcionario' || persona.tipo === 'Vip'
-      );
-      
-      setPersonasDisponibles(personasElegibles);
-      setPersonasBusqueda(personasElegibles.map((p: Persona) => ({
+      // Los datos ya vienen filtrados como funcionarios y VIP desde el backend
+      setPersonasDisponibles(data);
+      setPersonasBusqueda(data.map((p: Persona) => ({
         id: p.id.toString(),
         nombre: p.nombreCompleto,
         tipo: p.tipo.toLowerCase() as 'funcionario' | 'vip'

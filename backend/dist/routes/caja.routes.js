@@ -7,6 +7,10 @@ const express_1 = __importDefault(require("express"));
 const caja_controller_1 = require("../controllers/caja.controller");
 const upload_middleware_1 = require("../middleware/upload.middleware");
 const router = express_1.default.Router();
+// IMPORTANTE: Ruta específica DEBE ir ANTES de las rutas con parámetros
+// Ruta para obtener personas elegibles para retiros (solo funcionarios y VIP)
+// SIN middlewares para que funcione igual que las demás rutas de cajas
+router.get('/personas-elegibles', caja_controller_1.getPersonasElegibles);
 // Rutas públicas para desarrollo
 router.get('/', caja_controller_1.getCajas);
 router.get('/:id', caja_controller_1.getCajaById);
