@@ -15,15 +15,6 @@ const prisma = new client_1.PrismaClient();
 exports.CotizacionModel = {
     findAll: () => __awaiter(void 0, void 0, void 0, function* () {
         return prisma.cotizacion.findMany({
-            include: {
-                usuario: {
-                    select: {
-                        id: true,
-                        username: true,
-                        nombre: true
-                    }
-                }
-            },
             orderBy: {
                 fecha: 'desc'
             }
@@ -31,30 +22,12 @@ exports.CotizacionModel = {
     }),
     findById: (id) => __awaiter(void 0, void 0, void 0, function* () {
         return prisma.cotizacion.findUnique({
-            where: { id },
-            include: {
-                usuario: {
-                    select: {
-                        id: true,
-                        username: true,
-                        nombre: true
-                    }
-                }
-            }
+            where: { id }
         });
     }),
     findVigente: () => __awaiter(void 0, void 0, void 0, function* () {
         return prisma.cotizacion.findFirst({
-            where: { vigente: true },
-            include: {
-                usuario: {
-                    select: {
-                        id: true,
-                        username: true,
-                        nombre: true
-                    }
-                }
-            }
+            where: { vigente: true }
         });
     }),
     create: (data) => __awaiter(void 0, void 0, void 0, function* () {
@@ -65,15 +38,11 @@ exports.CotizacionModel = {
         });
         // Luego creamos la nueva cotización
         return prisma.cotizacion.create({
-            data,
-            include: {
-                usuario: {
-                    select: {
-                        id: true,
-                        username: true,
-                        nombre: true
-                    }
-                }
+            data: {
+                valorDolar: data.valorDolar,
+                valorReal: data.valorReal,
+                vigente: true,
+                usuarioId: data.usuarioId
             }
         });
     }),
@@ -88,16 +57,7 @@ exports.CotizacionModel = {
         return prisma.cotizacion.update({
             where: { id },
             data: Object.assign(Object.assign({}, data), { vigente: true // Al actualizar, siempre se marca como vigente
-             }),
-            include: {
-                usuario: {
-                    select: {
-                        id: true,
-                        username: true,
-                        nombre: true
-                    }
-                }
-            }
+             })
         });
     }),
     delete: (id) => __awaiter(void 0, void 0, void 0, function* () {

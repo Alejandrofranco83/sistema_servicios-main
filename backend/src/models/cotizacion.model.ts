@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -6,20 +6,12 @@ export interface CotizacionInput {
   valorDolar: number;
   valorReal: number;
   usuarioId: number;
+  vigente?: boolean;
 }
 
 export const CotizacionModel = {
   findAll: async () => {
     return prisma.cotizacion.findMany({
-      include: {
-        usuario: {
-          select: {
-            id: true,
-            username: true,
-            nombre: true
-          }
-        }
-      },
       orderBy: {
         fecha: 'desc'
       }
@@ -28,31 +20,13 @@ export const CotizacionModel = {
 
   findById: async (id: number) => {
     return prisma.cotizacion.findUnique({
-      where: { id },
-      include: {
-        usuario: {
-          select: {
-            id: true,
-            username: true,
-            nombre: true
-          }
-        }
-      }
+      where: { id }
     });
   },
 
   findVigente: async () => {
     return prisma.cotizacion.findFirst({
-      where: { vigente: true },
-      include: {
-        usuario: {
-          select: {
-            id: true,
-            username: true,
-            nombre: true
-          }
-        }
-      }
+      where: { vigente: true }
     });
   },
 
@@ -65,15 +39,11 @@ export const CotizacionModel = {
 
     // Luego creamos la nueva cotización
     return prisma.cotizacion.create({
-      data,
-      include: {
-        usuario: {
-          select: {
-            id: true,
-            username: true,
-            nombre: true
-          }
-        }
+      data: {
+        valorDolar: data.valorDolar,
+        valorReal: data.valorReal,
+        vigente: true,
+        usuarioId: data.usuarioId
       }
     });
   },
@@ -92,15 +62,6 @@ export const CotizacionModel = {
       data: {
         ...data,
         vigente: true // Al actualizar, siempre se marca como vigente
-      },
-      include: {
-        usuario: {
-          select: {
-            id: true,
-            username: true,
-            nombre: true
-          }
-        }
       }
     });
   },
@@ -119,4 +80,4 @@ export const CotizacionModel = {
       where: { id }
     });
   }
-}; 
+};

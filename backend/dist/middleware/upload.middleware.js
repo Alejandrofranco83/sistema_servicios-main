@@ -7,7 +7,6 @@ exports.uploadMiddleware = void 0;
 const multer_1 = __importDefault(require("multer"));
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
-const crypto_1 = __importDefault(require("crypto"));
 // Definir la ruta de la carpeta de subidas relativa a la raíz del proyecto
 const uploadsDirRootRelative = 'uploads';
 const uploadsDir = path_1.default.join(__dirname, '..', '..', uploadsDirRootRelative); // Ajustar ruta para que esté en la raíz del backend
@@ -19,21 +18,6 @@ if (!fs_1.default.existsSync(uploadsDir)) {
 else {
     console.log(`Directorio de subidas ya existe en: ${uploadsDir}`);
 }
-// Configurar diskStorage
-const storage = multer_1.default.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, uploadsDir); // Guardar en la carpeta raíz /uploads
-    },
-    filename: function (req, file, cb) {
-        // Generar nombre único similar a como lo hacíamos en el controlador
-        // Usaremos el tipo que viene del body si existe, sino un prefijo genérico
-        const tipo = req.body.tipo || 'comprobante'; // Obtener tipo del body
-        const fileExt = path_1.default.extname(file.originalname);
-        const randomSuffix = crypto_1.default.randomBytes(4).toString('hex');
-        const uniqueFilename = `${tipo.replace(/\s+/g, '-')}-${Date.now()}-${randomSuffix}${fileExt}`;
-        cb(null, uniqueFilename);
-    }
-});
 // Filtro para aceptar solo imágenes
 const fileFilter = (_req, file, cb) => {
     // Verificar si es una imagen
@@ -44,9 +28,9 @@ const fileFilter = (_req, file, cb) => {
         cb(new Error('El archivo debe ser una imagen')); // Añadir 'as any' para compatibilidad
     }
 };
-// Crear el middleware de multer con la nueva configuración
+// Crear el middleware de multer con memoryStorage para guardar en memoria
 exports.uploadMiddleware = (0, multer_1.default)({
-    storage: storage,
+    storage: multer_1.default.memoryStorage(), // Usar memoryStorage en lugar de diskStorage
     limits: {
         fileSize: 5 * 1024 * 1024 // 5MB límite de tamaño
     },

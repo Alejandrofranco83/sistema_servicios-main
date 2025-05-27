@@ -1776,10 +1776,45 @@ export const agregarComprobantesBatch = async (req: Request, res: Response) => {
   const numArchivos = req.files.length;
   console.log(`[Lote Caja ${id}] Recibidos ${numArchivos} archivos con tipos:`, tiposArray);
 
-  // Array para guardar las URLs relativas generadas
-  const urlsRelativas: { tipo: string, url: string }[] = [];
+  // Procesar los archivos y guardarlos en disco
+  const archivosGuardados: { file: Express.Multer.File, filename: string, path: string }[] = [];
+  const comprobantesDir = path.join(__dirname, '../../uploads/comprobantes');
+  
+  // Crear directorio si no existe
+  if (!fs.existsSync(comprobantesDir)) {
+    fs.mkdirSync(comprobantesDir, { recursive: true });
+  }
 
   try {
+    // Primero, guardar todos los archivos en disco
+    for (let i = 0; i < numArchivos; i++) {
+      const file = req.files[i] as Express.Multer.File;
+      const tipo = tiposArray[i];
+      
+      if (!file.buffer) {
+        throw new Error(`Archivo en índice ${i} no tiene buffer.`);
+      }
+      
+      // Generar nombre único para el archivo
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const fileExt = path.extname(file.originalname || `archivo-${i}.jpg`);
+      const filename = `comprobante-${tipo}-${uniqueSuffix}${fileExt}`;
+      const filePath = path.join(comprobantesDir, filename);
+      
+      // Guardar el archivo
+      fs.writeFileSync(filePath, file.buffer);
+      
+      // Guardar información del archivo
+      archivosGuardados.push({
+        file,
+        filename,
+        path: filePath
+      });
+    }
+
+    // Array para guardar las URLs relativas generadas
+    const urlsRelativas: { tipo: string, url: string }[] = [];
+
     // Ejecutar todo dentro de UNA transacción
     const resultado = await prisma.$transaction(async (tx) => {
       console.log(`[Lote Caja ${id}] Iniciando transacción batch...`);
@@ -1803,27 +1838,14 @@ export const agregarComprobantesBatch = async (req: Request, res: Response) => {
         }
       }
 
-      // 2. Iterar sobre los archivos recibidos (Asegurar que req.files es array)
-      if (!Array.isArray(req.files)) {
-          // Esto no debería ocurrir por la verificación inicial, pero es una doble seguridad
-          throw new Error("req.files no es un array dentro de la transacción.");
-      }
-
-      for (let i = 0; i < numArchivos; i++) { // Usar la variable numArchivos
-        const file = req.files[i] as Express.Multer.File; // Ahora es seguro indexar
+      // 2. Iterar sobre los archivos guardados
+      for (let i = 0; i < archivosGuardados.length; i++) {
+        const archivoInfo = archivosGuardados[i];
         const tipo = tiposArray[i];
 
-        // Validar filename y tipo
-        if (!file.filename) {
-            throw new Error(`Archivo en índice ${i} no tiene filename (error de Multer?).`);
-        }
-        if (!tipo || tipo === 'desconocido') {
-            throw new Error(`Tipo inválido o desconocido para archivo en índice ${i}`);
-        }
-
-        const urlRelativa = `/uploads/${file.filename}`;
+        const urlRelativa = `/uploads/comprobantes/${archivoInfo.filename}`;
         urlsRelativas.push({ tipo, url: urlRelativa }); // Guardar para la respuesta final
-        console.log(`[Lote Caja ${id}] Procesando archivo ${i + 1}/${req.files!.length}: Tipo=${tipo}, URL=${urlRelativa}`);
+        console.log(`[Lote Caja ${id}] Procesando archivo ${i + 1}/${archivosGuardados.length}: Tipo=${tipo}, URL=${urlRelativa}`);
 
         // Mapear tipo a operadora/servicio (reutilizar lógica)
         let operadora = '';
@@ -1884,14 +1906,16 @@ export const agregarComprobantesBatch = async (req: Request, res: Response) => {
 
   } catch (error) {
     console.error(`[Lote Caja ${id}] Error procesando lote de comprobantes:`, error);
-    // Borrar todos los archivos subidos en este lote si la transacción falló
-    if (req.files && Array.isArray(req.files)) {
-        req.files.forEach(file => {
-            if (file.path) {
-                try { fs.unlinkSync(file.path); console.log(`Archivo ${file.filename} borrado por error batch.`); } catch (e) { console.error(`Error borrando archivo ${file.filename}:`, e);}
-            }
-        });
-    }
+    // Borrar todos los archivos guardados si hubo un error
+    archivosGuardados.forEach(archivoInfo => {
+      try { 
+        fs.unlinkSync(archivoInfo.path); 
+        console.log(`Archivo ${archivoInfo.filename} borrado por error batch.`); 
+      } catch (e) { 
+        console.error(`Error borrando archivo ${archivoInfo.filename}:`, e);
+      }
+    });
+    
     const errorMessage = error instanceof Error ? error.message : 'Error interno al procesar el lote de comprobantes';
     return res.status(500).json({ error: errorMessage });
   }

@@ -7,8 +7,6 @@ const express_1 = require("express");
 const operacion_bancaria_controller_1 = require("../controllers/operacion-bancaria.controller");
 const auth_middleware_1 = require("../middlewares/auth.middleware");
 const multer_1 = __importDefault(require("multer"));
-const path_1 = __importDefault(require("path"));
-const fs_1 = __importDefault(require("fs"));
 // Crear una función de middleware que convierta AuthRequest a Request
 const convertAuthRequest = (handler) => {
     return (req, res, next) => {
@@ -16,21 +14,13 @@ const convertAuthRequest = (handler) => {
     };
 };
 // Configuración de multer para subida de archivos
-const storage = multer_1.default.diskStorage({
-    destination: function (req, file, cb) {
-        const dir = path_1.default.join(__dirname, '../../uploads/comprobantes');
-        // Crear el directorio si no existe
-        if (!fs_1.default.existsSync(dir)) {
-            fs_1.default.mkdirSync(dir, { recursive: true });
-        }
-        cb(null, dir);
-    },
-    filename: function (req, file, cb) {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, 'comprobante-' + uniqueSuffix + path_1.default.extname(file.originalname));
+// Utilizamos memoryStorage para guardar el archivo en memoria
+const upload = (0, multer_1.default)({
+    storage: multer_1.default.memoryStorage(),
+    limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB límite
     }
 });
-const upload = (0, multer_1.default)({ storage: storage });
 const router = (0, express_1.Router)();
 // Ruta de prueba para verificar que el router funciona
 router.get('/status', (_req, res) => {

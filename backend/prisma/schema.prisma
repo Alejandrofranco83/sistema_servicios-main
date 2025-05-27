@@ -100,7 +100,7 @@ model Usuario {
   aquipagoConfigs         AquipagoConfig[]      @relation("UsuarioAquipagoConfig")
   cajasAbiertas           Caja[]
   cambiosMoneda           CambioMoneda[]        @relation("UsuarioCambioMoneda")
-  cotizaciones            Cotizacion[]          @relation("UsuarioCotizacion")
+  // cotizaciones            Cotizacion[]          @relation("UsuarioCotizacion") //
   depositos               DepositoBancario[]
   gastos                  Gasto[]
   movimientosCaja         MovimientoCaja[]
@@ -131,7 +131,7 @@ model Cotizacion {
   usuarioId  Int
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  usuario    Usuario  @relation("UsuarioCotizacion", fields: [usuarioId], references: [id])
+  // usuario    Usuario  @relation("UsuarioCotizacion", fields: [usuarioId], references: [id]) //
 }
 
 model SueldoMinimo {
@@ -396,7 +396,7 @@ model DepositoBancario {
 
 /// Modelo para la gestión de pagos de servicios y efectivo a cajas
 model PagoServicio {
-  id                 Int                  @id @default(autoincrement())
+  id                 Int      @id @default(autoincrement())
   cajaId             String
   operadora          String
   servicio           String
@@ -404,10 +404,9 @@ model PagoServicio {
   moneda             String
   observacion        String?
   rutaComprobante    String?
-  fechaCreacion      DateTime             @default(now())
-  fechaActualizacion DateTime             @updatedAt
-  estado             String               @default("PENDIENTE")
-  movimientos        CajaMayorMovimiento[] @relation("MovimientoPagoServicio")
+  fechaCreacion      DateTime @default(now())
+  fechaActualizacion DateTime @updatedAt
+  estado             String   @default("PENDIENTE")
 
   @@map("pagos_servicios")
 }
@@ -436,7 +435,6 @@ model CajaMayorMovimiento {
   deposito        DepositoBancario? @relation(fields: [depositoId], references: [id])
   movimiento      Movimiento?       @relation(fields: [movimientoId], references: [id])
   usuario         Usuario           @relation(fields: [usuarioId], references: [id])
-  pagoServicio    PagoServicio?     @relation("MovimientoPagoServicio", fields: [pagoServicioId], references: [id])
 
   @@index([tipo])
   @@index([fechaHora])

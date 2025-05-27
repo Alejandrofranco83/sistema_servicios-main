@@ -16,22 +16,6 @@ if (!fs.existsSync(uploadsDir)) {
   console.log(`Directorio de subidas ya existe en: ${uploadsDir}`);
 }
 
-// Configurar diskStorage
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadsDir); // Guardar en la carpeta raíz /uploads
-  },
-  filename: function (req, file, cb) {
-    // Generar nombre único similar a como lo hacíamos en el controlador
-    // Usaremos el tipo que viene del body si existe, sino un prefijo genérico
-    const tipo = req.body.tipo || 'comprobante'; // Obtener tipo del body
-    const fileExt = path.extname(file.originalname);
-    const randomSuffix = crypto.randomBytes(4).toString('hex');
-    const uniqueFilename = `${tipo.replace(/\s+/g, '-')}-${Date.now()}-${randomSuffix}${fileExt}`;
-    cb(null, uniqueFilename);
-  }
-});
-
 // Filtro para aceptar solo imágenes
 const fileFilter = (_req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   // Verificar si es una imagen
@@ -42,9 +26,9 @@ const fileFilter = (_req: Request, file: Express.Multer.File, cb: multer.FileFil
   }
 };
 
-// Crear el middleware de multer con la nueva configuración
+// Crear el middleware de multer con memoryStorage para guardar en memoria
 export const uploadMiddleware = multer({
-  storage: storage,
+  storage: multer.memoryStorage(), // Usar memoryStorage en lugar de diskStorage
   limits: {
     fileSize: 5 * 1024 * 1024 // 5MB límite de tamaño
   },
