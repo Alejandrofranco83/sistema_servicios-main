@@ -450,7 +450,12 @@ const DiferenciaEnCajaList: React.FC<DiferenciaEnCajaListProps> = ({ propGlobalC
                                 : '-'}
                             </TableCell>
                             <TableCell>{comp.sucursalNombre || '-'}</TableCell>
-                            <TableCell>{comp.maletinId ?? '-'}</TableCell>
+                            <TableCell>
+                              {comp.maletinInfo 
+                                ? `${comp.maletinInfo.codigo}${comp.maletinInfo.sucursalNombre ? ` (${comp.maletinInfo.sucursalNombre})` : ''}`
+                                : comp.maletinId || '-'
+                              }
+                            </TableCell>
                             <TableCell align="right">{comp.cajaEnteroId}</TableCell>
                             <TableCell align="center">
                               <Chip label={chipLabel} color={chipColor} size="small" variant="outlined" />

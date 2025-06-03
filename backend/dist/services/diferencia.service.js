@@ -36,12 +36,26 @@ const tieneDif = (diferencias) => {
  * Obtiene y calcula las comparaciones de saldo entre cajas consecutivas del mismo maletín.
  */
 const calcularComparacionesMaletines = () => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
+    var _a, _b, _c, _d;
     console.log("Calculando comparaciones de maletines...");
     const selectFields = {
         id: true,
         cajaEnteroId: true,
         maletinId: true,
+        maletin: {
+            select: {
+                id: true,
+                codigo: true,
+                sucursalId: true,
+                sucursal: {
+                    select: {
+                        id: true,
+                        nombre: true,
+                        codigo: true
+                    }
+                }
+            }
+        },
         fechaApertura: true,
         fechaCierre: true,
         saldoInicialPYG: true,
@@ -86,14 +100,22 @@ const calcularComparacionesMaletines = () => __awaiter(void 0, void 0, void 0, f
                 id: cajaAnteriorDelMaletin.id,
                 cajaEnteroId: (_a = cajaAnteriorDelMaletin.cajaEnteroId) !== null && _a !== void 0 ? _a : 0,
                 maletinId: cajaAnteriorDelMaletin.maletinId,
+                maletinInfo: cajaAnteriorDelMaletin.maletin ? {
+                    codigo: cajaAnteriorDelMaletin.maletin.codigo,
+                    sucursalNombre: (_b = cajaAnteriorDelMaletin.maletin.sucursal) === null || _b === void 0 ? void 0 : _b.nombre
+                } : undefined,
                 fechaCierre: cajaAnteriorDelMaletin.fechaCierre.toISOString(),
                 saldoFinal: { total: saldoFinalAnterior },
                 usuarioId: cajaAnteriorDelMaletin.usuarioId
             };
             const infoSiguiente = {
                 id: cajaActual.id,
-                cajaEnteroId: (_b = cajaActual.cajaEnteroId) !== null && _b !== void 0 ? _b : 0,
+                cajaEnteroId: (_c = cajaActual.cajaEnteroId) !== null && _c !== void 0 ? _c : 0,
                 maletinId: cajaActual.maletinId,
+                maletinInfo: cajaActual.maletin ? {
+                    codigo: cajaActual.maletin.codigo,
+                    sucursalNombre: (_d = cajaActual.maletin.sucursal) === null || _d === void 0 ? void 0 : _d.nombre
+                } : undefined,
                 fechaApertura: cajaActual.fechaApertura.toISOString(),
                 saldoInicial: { total: saldoInicialActual },
                 usuarioId: cajaActual.usuarioId
@@ -228,7 +250,7 @@ const calcularTotalServicios = (saldos) => {
  * Obtiene y calcula las diferencias entre saldos declarados y calculados al cierre de cada caja.
  */
 const calcularDiferenciasEnCajas = () => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
     console.log("Calculando diferencias internas en cajas...");
     const cajasCerradas = yield prisma.caja.findMany({
         where: {
@@ -244,6 +266,20 @@ const calcularDiferenciasEnCajas = () => __awaiter(void 0, void 0, void 0, funct
             sucursalId: true,
             sucursal: { select: { nombre: true } },
             maletinId: true,
+            maletin: {
+                select: {
+                    id: true,
+                    codigo: true,
+                    sucursalId: true,
+                    sucursal: {
+                        select: {
+                            id: true,
+                            nombre: true,
+                            codigo: true
+                        }
+                    }
+                }
+            },
             fechaApertura: true,
             fechaCierre: true,
             estado: true,
@@ -302,8 +338,12 @@ const calcularDiferenciasEnCajas = () => __awaiter(void 0, void 0, void 0, funct
             sucursalId: caja.sucursalId,
             sucursalNombre: (_h = caja.sucursal) === null || _h === void 0 ? void 0 : _h.nombre,
             maletinId: caja.maletinId,
-            fechaApertura: (_j = caja.fechaApertura) === null || _j === void 0 ? void 0 : _j.toISOString(),
-            fechaCierre: (_k = caja.fechaCierre) === null || _k === void 0 ? void 0 : _k.toISOString(), // Sabemos que no es null por el where
+            maletinInfo: caja.maletin ? {
+                codigo: caja.maletin.codigo,
+                sucursalNombre: (_j = caja.maletin.sucursal) === null || _j === void 0 ? void 0 : _j.nombre
+            } : undefined,
+            fechaApertura: (_k = caja.fechaApertura) === null || _k === void 0 ? void 0 : _k.toISOString(),
+            fechaCierre: (_l = caja.fechaCierre) === null || _l === void 0 ? void 0 : _l.toISOString(), // Sabemos que no es null por el where
             estadoCaja: caja.estado,
             comparacion: comparacionDetallada,
             tieneDiferencia: tieneDif,

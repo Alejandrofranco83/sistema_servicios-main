@@ -14,6 +14,10 @@ export interface CajaInfoComparacion {
   id: string; // uuid
   cajaEnteroId: number;
   maletinId: string | number; // Necesario para agrupar y referenciar
+  maletinInfo?: {
+    codigo: string;
+    sucursalNombre?: string;
+  };
   fechaApertura?: string; // ISO date string - Relevante para cajaSiguiente
   fechaCierre?: string;   // ISO date string - Relevante para cajaAnterior
   saldoInicial?: { total: SaldoMoneda }; // Relevante para cajaSiguiente
@@ -106,6 +110,10 @@ export interface ComparacionEnCaja {
   sucursalId: number;
   sucursalNombre?: string;
   maletinId: number | null;
+  maletinInfo?: {
+    codigo: string;
+    sucursalNombre?: string;
+  };
   fechaApertura?: string;
   fechaCierre?: string;
   estadoCaja: string;

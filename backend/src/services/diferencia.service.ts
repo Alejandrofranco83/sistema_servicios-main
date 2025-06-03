@@ -19,6 +19,10 @@ interface CajaInfoComparacion {
   id: string; // uuid
   cajaEnteroId: number;
   maletinId: number | null;
+  maletinInfo?: {
+    codigo: string;
+    sucursalNombre: string;
+  };
   fechaApertura?: string; // ISO date string
   fechaCierre?: string;   // ISO date string
   saldoInicial?: SaldoDetalle;
@@ -81,6 +85,10 @@ export interface ComparacionEnCaja {
   sucursalId: number;
   sucursalNombre?: string;
   maletinId: number | null;
+  maletinInfo?: {
+    codigo: string;
+    sucursalNombre: string;
+  };
   fechaApertura?: string; 
   fechaCierre?: string;
   estadoCaja: string;
@@ -138,6 +146,20 @@ export const calcularComparacionesMaletines = async (): Promise<ComparacionMalet
     id: true,
     cajaEnteroId: true,
     maletinId: true,
+    maletin: {
+      select: {
+        id: true,
+        codigo: true,
+        sucursalId: true,
+        sucursal: {
+          select: {
+            id: true,
+            nombre: true,
+            codigo: true
+          }
+        }
+      }
+    },
     fechaApertura: true,
     fechaCierre: true,
     saldoInicialPYG: true,
@@ -191,6 +213,10 @@ export const calcularComparacionesMaletines = async (): Promise<ComparacionMalet
           id: cajaAnteriorDelMaletin.id,
           cajaEnteroId: cajaAnteriorDelMaletin.cajaEnteroId ?? 0,
           maletinId: cajaAnteriorDelMaletin.maletinId,
+          maletinInfo: cajaAnteriorDelMaletin.maletin ? {
+            codigo: cajaAnteriorDelMaletin.maletin.codigo,
+            sucursalNombre: cajaAnteriorDelMaletin.maletin.sucursal?.nombre
+          } : undefined,
           fechaCierre: cajaAnteriorDelMaletin.fechaCierre.toISOString(),
           saldoFinal: { total: saldoFinalAnterior },
           usuarioId: cajaAnteriorDelMaletin.usuarioId
@@ -200,6 +226,10 @@ export const calcularComparacionesMaletines = async (): Promise<ComparacionMalet
             id: cajaActual.id,
             cajaEnteroId: cajaActual.cajaEnteroId ?? 0,
             maletinId: cajaActual.maletinId,
+            maletinInfo: cajaActual.maletin ? {
+              codigo: cajaActual.maletin.codigo,
+              sucursalNombre: cajaActual.maletin.sucursal?.nombre
+            } : undefined,
             fechaApertura: cajaActual.fechaApertura.toISOString(),
             saldoInicial: { total: saldoInicialActual },
             usuarioId: cajaActual.usuarioId
@@ -364,6 +394,20 @@ export const calcularDiferenciasEnCajas = async (): Promise<ComparacionEnCaja[]>
       sucursalId: true,
       sucursal: { select: { nombre: true } },
       maletinId: true,
+      maletin: {
+        select: {
+          id: true,
+          codigo: true,
+          sucursalId: true,
+          sucursal: {
+            select: {
+              id: true,
+              nombre: true,
+              codigo: true
+            }
+          }
+        }
+      },
       fechaApertura: true,
       fechaCierre: true,
       estado: true,
@@ -432,6 +476,10 @@ export const calcularDiferenciasEnCajas = async (): Promise<ComparacionEnCaja[]>
       sucursalId: caja.sucursalId,
       sucursalNombre: caja.sucursal?.nombre,
       maletinId: caja.maletinId,
+      maletinInfo: caja.maletin ? {
+        codigo: caja.maletin.codigo,
+        sucursalNombre: caja.maletin.sucursal?.nombre
+      } : undefined,
       fechaApertura: caja.fechaApertura?.toISOString(),
       fechaCierre: caja.fechaCierre?.toISOString(), // Sabemos que no es null por el where
       estadoCaja: caja.estado,

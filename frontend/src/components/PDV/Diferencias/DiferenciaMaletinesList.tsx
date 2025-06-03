@@ -299,7 +299,12 @@ const DiferenciaMaletinesList: React.FC<DiferenciaMaletinesListProps> = ({ propG
                                 ? format(parseISO(comp.cajaAnterior.fechaCierre), 'dd/MM/yyyy HH:mm', { locale: es })
                                 : '-'}
                             </TableCell>
-                            <TableCell>{comp.cajaAnterior.maletinId}</TableCell>
+                            <TableCell>
+                              {comp.cajaAnterior.maletinInfo 
+                                ? `${comp.cajaAnterior.maletinInfo.codigo}${comp.cajaAnterior.maletinInfo.sucursalNombre ? ` (${comp.cajaAnterior.maletinInfo.sucursalNombre})` : ''}`
+                                : comp.cajaAnterior.maletinId || '-'
+                              }
+                            </TableCell>
                             <TableCell align="right">{comp.cajaAnterior.cajaEnteroId}</TableCell>
                             <TableCell align="right">{comp.cajaSiguiente.cajaEnteroId}</TableCell>
                             <TableCell align="center">
