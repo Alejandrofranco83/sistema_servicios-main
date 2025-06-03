@@ -32,6 +32,7 @@ import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { obtenerPersonasConSaldo, SaldoPersona } from '../../services/usoDevolucionService';
 import { useCotizacion } from '../../contexts/CotizacionContext';
+import { cajaMayorService } from '../../services/api';
 
 // Interfaz para las cotizaciones
 interface Cotizaciones {
@@ -104,6 +105,22 @@ const ActivoPasivo: React.FC = () => {
       moneda: 'GS',
       icon: <LocalAtmIcon />,
       color: theme.palette.error.main
+    },
+    {
+      id: 'efectivo-caja-mayor',
+      titulo: 'Efectivo en Caja Mayor',
+      monto: 0,
+      moneda: 'GS',
+      icon: <AccountBalanceIcon />,
+      color: '#7B1FA2'
+    },
+    {
+      id: 'retiros-por-recibir',
+      titulo: 'Retiros Por Recibir',
+      monto: 0,
+      moneda: 'GS',
+      icon: <LocalAtmIcon />,
+      color: '#FF5722' // Color naranja/rojo para destacar que son pendientes
     },
     {
       id: 'saldos-servicios',
@@ -404,6 +421,151 @@ const ActivoPasivo: React.FC = () => {
     }
   };
 
+  // Función para cargar el efectivo en caja mayor
+  const cargarEfectivoCajaMayor = async () => {
+    try {
+      console.log('Obteniendo efectivo en caja mayor...');
+      
+      // Verificar si tenemos la cotización vigente
+      if (!cotizacionVigente) {
+        console.log('Cotización no disponible, esperando que se cargue...');
+        await refrescarCotizacion();
+        if (!cotizacionVigente) {
+          console.error('No se pudo obtener la cotización vigente');
+          throw new Error('No se pudo obtener la cotización vigente');
+        }
+      }
+
+      console.log('Usando cotización vigente para caja mayor:', cotizacionVigente);
+
+      // Obtener los saldos actuales de caja mayor
+      const saldos = await cajaMayorService.getSaldosActuales();
+      
+      console.log('Saldos de caja mayor recibidos:', saldos);
+
+      // Calcular el total en guaraníes
+      const saldoGuaranies = saldos.guaranies || 0;
+      const saldoDolares = saldos.dolares || 0;
+      const saldoReales = saldos.reales || 0;
+      
+      // Convertir dólares y reales a guaraníes usando el contexto de cotización
+      const saldoDolaresEnGs = saldoDolares * cotizacionVigente.valorDolar;
+      const saldoRealesEnGs = saldoReales * cotizacionVigente.valorReal;
+      
+      // Calcular el total sumando todas las monedas convertidas a guaraníes
+      const totalEfectivoCajaMayor = saldoGuaranies + saldoDolaresEnGs + saldoRealesEnGs;
+      
+      console.log('Efectivo Caja Mayor - Detalle:', {
+        guaranies: saldoGuaranies,
+        dolares: saldoDolares,
+        cotizacionDolar: cotizacionVigente.valorDolar,
+        dolaresEnGs: saldoDolaresEnGs,
+        reales: saldoReales,
+        cotizacionReal: cotizacionVigente.valorReal,
+        realesEnGs: saldoRealesEnGs,
+        totalEfectivo: totalEfectivoCajaMayor
+      });
+      
+      // Actualizar el balance de caja mayor en el estado
+      setBalances(balancesPrevios => {
+        const nuevosBalances = [...balancesPrevios];
+        const indexCajaMayor = nuevosBalances.findIndex(b => b.id === 'efectivo-caja-mayor');
+        
+        if (indexCajaMayor !== -1) {
+          nuevosBalances[indexCajaMayor] = {
+            ...nuevosBalances[indexCajaMayor],
+            monto: totalEfectivoCajaMayor
+          };
+        }
+        
+        return nuevosBalances;
+      });
+
+      return totalEfectivoCajaMayor;
+    } catch (error) {
+      console.error('Error al cargar el efectivo de caja mayor:', error);
+      throw error;
+    }
+  };
+
+  // Función para cargar los retiros por recibir
+  const cargarRetirosPorRecibir = async () => {
+    try {
+      console.log('Obteniendo retiros por recibir...');
+      
+      // Verificar si tenemos la cotización vigente
+      if (!cotizacionVigente) {
+        console.log('Cotización no disponible, esperando que se cargue...');
+        await refrescarCotizacion();
+        if (!cotizacionVigente) {
+          console.error('No se pudo obtener la cotización vigente');
+          throw new Error('No se pudo obtener la cotización vigente');
+        }
+      }
+
+      console.log('Usando cotización vigente para retiros por recibir:', cotizacionVigente);
+
+      // Obtener los retiros pendientes de recepción
+      const response = await api.get('/api/cajas-mayor/retiros/pendientes');
+      const retirosPendientes = response.data || [];
+      
+      console.log('Retiros pendientes recibidos:', retirosPendientes);
+
+      // Sumar todos los montos de los retiros pendientes
+      let totalGuaranies = 0;
+      let totalDolares = 0;
+      let totalReales = 0;
+      
+      retirosPendientes.forEach((retiro: any) => {
+        // Solo procesar retiros que estén realmente pendientes
+        if (retiro.estadoRecepcion === 'PENDIENTE') {
+          totalGuaranies += retiro.montoPYG || 0;
+          totalDolares += retiro.montoUSD || 0;
+          totalReales += retiro.montoBRL || 0;
+        }
+      });
+      
+      // Convertir dólares y reales a guaraníes usando el contexto de cotización
+      const totalDolaresEnGs = totalDolares * cotizacionVigente.valorDolar;
+      const totalRealesEnGs = totalReales * cotizacionVigente.valorReal;
+      
+      // Calcular el total sumando todas las monedas convertidas a guaraníes
+      const totalRetirosPorRecibir = totalGuaranies + totalDolaresEnGs + totalRealesEnGs;
+      
+      console.log('Retiros Por Recibir - Detalle:', {
+        cantidadRetiros: retirosPendientes.filter((r: any) => r.estadoRecepcion === 'PENDIENTE').length,
+        guaranies: totalGuaranies,
+        dolares: totalDolares,
+        cotizacionDolar: cotizacionVigente.valorDolar,
+        dolaresEnGs: totalDolaresEnGs,
+        reales: totalReales,
+        cotizacionReal: cotizacionVigente.valorReal,
+        realesEnGs: totalRealesEnGs,
+        totalRetiros: totalRetirosPorRecibir
+      });
+      
+      // Actualizar el balance de retiros por recibir en el estado
+      setBalances(balancesPrevios => {
+        const nuevosBalances = [...balancesPrevios];
+        const indexRetiros = nuevosBalances.findIndex(b => b.id === 'retiros-por-recibir');
+        
+        if (indexRetiros !== -1) {
+          nuevosBalances[indexRetiros] = {
+            ...nuevosBalances[indexRetiros],
+            monto: totalRetirosPorRecibir
+          };
+        }
+        
+        return nuevosBalances;
+      });
+
+      return totalRetirosPorRecibir;
+    } catch (error) {
+      console.error('Error al cargar los retiros por recibir:', error);
+      throw error;
+    }
+  };
+
   // Función para cargar todos los balances
   const cargarBalances = async () => {
     setLoading(true);
@@ -451,6 +613,12 @@ const ActivoPasivo: React.FC = () => {
         if (indexEfectivo !== -1) {
           nuevosBalances[indexEfectivo].monto = efectivoEnCajas;
         }
+        
+        // Obtener el efectivo en caja mayor
+        await cargarEfectivoCajaMayor();
+        
+        // Obtener los retiros por recibir
+        await cargarRetirosPorRecibir();
         
         // Obtener los saldos en servicios de todas las sucursales
         const saldosServicios = await obtenerSaldosServicios();
@@ -1060,6 +1228,16 @@ const ActivoPasivo: React.FC = () => {
       }
       // Efectivo en Cajas (siempre suma como activo)
       else if (item.id === 'efectivo-cajas') {
+        activos += monto;
+        console.log(`Sumando a ACTIVOS (${item.id}): ${monto}`);
+      }
+      // Efectivo en Caja Mayor (siempre suma como activo)
+      else if (item.id === 'efectivo-caja-mayor') {
+        activos += monto;
+        console.log(`Sumando a ACTIVOS (${item.id}): ${monto}`);
+      }
+      // Retiros Por Recibir (siempre suma como activo)
+      else if (item.id === 'retiros-por-recibir') {
         activos += monto;
         console.log(`Sumando a ACTIVOS (${item.id}): ${monto}`);
       }
