@@ -246,39 +246,21 @@ export const CajasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const loadCajas = async (sucursalId: string) => {
     try {
       setLoading(true);
+      setErrorMessage(null);
       
-      // Si el usuario es administrador, cargar todas las cajas
-      if (user && user.rol && user.rol.nombre.toUpperCase() === 'ADMINISTRADOR') {
-        // Usar la API que devuelve todas las cajas
-        const response = await api.get('/api/cajas');
-        
-        // Ordenar cajas por fecha de apertura, de más reciente a menos reciente
-        const cajasOrdenadas = [...response.data].sort((a, b) => {
-          return new Date(b.fechaApertura).getTime() - new Date(a.fechaApertura).getTime();
-        });
-        
-        setCajas(cajasOrdenadas);
-      } else {
-        // Convertir el ID de sucursal de 'SUC001' a '1'
-        let backendSucursalId = sucursalId;
-        if (sucursalId.startsWith('SUC')) {
-          // Extraer el número y convertirlo a string (SUC001 -> 1)
-          const numericId = parseInt(sucursalId.replace('SUC', ''), 10);
-          backendSucursalId = numericId.toString();
-        }
-        
-        const response = await api.get(`/api/cajas/sucursal/${backendSucursalId}`);
-        
-        // Ordenar cajas por fecha de apertura, de más reciente a menos reciente
-        const cajasOrdenadas = [...response.data].sort((a, b) => {
-          return new Date(b.fechaApertura).getTime() - new Date(a.fechaApertura).getTime();
-        });
-        
-        setCajas(cajasOrdenadas);
+      // Convertir el ID de sucursal de 'SUC001' a '1'
+      let backendSucursalId = sucursalId;
+      if (sucursalId.startsWith('SUC')) {
+        const numericId = parseInt(sucursalId.replace('SUC', ''), 10);
+        backendSucursalId = numericId.toString();
       }
+      
+      const response = await api.get(`/api/cajas/sucursal/${backendSucursalId}`);
+      setCajas(response.data);
     } catch (error) {
       console.error('Error al cargar cajas:', error);
-      setErrorMessage('Error al cargar las cajas de la sucursal');
+      setErrorMessage('Error al cargar las cajas');
+      setCajas([]);
     } finally {
       setLoading(false);
     }

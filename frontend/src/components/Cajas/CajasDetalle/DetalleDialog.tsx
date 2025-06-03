@@ -1218,7 +1218,9 @@ const DetalleDialog: React.FC<DetalleDialogProps> = ({ open, onClose }) => {
                     Maletín:
                   </Typography>
                   <Typography variant="body1" sx={{ mb: 1 }}> {/* Margen inferior */}
-                    {cajaSeleccionada.maletinId}
+                    {cajaSeleccionada.maletin 
+                      ? `${cajaSeleccionada.maletin.codigo}${cajaSeleccionada.maletin.sucursal ? ` (${cajaSeleccionada.maletin.sucursal.nombre})` : ''}`
+                      : cajaSeleccionada.maletinId || '-'}
                   </Typography>
                   <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1 }}>
                     Sucursal:

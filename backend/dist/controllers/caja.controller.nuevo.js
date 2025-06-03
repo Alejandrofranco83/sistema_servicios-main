@@ -19,7 +19,11 @@ const getCajas = (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
             include: {
                 sucursal: true,
                 usuario: true,
-                maletin: true
+                maletin: {
+                    include: {
+                        sucursal: true
+                    }
+                }
             },
             orderBy: {
                 fechaApertura: 'desc'
@@ -40,6 +44,14 @@ const getCajas = (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
             usuarioId: caja.usuarioId.toString(),
             usuario: caja.usuario.nombre,
             maletinId: caja.maletinId.toString(),
+            maletin: caja.maletin ? {
+                id: caja.maletin.id.toString(),
+                codigo: caja.maletin.codigo,
+                sucursal: caja.maletin.sucursal ? {
+                    id: caja.maletin.sucursal.id.toString(),
+                    nombre: caja.maletin.sucursal.nombre
+                } : null
+            } : null,
             fechaApertura: caja.fechaApertura.toISOString(),
             fechaCierre: caja.fechaCierre ? caja.fechaCierre.toISOString() : null,
             estado: caja.estado,
@@ -70,7 +82,11 @@ const getCajasBySucursal = (req, res) => __awaiter(void 0, void 0, void 0, funct
             include: {
                 sucursal: true,
                 usuario: true,
-                maletin: true
+                maletin: {
+                    include: {
+                        sucursal: true
+                    }
+                }
             },
             orderBy: {
                 fechaApertura: 'desc'
@@ -94,6 +110,14 @@ const getCajasBySucursal = (req, res) => __awaiter(void 0, void 0, void 0, funct
             usuarioId: caja.usuarioId.toString(),
             usuario: caja.usuario.nombre,
             maletinId: caja.maletinId.toString(),
+            maletin: caja.maletin ? {
+                id: caja.maletin.id.toString(),
+                codigo: caja.maletin.codigo,
+                sucursal: caja.maletin.sucursal ? {
+                    id: caja.maletin.sucursal.id.toString(),
+                    nombre: caja.maletin.sucursal.nombre
+                } : null
+            } : null,
             fechaApertura: caja.fechaApertura.toISOString(),
             fechaCierre: caja.fechaCierre ? caja.fechaCierre.toISOString() : null,
             estado: caja.estado,
@@ -122,7 +146,11 @@ const getCajaById = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
             include: {
                 sucursal: true,
                 usuario: true,
-                maletin: true
+                maletin: {
+                    include: {
+                        sucursal: true
+                    }
+                }
             }
         });
         if (!caja) {
@@ -143,6 +171,14 @@ const getCajaById = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
             usuarioId: caja.usuarioId.toString(),
             usuario: caja.usuario.nombre,
             maletinId: caja.maletinId.toString(),
+            maletin: caja.maletin ? {
+                id: caja.maletin.id.toString(),
+                codigo: caja.maletin.codigo,
+                sucursal: caja.maletin.sucursal ? {
+                    id: caja.maletin.sucursal.id.toString(),
+                    nombre: caja.maletin.sucursal.nombre
+                } : null
+            } : null,
             fechaApertura: caja.fechaApertura.toISOString(),
             fechaCierre: caja.fechaCierre ? caja.fechaCierre.toISOString() : null,
             estado: caja.estado,

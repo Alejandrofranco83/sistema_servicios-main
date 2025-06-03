@@ -288,7 +288,10 @@ const VerAperturaDialog: React.FC<VerAperturaDialogProps> = ({ open, onClose }) 
                     Maletín:
                   </Typography>
                   <Typography variant="body1">
-                    {cajaSeleccionada.maletinId}
+                    {cajaSeleccionada.maletin 
+                      ? `${cajaSeleccionada.maletin.codigo}${cajaSeleccionada.maletin.sucursal ? ` (${cajaSeleccionada.maletin.sucursal.nombre})` : ''}`
+                      : cajaSeleccionada.maletinId || '-'
+                    }
                   </Typography>
                 </Grid>
                 <Grid item xs={12} md={4}>

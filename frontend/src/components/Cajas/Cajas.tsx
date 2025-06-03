@@ -99,7 +99,11 @@ const Cajas: React.FC = () => {
     setDialogVerMovimientosOpen,
     setDialogPagosOpen,
     listaPagosDialogOpen,
-    setListaPagosDialogOpen
+    setListaPagosDialogOpen,
+    confirmarEliminarPagoId,
+    setConfirmarEliminarPagoId,
+    confirmarEliminacionPago,
+    cancelarEliminacionPago
   } = useCajas();
 
   // Estado para el filtro de fechas
@@ -250,14 +254,16 @@ const Cajas: React.FC = () => {
         <Typography variant="h4" component="h1">
           {isOperador ? "Panel de Operaciones" : (user && user.rol && user.rol.nombre.toUpperCase() === 'ADMINISTRADOR' ? "Cajas de Todas las Sucursales" : "Cajas")}
         </Typography>
-        <Button 
-          variant="contained" 
-          color="primary" 
-          startIcon={<AddIcon />}
-          onClick={handleNuevaCaja}
-        >
-          Nueva Caja
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            startIcon={<AddIcon />}
+            onClick={handleNuevaCaja}
+          >
+            Nueva Caja
+          </Button>
+        </Box>
       </Box>
 
       {/* Panel de filtros - sólo visible para administradores */}

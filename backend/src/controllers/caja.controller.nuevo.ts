@@ -51,7 +51,11 @@ export const getCajas = async (_req: Request, res: Response) => {
       include: {
         sucursal: true,
         usuario: true,
-        maletin: true
+        maletin: {
+          include: {
+            sucursal: true
+          }
+        }
       },
       orderBy: {
         fechaApertura: 'desc'
@@ -73,6 +77,14 @@ export const getCajas = async (_req: Request, res: Response) => {
       usuarioId: caja.usuarioId.toString(),
       usuario: caja.usuario.nombre,
       maletinId: caja.maletinId.toString(),
+      maletin: caja.maletin ? {
+        id: caja.maletin.id.toString(),
+        codigo: caja.maletin.codigo,
+        sucursal: caja.maletin.sucursal ? {
+          id: caja.maletin.sucursal.id.toString(),
+          nombre: caja.maletin.sucursal.nombre
+        } : null
+      } : null,
       fechaApertura: caja.fechaApertura.toISOString(),
       fechaCierre: caja.fechaCierre ? caja.fechaCierre.toISOString() : null,
       estado: caja.estado,
@@ -104,7 +116,11 @@ export const getCajasBySucursal = async (req: Request, res: Response) => {
       include: {
         sucursal: true,
         usuario: true,
-        maletin: true
+        maletin: {
+          include: {
+            sucursal: true
+          }
+        }
       },
       orderBy: {
         fechaApertura: 'desc'
@@ -130,6 +146,14 @@ export const getCajasBySucursal = async (req: Request, res: Response) => {
       usuarioId: caja.usuarioId.toString(),
       usuario: caja.usuario.nombre,
       maletinId: caja.maletinId.toString(),
+      maletin: caja.maletin ? {
+        id: caja.maletin.id.toString(),
+        codigo: caja.maletin.codigo,
+        sucursal: caja.maletin.sucursal ? {
+          id: caja.maletin.sucursal.id.toString(),
+          nombre: caja.maletin.sucursal.nombre
+        } : null
+      } : null,
       fechaApertura: caja.fechaApertura.toISOString(),
       fechaCierre: caja.fechaCierre ? caja.fechaCierre.toISOString() : null,
       estado: caja.estado,
@@ -159,7 +183,11 @@ export const getCajaById = async (req: Request, res: Response) => {
       include: {
         sucursal: true,
         usuario: true,
-        maletin: true
+        maletin: {
+          include: {
+            sucursal: true
+          }
+        }
       }
     });
 
@@ -182,6 +210,14 @@ export const getCajaById = async (req: Request, res: Response) => {
       usuarioId: caja.usuarioId.toString(),
       usuario: caja.usuario.nombre,
       maletinId: caja.maletinId.toString(),
+      maletin: caja.maletin ? {
+        id: caja.maletin.id.toString(),
+        codigo: caja.maletin.codigo,
+        sucursal: caja.maletin.sucursal ? {
+          id: caja.maletin.sucursal.id.toString(),
+          nombre: caja.maletin.sucursal.nombre
+        } : null
+      } : null,
       fechaApertura: caja.fechaApertura.toISOString(),
       fechaCierre: caja.fechaCierre ? caja.fechaCierre.toISOString() : null,
       estado: caja.estado,

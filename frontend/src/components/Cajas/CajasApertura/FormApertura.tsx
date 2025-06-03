@@ -223,7 +223,8 @@ const FormApertura: React.FC<FormAperturaProps> = ({ open, onClose }) => {
                       color: estaEnUso(maletin.id) ? 'text.disabled' : 'text.primary',
                     }}
                   >
-                    {maletin.codigo} {getMensajeEstadoMaletin(maletin)}
+                    {maletin.codigo || maletin.id} {getMensajeEstadoMaletin(maletin)}
+                    {maletin.sucursal && ` (${maletin.sucursal.nombre})`}
                   </MenuItem>
                 ))}
               </Select>

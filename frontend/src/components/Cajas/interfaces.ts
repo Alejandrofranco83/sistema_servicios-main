@@ -76,6 +76,14 @@ export interface Caja {
   fechaCierre?: string;
   estado: 'abierta' | 'cerrada';
   maletinId: string;
+  maletin?: {
+    id: string;
+    codigo: string;
+    sucursal?: {
+      id: string;
+      nombre: string;
+    };
+  };
   
   // Saldos iniciales
   saldoInicial: Conteo;
