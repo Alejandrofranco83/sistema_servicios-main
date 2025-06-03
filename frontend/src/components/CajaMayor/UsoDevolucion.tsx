@@ -505,13 +505,13 @@ const UsoDevolucion: React.FC<UsoDevolucionProps> = ({ open, onClose, onGuardarE
         >
           <Tab 
             value="USO" 
-            label="Uso de Efectivo" 
+            label="Uso de Efectivo (ENTRADA)" 
             icon={<MoneyIcon />} 
             iconPosition="start"
           />
           <Tab 
             value="DEVOLUCION" 
-            label="Devolución de Efectivo" 
+            label="Devolución de Efectivo (SALIDA)" 
             icon={<MoneyIcon />} 
             iconPosition="start"
           />
