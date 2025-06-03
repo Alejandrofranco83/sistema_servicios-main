@@ -175,8 +175,13 @@ export const createDepositoBancario = async (req: Request, res: Response) => {
       });
     }
 
-    // Verificar si la cuenta bancaria existe
-    const cuenta = await prisma.$queryRaw`SELECT * FROM "CuentaBancaria" WHERE id = ${cuentaIdNumber}`;
+    // Verificar si la cuenta bancaria existe y obtener información del banco
+    const cuenta = await prisma.$queryRaw`
+      SELECT cb.*, b.nombre as nombre_banco 
+      FROM "CuentaBancaria" cb
+      LEFT JOIN "Banco" b ON cb."bancoId" = b.id
+      WHERE cb.id = ${cuentaIdNumber}
+    `;
     console.log('Resultado de búsqueda de cuenta bancaria:', cuenta);
 
     if (!cuenta || (Array.isArray(cuenta) && cuenta.length === 0)) {
@@ -286,9 +291,10 @@ export const createDepositoBancario = async (req: Request, res: Response) => {
       const montoDeposito = parseFloat(monto);
       const saldoActual = saldoAnterior - montoDeposito; // Un depósito bancario es un egreso de caja
       
-      // Concepto del movimiento
+      // Concepto del movimiento - INCLUIR EL NOMBRE DEL BANCO
       const numeroCuenta = (cuenta as any)[0].numeroCuenta || '';
-      const conceptoMovimiento = `Depósito bancario - ${numeroBoleta} - ${numeroCuenta}`;
+      const nombreBanco = (cuenta as any)[0].nombre_banco || (cuenta as any)[0].banco || 'Banco';
+      const conceptoMovimiento = `Depósito bancario - ${nombreBanco} - ${numeroBoleta} - ${numeroCuenta}`;
       
       const depositoId = depositoObj.id;
       
@@ -444,8 +450,17 @@ export const updateDepositoBancario = async (req: Request, res: Response) => {
                 });
 
                 if (movimientoOriginal) {
+                    // Obtener información del banco para el concepto actualizado
+                    const cuentaConBanco = await tx.$queryRaw`
+                      SELECT cb.*, b.nombre as nombre_banco 
+                      FROM "CuentaBancaria" cb
+                      LEFT JOIN "Banco" b ON cb."bancoId" = b.id
+                      WHERE cb.id = ${depositoActual.cuentaBancariaId}
+                    `;
+                    
                     const numeroCuenta = depositoActual.cuentaBancaria?.numeroCuenta || '';
-                    const nuevoConcepto = `Depósito bancario - ${numeroBoleta.trim()} - ${numeroCuenta}`;
+                    const nombreBanco = (cuentaConBanco as any)[0]?.nombre_banco || (cuentaConBanco as any)[0]?.banco || 'Banco';
+                    const nuevoConcepto = `Depósito bancario - ${nombreBanco} - ${numeroBoleta.trim()} - ${numeroCuenta}`;
 
                     await tx.cajaMayorMovimiento.update({
                         where: { id: movimientoOriginal.id },

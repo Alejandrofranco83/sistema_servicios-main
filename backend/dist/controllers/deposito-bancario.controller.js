@@ -196,8 +196,13 @@ const createDepositoBancario = (req, res) => __awaiter(void 0, void 0, void 0, f
                 details: `Error al procesar el ID de la cuenta bancaria: ${cuentaBancariaId}`
             });
         }
-        // Verificar si la cuenta bancaria existe
-        const cuenta = yield db_1.prisma.$queryRaw `SELECT * FROM "CuentaBancaria" WHERE id = ${cuentaIdNumber}`;
+        // Verificar si la cuenta bancaria existe y obtener información del banco
+        const cuenta = yield db_1.prisma.$queryRaw `
+      SELECT cb.*, b.nombre as nombre_banco 
+      FROM "CuentaBancaria" cb
+      LEFT JOIN "Banco" b ON cb."bancoId" = b.id
+      WHERE cb.id = ${cuentaIdNumber}
+    `;
         console.log('Resultado de búsqueda de cuenta bancaria:', cuenta);
         if (!cuenta || (Array.isArray(cuenta) && cuenta.length === 0)) {
             return res.status(404).json({ error: 'Cuenta bancaria no encontrada' });
@@ -288,9 +293,10 @@ const createDepositoBancario = (req, res) => __awaiter(void 0, void 0, void 0, f
                 : 0;
             const montoDeposito = parseFloat(monto);
             const saldoActual = saldoAnterior - montoDeposito; // Un depósito bancario es un egreso de caja
-            // Concepto del movimiento
+            // Concepto del movimiento - INCLUIR EL NOMBRE DEL BANCO
             const numeroCuenta = cuenta[0].numeroCuenta || '';
-            const conceptoMovimiento = `Depósito bancario - ${numeroBoleta} - ${numeroCuenta}`;
+            const nombreBanco = cuenta[0].nombre_banco || cuenta[0].banco || 'Banco';
+            const conceptoMovimiento = `Depósito bancario - ${nombreBanco} - ${numeroBoleta} - ${numeroCuenta}`;
             const depositoId = depositoObj.id;
             // Registrar el movimiento de caja usando una consulta SQL nativa pero con valores seguros
             console.log('Valores para inserción en caja_mayor_movimientos:', {
@@ -364,7 +370,7 @@ const updateDepositoBancario = (req, res) => __awaiter(void 0, void 0, void 0, f
     try {
         // Usar transacción para asegurar consistencia entre tablas
         const depositoActualizado = yield db_1.prisma.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
-            var _a, _b;
+            var _a, _b, _c, _d;
             const depositoActual = yield tx.depositoBancario.findUnique({
                 where: { id },
                 include: { cuentaBancaria: true }
@@ -431,8 +437,16 @@ const updateDepositoBancario = (req, res) => __awaiter(void 0, void 0, void 0, f
                             }
                         });
                         if (movimientoOriginal) {
+                            // Obtener información del banco para el concepto actualizado
+                            const cuentaConBanco = yield tx.$queryRaw `
+                      SELECT cb.*, b.nombre as nombre_banco 
+                      FROM "CuentaBancaria" cb
+                      LEFT JOIN "Banco" b ON cb."bancoId" = b.id
+                      WHERE cb.id = ${depositoActual.cuentaBancariaId}
+                    `;
                             const numeroCuenta = ((_b = depositoActual.cuentaBancaria) === null || _b === void 0 ? void 0 : _b.numeroCuenta) || '';
-                            const nuevoConcepto = `Depósito bancario - ${numeroBoleta.trim()} - ${numeroCuenta}`;
+                            const nombreBanco = ((_c = cuentaConBanco[0]) === null || _c === void 0 ? void 0 : _c.nombre_banco) || ((_d = cuentaConBanco[0]) === null || _d === void 0 ? void 0 : _d.banco) || 'Banco';
+                            const nuevoConcepto = `Depósito bancario - ${nombreBanco} - ${numeroBoleta.trim()} - ${numeroCuenta}`;
                             yield tx.cajaMayorMovimiento.update({
                                 where: { id: movimientoOriginal.id },
                                 data: {

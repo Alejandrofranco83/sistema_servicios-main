@@ -91,17 +91,35 @@ const confirmarRecepcionRetiros = (req, res) => __awaiter(void 0, void 0, void 0
         if (idsARecibir.length === 0) {
             return res.status(404).json({ error: 'No se encontraron retiros pendientes con los IDs proporcionados o ya fueron procesados' });
         }
-        // Obtener detalles de las Cajas involucradas para obtener cajaEnteroId
+        // Obtener detalles de las Cajas involucradas para obtener cajaEnteroId, sucursal y usuario responsable
         const uniqueCajaIds = [...new Set(retirosParaRecibir.map(r => r.cajaId).filter(id => id !== null))];
         console.log('[DEBUG] IDs de Caja únicos a buscar:', uniqueCajaIds); // LOG 1
         let cajaDetailsMap = new Map();
         if (uniqueCajaIds.length > 0) {
             const cajas = yield prisma.caja.findMany({
                 where: { id: { in: uniqueCajaIds } },
-                select: { id: true, cajaEnteroId: true }
+                select: {
+                    id: true,
+                    cajaEnteroId: true,
+                    sucursal: {
+                        select: {
+                            nombre: true
+                        }
+                    },
+                    usuario: {
+                        select: {
+                            nombre: true,
+                            username: true
+                        }
+                    }
+                }
             });
             console.log('[DEBUG] Detalles de Caja encontrados:', cajas); // LOG 2
-            cajaDetailsMap = new Map(cajas.map(c => [c.id, { cajaEnteroId: c.cajaEnteroId }]));
+            cajaDetailsMap = new Map(cajas.map(c => [c.id, {
+                    cajaEnteroId: c.cajaEnteroId,
+                    sucursalNombre: c.sucursal.nombre,
+                    usuarioResponsable: c.usuario.nombre || c.usuario.username || 'Usuario desconocido'
+                }]));
             console.log('[DEBUG] Mapa de Detalles de Caja:', cajaDetailsMap); // LOG 3
         }
         // 2. Actualizar el estado de los retiros encontrados usando SQL crudo
@@ -156,14 +174,17 @@ const confirmarRecepcionRetiros = (req, res) => __awaiter(void 0, void 0, void 0
                     ? parseFloat(ultimoMovimiento[0].saldoActual.toString())
                     : 0;
                 const saldoActual = saldoAnterior + montoRetiro; // Ingreso a caja mayor
-                // Concepto del movimiento (modificado para usar cajaEnteroId)
+                // Concepto del movimiento (modificado para mostrar Caja # + sucursal + usuario responsable)
                 const cajaDetails = retiro.cajaId ? cajaDetailsMap.get(retiro.cajaId) : null;
                 console.log(`[DEBUG] Retiro ID: ${retiro.id}, Caja ID: ${retiro.cajaId}, Detalles Caja:`, cajaDetails); // LOG 4
-                const cajaIdentifier = (cajaDetails === null || cajaDetails === void 0 ? void 0 : cajaDetails.cajaEnteroId)
-                    ? `Caja ${cajaDetails.cajaEnteroId}`
-                    : (retiro.cajaId ? `Caja ${retiro.cajaId.substring(0, 6)} (ID no hallado)` : 'Caja Desconocida');
-                console.log(`[DEBUG] Identificador de Caja final: ${cajaIdentifier}`); // LOG 5
-                const conceptoMovimiento = `Recepción Retiro ${cajaIdentifier} - Persona: ${retiro.nombrePersona || 'N/A'}`;
+                let conceptoMovimiento = 'Caja desconocida';
+                if (cajaDetails === null || cajaDetails === void 0 ? void 0 : cajaDetails.cajaEnteroId) {
+                    conceptoMovimiento = `Caja #${cajaDetails.cajaEnteroId} - ${cajaDetails.sucursalNombre} - ${cajaDetails.usuarioResponsable}`;
+                }
+                else if (retiro.cajaId) {
+                    conceptoMovimiento = `Caja ${retiro.cajaId.substring(0, 6)} (ID no hallado)`;
+                }
+                console.log(`[DEBUG] Concepto final: ${conceptoMovimiento}`); // LOG 5
                 const retiroId = retiro.id;
                 // Insertar en caja_mayor_movimientos
                 yield prisma.$executeRaw `
