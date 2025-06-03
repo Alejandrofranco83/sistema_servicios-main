@@ -37,7 +37,8 @@ import {
   RefreshOutlined as RefreshIcon,
   Edit as EditIcon,
   Description as DescriptionIcon,
-  Print as PrintIcon
+  Print as PrintIcon,
+  MonetizationOn as MonetizationOnIcon
 } from '@mui/icons-material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
@@ -47,9 +48,15 @@ import { scrollbarStyles } from '../../utils/scrollbarStyles';
 import EditarVale from './EditarVale';
 import EditarUsoDevolucion from './EditarUsoDevolucion';
 import CancelarDeposito from './CancelarDeposito';
+import AnularPagoServicio from './AnularPagoServicio';
+import EliminarCambio from './EliminarCambio';
+import DevolverRetiro from './DevolverRetiro';
 import ImprimirValeDialog from './ImprimirValeDialog';
 import { cajaMayorService } from '../../services/api';
 import api from '../../services/api';
+
+// Definir TipoMoneda para representar las abreviaturas estándar
+type TipoMoneda = 'PYG' | 'USD' | 'BRL';
 
 // Definir la interfaz para los movimientos
 interface Movimiento {
@@ -67,12 +74,58 @@ interface Movimiento {
   saldo?: number;
   operacionId?: string | null;
   rutaComprobante?: string | null;
+  retiroId?: string;
+  movimientoId?: string;
+}
+
+// Definir interfaz para detalles de cambio
+interface CambioDetalles {
+  id: string; 
+  monedaOrigen: TipoMoneda; 
+  monedaDestino: TipoMoneda;
+  monto: number; 
+  cotizacion: number;
+  resultado: number; 
+  observacion?: string;
+  fecha?: string;
 }
 
 interface MovimientosExpandidosProps {
   open: boolean;
   onClose: () => void;
   monedaActiva: 'guaranies' | 'dolares' | 'reales';
+}
+
+// Helper fuera del componente para formatear montos con fallback
+const formatOrError = (value: number | undefined | null, moneda: TipoMoneda | 'guaranies' | 'dolares' | 'reales' | undefined): string => {
+    if (value === undefined || value === null) return '-';
+    if (!moneda) moneda = 'guaranies'; // Valor por defecto
+    
+    const currencyKeyMap: Record<string, 'guaranies' | 'dollars' | 'reals'> = {
+        PYG: 'guaranies',
+        USD: 'dollars',
+        BRL: 'reals',
+        guaranies: 'guaranies',
+        dolares: 'dollars',
+        reales: 'reals'
+    };
+    const key = currencyKeyMap[moneda];
+    if (!key) {
+        console.error(`Clave de moneda no encontrada para: ${moneda}`);
+        return value.toString();
+    }
+    try {
+        // Asegurarse que formatCurrency[key] es una función antes de llamarla
+        if (typeof formatCurrency[key] === 'function') {
+            return formatCurrency[key](value);
+        } else {
+             console.error(`formatCurrency.${key} no es una función.`);
+             return value.toString();
+        }
+    } catch (e) {
+        console.error(`Error formateando ${key}`, value, e);
+        return value.toString();
+    }
 }
 
 const MovimientosExpandidos: React.FC<MovimientosExpandidosProps> = ({
@@ -110,6 +163,17 @@ const MovimientosExpandidos: React.FC<MovimientosExpandidosProps> = ({
   const [verificandoEstadoVale, setVerificandoEstadoVale] = useState(false);
   const [errorDialogOpen, setErrorDialogOpen] = useState(false);
   const [errorDialogMessage, setErrorDialogMessage] = useState<string | null>(null);
+
+  // --- NUEVOS ESTADOS PARA FUNCIONALIDADES FALTANTES ---
+  const [anularPagoServicioOpen, setAnularPagoServicioOpen] = useState(false);
+  const [eliminarCambioOpen, setEliminarCambioOpen] = useState(false);
+  const [dialogoDevolverRetiroOpen, setDialogoDevolverRetiroOpen] = useState(false);
+  const [selectedCambioId, setSelectedCambioId] = useState<string | null>(null);
+  const [retiroIdSeleccionado, setRetiroIdSeleccionado] = useState<string>('');
+
+  // Estados para almacenar detalles de cambios por operacionId (tooltips informativos)
+  const [cambioDetails, setCambioDetails] = useState<Record<string, CambioDetalles>>({});
+  const [loadingCambioDetails, setLoadingCambioDetails] = useState<Record<string, boolean>>({});
 
   // --- Función para cargar movimientos paginados --- 
   const cargarMovimientos = useCallback(async () => {
@@ -186,6 +250,107 @@ const MovimientosExpandidos: React.FC<MovimientosExpandidosProps> = ({
     }
   }, [open, cargarTiposUnicos]); // Ejecutar cuando `open` cambia a true
 
+  // --- useEffect para buscar detalles de cambios (tooltips informativos) ---
+  useEffect(() => {
+    const fetchCambioDetailsForMovimientos = async () => {
+      // Asegurarse que movimientosPaginados es un array antes de filtrar
+      if (!Array.isArray(movimientosPaginados)) {
+          console.warn('[MovimientosExpandidos] movimientosPaginados no es un array, omitiendo fetch de detalles de cambio.');
+          return;
+      }
+          
+      const cambiosMovimientos = movimientosPaginados
+        .filter((m: Movimiento) => m.tipo === 'Cambio' && m.operacionId); // Añadir tipo explícito a m
+        
+      const idsToFetch = cambiosMovimientos
+          .map((m: Movimiento) => m.operacionId as string) // Añadir tipo explícito a m
+          .filter((id: string) => id && !cambioDetails[id] && !loadingCambioDetails[id]);
+      
+      if (idsToFetch.length === 0) return;
+      
+      // Marcar como cargando
+      setLoadingCambioDetails(prev => {
+        const newState = { ...prev };
+        idsToFetch.forEach(id => { newState[id] = true; });
+        return newState;
+      });
+      
+      console.log('[MovimientosExpandidos] Fetching details for Cambios with IDs:', idsToFetch);
+
+      const promises = idsToFetch.map(async (id) => {
+        try {
+          const response = await api.get<CambioDetalles>(`/api/cambios-moneda/${id}`);
+          if (response.data) {
+            return { id, details: response.data };
+          }
+          return { id, error: 'No data received' };
+        } catch (err) { // No es necesario `any` aquí si no se usa explícitamente
+          console.error(`[MovimientosExpandidos] Error fetching details for cambio ${id}:`, err);
+          return { id, error: 'Fetch error' };
+        }
+      });
+
+      const results = await Promise.all(promises);
+
+      // Actualizar estados
+      setCambioDetails(prev => {
+        const newState = { ...prev };
+        results.forEach(res => {
+          if (res.details) {
+            newState[res.id] = res.details;
+          }
+        });
+        return newState;
+      });
+      
+      setLoadingCambioDetails(prev => {
+        const newState = { ...prev };
+        results.forEach(res => { newState[res.id] = false; }); 
+        return newState;
+      });
+    };
+
+    if (movimientosPaginados.length > 0) {
+      fetchCambioDetailsForMovimientos();
+    }
+  }, [movimientosPaginados]); // Dependencia correcta
+
+  // --- Helper para formatear Tooltip de Cambio ---
+  const formatCambioTooltip = (operacionId: string): React.ReactNode => {
+    if (loadingCambioDetails[operacionId]) {
+      return "Cargando detalles...";
+    }
+    const details = cambioDetails[operacionId];
+    if (!details) {
+      if (loadingCambioDetails[operacionId] === undefined) {
+          return "Obteniendo detalles...";
+      }
+      return "Error al cargar detalles";
+    }
+        
+    const montoOrigenF = formatOrError(details.monto, details.monedaOrigen);
+    const montoDestinoF = formatOrError(details.resultado, details.monedaDestino);
+    
+    // Formateo de cotización
+    let cotizacionTexto = `Cotización: ${details.cotizacion.toLocaleString('es-PY')}`;
+    if (details.monedaDestino === 'PYG') {
+        cotizacionTexto = `Cotización: 1 ${details.monedaOrigen} = ${formatOrError(details.cotizacion, 'PYG')}`;
+    } else if (details.monedaOrigen === 'PYG') {
+         cotizacionTexto = `Cotización: 1 ${details.monedaDestino} = ${formatOrError(details.cotizacion, 'PYG')}`;
+    } else { 
+        cotizacionTexto = `Cotización: 1 ${details.monedaOrigen} = ${details.cotizacion.toFixed(4)} ${details.monedaDestino}`;
+    }
+
+    // Retornar JSX válido
+    return (
+      <Box sx={{ textAlign: 'left', p: 0.5 }}>
+        <Typography variant="caption" display="block">Origen: {montoOrigenF} {details.monedaOrigen}</Typography>
+        <Typography variant="caption" display="block">Destino: {montoDestinoF} {details.monedaDestino}</Typography>
+        <Typography variant="caption" display="block">{cotizacionTexto}</Typography>
+      </Box>
+    );
+  }; // Asegurar que la función cierra correctamente
+
   // Función para cambiar el orden
   const cambiarOrden = () => {
     const nuevoOrden = !ordenDescendente;
@@ -253,9 +418,45 @@ const MovimientosExpandidos: React.FC<MovimientosExpandidosProps> = ({
     setSelectedMovimientoId(movimientoId);
     console.log(`Editando movimiento tipo: ${tipo} con ID: ${movimientoId}`);
     
+    // --- CASO: RECEPCIÓN RETIRO -> DEVOLVER RETIRO ---
+    if (tipo === 'Recepción Retiro') {
+      const movimiento = movimientosPaginados.find(m => m.id === movimientoId);
+      const idRetiro = movimiento?.retiroId || movimiento?.movimientoId;
+      
+      if (movimiento && idRetiro) {
+        setRetiroIdSeleccionado(idRetiro);
+        setDialogoDevolverRetiroOpen(true);
+      } else {
+        console.error('No se puede devolver el retiro: ID del retiro no encontrado', movimientoId, movimiento);
+        setError('No se puede devolver el retiro: ID del retiro no encontrado');
+      }
+      return;
+    }
+    
     // Determinar qué dialog abrir según el tipo de movimiento
     const tipoNormalizado = tipo.toLowerCase().trim();
     
+    // --- CASO: PAGO SERVICIO -> ANULAR PAGO SERVICIO ---
+    if (tipoNormalizado === 'pago servicio') {
+      setAnularPagoServicioOpen(true);
+      return;
+    }
+    
+    // --- CASO: CAMBIO -> ELIMINAR CAMBIO ---
+    if (tipoNormalizado === 'cambio') {
+      // Encontrar el operacionId del movimiento de cambio
+      const movimientoCambio = movimientosPaginados.find(m => m.id === movimientoId);
+      if (movimientoCambio && movimientoCambio.operacionId) {
+        setSelectedCambioId(movimientoCambio.operacionId); // Guardar el ID del CAMBIO (operacionId)
+        setEliminarCambioOpen(true); // Abrir el diálogo para eliminar/cancelar el cambio
+      } else {
+        console.error('No se pudo obtener el operacionId para el movimiento de cambio:', movimientoId);
+        setError('No se pudo obtener la información necesaria para anular este cambio.');
+      }
+      return;
+    }
+    
+    // --- CASOS EXISTENTES ---
     if (tipoNormalizado === 'vales' || tipoNormalizado.includes('vale')) {
       setEditarValeOpen(true);
     } else if (tipoNormalizado === 'uso y devolución' || tipoNormalizado.includes('uso') || tipoNormalizado.includes('devolucion')) {
@@ -512,6 +713,26 @@ const MovimientosExpandidos: React.FC<MovimientosExpandidosProps> = ({
       setErrorDialogMessage(null);
   };
 
+  // --- FUNCIONES DE CIERRE PARA NUEVOS DIÁLOGOS ---
+  
+  // Función para cerrar el diálogo de anular pago servicio
+  const handleCloseAnularPagoServicio = () => {
+    setAnularPagoServicioOpen(false);
+    setSelectedMovimientoId(null);
+  };
+
+  // Función para cerrar el diálogo de eliminar cambio
+  const handleCloseEliminarCambio = () => {
+    setEliminarCambioOpen(false);
+    setSelectedCambioId(null);
+  };
+
+  // Función para cerrar el diálogo de devolución de retiro
+  const handleCerrarDialogoDevolverRetiro = () => {
+    setDialogoDevolverRetiroOpen(false);
+    setRetiroIdSeleccionado('');
+  };
+
   return (
     <Dialog
       open={open}
@@ -750,6 +971,22 @@ const MovimientosExpandidos: React.FC<MovimientosExpandidosProps> = ({
                                   })()
                                 }
                                 {
+                                  // --- TOOLTIP INFORMATIVO PARA CAMBIOS DE MONEDA ---
+                                  movimiento.tipo === 'Cambio' && movimiento.operacionId && (
+                                    <Tooltip title={formatCambioTooltip(movimiento.operacionId)} placement="top" arrow>
+                                      <span style={{ marginLeft: '4px' }}>
+                                          <IconButton
+                                            size="small"
+                                            color="success"
+                                            sx={{ p: 0.25 }}
+                                          >
+                                            <MonetizationOnIcon fontSize="small" />
+                                          </IconButton>
+                                      </span>
+                                    </Tooltip>
+                                  )
+                                }
+                                {
                                   // Icono para ver comprobante de depósito
                                   isDeposito && !isDepositoCancelacion && (
                                       <Tooltip title={esComprobanteValido(movimiento.rutaComprobante) ? "Ver Comprobante" : "Comprobante no disponible"}>
@@ -908,6 +1145,32 @@ const MovimientosExpandidos: React.FC<MovimientosExpandidosProps> = ({
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* --- NUEVOS DIÁLOGOS IMPLEMENTADOS --- */}
+
+      {/* Diálogo para anular pago de servicio */}
+      <AnularPagoServicio
+        open={anularPagoServicioOpen}
+        onClose={handleCloseAnularPagoServicio}
+        movimientoId={selectedMovimientoId}
+        onSuccess={cargarMovimientos}
+      />
+
+      {/* Diálogo para eliminar cambio de moneda */}
+      <EliminarCambio
+        open={eliminarCambioOpen}
+        onClose={handleCloseEliminarCambio}
+        cambioId={selectedCambioId}
+        onSuccess={cargarMovimientos}
+      />
+
+      {/* Diálogo para devolver retiro */}
+      <DevolverRetiro
+        open={dialogoDevolverRetiroOpen}
+        onClose={handleCerrarDialogoDevolverRetiro}
+        onGuardarExito={cargarMovimientos}
+        retiroId={retiroIdSeleccionado}
+      />
     </Dialog>
   );
 };
