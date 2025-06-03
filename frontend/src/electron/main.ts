@@ -10,6 +10,26 @@ const Store = require('electron-store');
 // Inicializar remote
 remoteMain.initialize();
 
+// Implementar instancia única solo en producción
+const isProduction = process.env.NODE_ENV !== 'development';
+
+if (isProduction) {
+  const gotTheLock = app.requestSingleInstanceLock();
+
+  if (!gotTheLock) {
+    // Si ya hay una instancia corriendo, salir inmediatamente
+    app.quit();
+  } else {
+    // Alguien trató de ejecutar una segunda instancia, enfocamos nuestra ventana en su lugar
+    app.on('second-instance', (event: Electron.Event, commandLine: string[], workingDirectory: string) => {
+      if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.focus();
+      }
+    });
+  }
+}
+
 // Inicializar store para persistir configuraciones
 const store = new Store({
   name: 'user-preferences',
