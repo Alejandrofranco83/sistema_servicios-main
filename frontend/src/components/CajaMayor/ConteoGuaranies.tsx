@@ -186,15 +186,6 @@ const ConteoGuaranies: React.FC<ConteoGuaraniesProps> = ({
     }
   };
   
-  // Función para manejar el primer clic en un campo
-  const handleFirstClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    // Solo seleccionar el texto si el campo no está vacío
-    const input = e.currentTarget.querySelector('input');
-    if (input && input.value !== '0' && input.value !== '') {
-      handleInputClick(e);
-    }
-  }, []);
-  
   return (
     <>
       <Dialog
@@ -247,7 +238,7 @@ const ConteoGuaranies: React.FC<ConteoGuaraniesProps> = ({
                             inputRef: (ref) => registerInputRef(fieldId, ref)
                           }}
                           onKeyDown={(e) => handleKeyDown(e, nextFieldId)}
-                          onClick={handleFirstClick}
+                          onClick={handleInputClick}
                           fullWidth
                         />
                       </TableCell>
@@ -290,7 +281,7 @@ const ConteoGuaranies: React.FC<ConteoGuaraniesProps> = ({
             rows={2}
             variant="outlined"
             placeholder="Detalles adicionales sobre el conteo"
-            onClick={handleFirstClick}
+            onClick={handleInputClick}
           />
         </DialogContent>
         

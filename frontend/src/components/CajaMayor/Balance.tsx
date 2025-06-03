@@ -508,8 +508,12 @@ const Balance: React.FC = () => {
     setConteoGuaraniesOpen(false);
     setConteoRealesOpen(false);
     setConteoDolaresOpen(false);
-    // Recargar los datos después de guardar un conteo
-    cargarDatosIniciales(); 
+    
+    // Recargar los datos después de un delay para asegurar que el guardado se complete
+    setTimeout(() => {
+      cargarDatosIniciales(); 
+      cargarMovimientosMoneda();
+    }, 1500);
   };
 
   // Funciones para los diálogos de conteo de monedas
@@ -529,8 +533,12 @@ const Balance: React.FC = () => {
     };
     
     setSaldosData(nuevoSaldo);
-    setMonedaActiva(monedaActiva); // Forzar actualización
     console.log(`Conteo de guaraníes guardado: ${total} Gs, Observación: ${observacion}`);
+    
+    // Recargar todos los datos después de un delay para asegurar que el guardado se complete
+    setTimeout(() => {
+      recargarTodo();
+    }, 1500);
   };
   
   const handleConteoReales = () => {
@@ -549,8 +557,12 @@ const Balance: React.FC = () => {
     };
     
     setSaldosData(nuevoSaldo);
-    setMonedaActiva(monedaActiva); // Forzar actualización
     console.log(`Conteo de reales guardado: ${total} R$, Observación: ${observacion}`);
+    
+    // Recargar todos los datos después de un delay para asegurar que el guardado se complete
+    setTimeout(() => {
+      recargarTodo();
+    }, 1500);
   };
   
   const handleConteoDolares = () => {
@@ -569,8 +581,12 @@ const Balance: React.FC = () => {
     };
     
     setSaldosData(nuevoSaldo);
-    setMonedaActiva(monedaActiva); // Forzar actualización
     console.log(`Conteo de dólares guardado: ${total} $, Observación: ${observacion}`);
+    
+    // Recargar todos los datos después de un delay para asegurar que el guardado se complete
+    setTimeout(() => {
+      recargarTodo();
+    }, 1500);
   };
 
   // Función para obtener las cotizaciones de Cambios Alberdi
@@ -1614,7 +1630,7 @@ const Balance: React.FC = () => {
         <ConteoGuaranies
           open={conteoGuaraniesOpen}
           onClose={handleCloseConteoGuaranies}
-          onSaveTotal={handleSaveConteo}
+          onSaveTotal={handleSaveConteoGuaranies}
           saldoSistema={saldosData.guaranies}
           usuarioId={1} // Usar el ID del usuario autenticado
         />
@@ -1622,7 +1638,7 @@ const Balance: React.FC = () => {
         <ConteoReales
           open={conteoRealesOpen}
           onClose={handleCloseConteoReales}
-          onSaveTotal={handleSaveConteo}
+          onSaveTotal={handleSaveConteoReales}
           saldoSistema={saldosData.reales}
           usuarioId={1} // Usar el ID del usuario autenticado
         />
@@ -1630,7 +1646,7 @@ const Balance: React.FC = () => {
         <ConteoDolares
           open={conteoDolaresOpen}
           onClose={handleCloseConteoDolares}
-          onSaveTotal={handleSaveConteo}
+          onSaveTotal={handleSaveConteoDolares}
           saldoSistema={saldosData.dolares}
           usuarioId={1} // Usar el ID del usuario autenticado
         />
