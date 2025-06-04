@@ -42,6 +42,25 @@ interface MovimientoFarmacia {
     username: string;
     nombre: string;
   } | null;
+  // Nueva información de operación bancaria con datos de caja
+  operacionBancaria?: {
+    id: string;
+    tipo: string;
+    caja: {
+      id: string;
+      cajaEnteroId: number; // Número de caja
+      sucursal: {
+        id: string;
+        nombre: string;
+        codigo: string;
+      };
+      usuario: {
+        id: number;
+        nombre: string;
+        username: string;
+      };
+    };
+  } | null;
   // ... otros campos que devuelva el backend
 }
 
@@ -109,6 +128,21 @@ const BalanceFarmaciaLista: React.FC = () => {
       const movimientosData = response.data.data || [];
       console.log('Datos recibidos:', movimientosData); // Log para depuración
       
+      // Debuggear específicamente las operaciones bancarias
+      movimientosData.forEach((mov: any, index: number) => {
+        if (mov.movimientoOrigenTipo === 'OPERACION_BANCARIA') {
+          console.log(`[DEBUG] Movimiento ${index} es OPERACION_BANCARIA:`, {
+            id: mov.id,
+            concepto: mov.concepto,
+            movimientoOrigenId: mov.movimientoOrigenId,
+            movimientoOrigenTipo: mov.movimientoOrigenTipo,
+            operacionBancaria: mov.operacionBancaria,
+            hasOperacionBancaria: !!mov.operacionBancaria,
+            hasCaja: !!(mov.operacionBancaria?.caja)
+          });
+        }
+      });
+
       setMovimientos(movimientosData);
       setTotalCount(response.data.totalCount || 0);
       
@@ -352,14 +386,42 @@ const BalanceFarmaciaLista: React.FC = () => {
                     <TableCell>{mov.movimientoOrigenTipo || mov.tipoMovimiento}</TableCell>
                     <TableCell>{mov.concepto}</TableCell>
                     <TableCell align="center">
-                      {/* Asumiendo que el tooltip usará un campo como 'detalleAdicional' o 'movimientoOrigenTipo/Id' */}
-                      {(mov.detalleAdicional || mov.movimientoOrigenId) && (
+                      {/* Mostrar tooltip con información de operación bancaria si está disponible */}
+                      {mov.operacionBancaria?.caja ? (
+                        <Tooltip 
+                          title={
+                            <Box>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
+                                Operación Bancaria
+                              </Typography>
+                              <Typography variant="body2">
+                                <strong>Sucursal:</strong> {mov.operacionBancaria.caja.sucursal.nombre}
+                              </Typography>
+                              <Typography variant="body2">
+                                <strong>Usuario:</strong> {mov.operacionBancaria.caja.usuario.nombre}
+                              </Typography>
+                              <Typography variant="body2">
+                                <strong>Nro. Caja:</strong> {mov.operacionBancaria.caja.cajaEnteroId}
+                              </Typography>
+                              <Typography variant="body2">
+                                <strong>Tipo:</strong> {mov.operacionBancaria.tipo.toUpperCase()}
+                              </Typography>
+                            </Box>
+                          } 
+                          arrow
+                          placement="left"
+                        >
+                          <IconButton size="small">
+                            <VisibilityIcon fontSize="inherit" />
+                          </IconButton>
+                        </Tooltip>
+                      ) : (mov.detalleAdicional || mov.movimientoOrigenId) ? (
                         <Tooltip title={mov.detalleAdicional || `Origen: ${mov.movimientoOrigenTipo} ID: ${mov.movimientoOrigenId}`} arrow>
                           <IconButton size="small">
                             <VisibilityIcon fontSize="inherit" />
                           </IconButton>
                         </Tooltip>
-                      )}
+                      ) : null}
                     </TableCell>
                     <TableCell align="right">
                       {esEntrada ? formatCurrency(montoNum, mov.monedaCodigo) : '-'}

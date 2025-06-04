@@ -362,7 +362,24 @@ const FormOperacion: React.FC<FormOperacionProps> = ({ open, onClose }) => {
         cuentaBancariaId: formOperacion.tipo === 'transferencia' ? Number(formOperacion.cuentaBancariaId) : undefined,
         cajaId: cajaSeleccionada.id,
         // Agregar flag para indicar que se debe crear un movimiento en farmacia
-        crearMovimientoFarmacia: true
+        crearMovimientoFarmacia: true,
+        // Agregar información de la moneda del POS si es una operación POS
+        posMoneda: formOperacion.tipo === 'pos' && posSeleccionado?.cuentaBancaria?.moneda || 'PYG',
+        // Agregar monto original en la moneda del POS para cálculos correctos
+        montoOriginalEnMonedaPOS: formOperacion.tipo === 'pos' && posSeleccionado?.cuentaBancaria ? 
+          (() => {
+            const monedaPOS = posSeleccionado.cuentaBancaria.moneda;
+            const monto = formOperacion.monto || 0;
+            
+            if (monedaPOS === 'PYG') {
+              return monto;
+            } else if (monedaPOS === 'BRL' && cotizacionVigente) {
+              return monto / cotizacionVigente.valorReal;
+            } else if (monedaPOS === 'USD' && cotizacionVigente) {
+              return monto / cotizacionVigente.valorDolar;
+            }
+            return monto;
+          })() : undefined
       };
       
       // DEBUG: Mostrar el objeto datosOperacion que se va a stringify y enviar

@@ -44,7 +44,10 @@ const OperacionBancariaCreateSchema = zod_1.z.object({
     cajaId: zod_1.z.string({
         required_error: 'El ID de la caja es requerido'
     }),
-    crearMovimientoFarmacia: zod_1.z.boolean().optional()
+    crearMovimientoFarmacia: zod_1.z.boolean().optional(),
+    // Nuevos campos para manejo de monedas
+    posMoneda: zod_1.z.enum(['PYG', 'USD', 'BRL']).optional(),
+    montoOriginalEnMonedaPOS: zod_1.z.number().optional()
 });
 // Esquema para validar la actualización de una operación bancaria
 const OperacionBancariaUpdateSchema = OperacionBancariaCreateSchema.partial();
@@ -175,10 +178,10 @@ exports.getOperacionBancariaById = getOperacionBancariaById;
  * Crear una nueva operación bancaria
  */
 const createOperacionBancaria = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
     console.log('Creando operación bancaria...');
     console.log('Body:', req.body);
     console.log('File:', req.file);
+    let rutaComprobante = null; // Declarar al inicio para estar disponible en catch
     try {
         // Extraer datos según cómo se envían (FormData o JSON)
         let operacionData;
@@ -245,7 +248,6 @@ const createOperacionBancaria = (req, res) => __awaiter(void 0, void 0, void 0, 
             console.log('Cuenta bancaria encontrada:', cuentaBancaria);
         }
         // Procesar archivo si existe
-        let rutaComprobante = null;
         if (req.file) {
             try {
                 console.log('Procesando archivo adjunto...');
@@ -265,49 +267,119 @@ const createOperacionBancaria = (req, res) => __awaiter(void 0, void 0, void 0, 
                 return res.status(500).json({ error: 'Error al procesar el archivo adjunto' });
             }
         }
-        // Crear la operación bancaria en la base de datos
-        console.log('Creando operación bancaria en la base de datos...');
-        const nuevaOperacion = yield prisma.operacionBancaria.create({
-            data: {
-                tipo: data.tipo,
-                monto: data.monto,
-                montoACobrar: data.montoACobrar,
-                tipoServicio: data.tipoServicio,
-                codigoBarrasPos: data.codigoBarrasPos,
-                posDescripcion: data.posDescripcion,
-                numeroComprobante: data.numeroComprobante,
-                cuentaBancariaId: data.cuentaBancariaId,
-                cajaId: data.cajaId,
-                rutaComprobante
-            },
-            include: {
-                cuentaBancaria: true
-            }
-        });
-        // Verificar si se debe crear un movimiento en la tabla movimientos_farmacia
-        if (data.crearMovimientoFarmacia === true) {
-            try {
+        // Usar transacción para garantizar consistencia entre operación bancaria y movimiento de farmacia
+        const resultado = yield prisma.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
+            var _a;
+            // Paso 1: Crear la operación bancaria
+            console.log('Creando operación bancaria en la base de datos...');
+            const nuevaOperacion = yield tx.operacionBancaria.create({
+                data: {
+                    tipo: data.tipo,
+                    monto: data.monto,
+                    montoACobrar: data.montoACobrar,
+                    tipoServicio: data.tipoServicio,
+                    codigoBarrasPos: data.codigoBarrasPos,
+                    posDescripcion: data.posDescripcion,
+                    numeroComprobante: data.numeroComprobante,
+                    cuentaBancariaId: data.cuentaBancariaId,
+                    cajaId: data.cajaId,
+                    rutaComprobante
+                },
+                include: {
+                    cuentaBancaria: true
+                }
+            });
+            // Paso 2: Crear movimiento de farmacia si se requiere
+            if (data.crearMovimientoFarmacia === true) {
                 console.log('Creando movimiento de farmacia correspondiente...');
-                // El monto a cobrar siempre es en guaraníes (moneda local)
-                const montoFarmacia = data.montoACobrar || data.monto;
+                // Determinar la moneda y el monto según el tipo de operación
+                let monedaMovimiento = 'PYG';
+                let montoMovimiento = data.montoACobrar || data.monto || 0;
+                let conceptoMovimiento = '';
+                if (data.tipo === 'pos' && data.posMoneda && data.montoOriginalEnMonedaPOS) {
+                    // Para operaciones POS con moneda diferente a PYG, usar la moneda del POS
+                    monedaMovimiento = data.posMoneda;
+                    // Calcular el monto con comisión en la moneda original del POS
+                    montoMovimiento = data.montoOriginalEnMonedaPOS * 1.06;
+                    console.log(`POS en moneda ${monedaMovimiento}: monto original ${data.montoOriginalEnMonedaPOS}, con comisión: ${montoMovimiento}`);
+                }
+                else {
+                    // Para transferencias o POS en guaraníes, usar guaraníes
+                    monedaMovimiento = 'PYG';
+                    montoMovimiento = data.montoACobrar || data.monto || 0;
+                    console.log(`Operación en guaraníes: monto ${montoMovimiento}`);
+                }
+                // Construir concepto descriptivo según el tipo de operación
+                if (data.tipo === 'pos') {
+                    // Para POS: buscar el nombre del dispositivo por código de barras
+                    let nombrePOS = 'POS Desconocido';
+                    if (data.codigoBarrasPos) {
+                        try {
+                            const dispositivoPOS = yield tx.dispositivoPos.findUnique({
+                                where: { codigoBarras: data.codigoBarrasPos },
+                                select: { nombre: true }
+                            });
+                            if (dispositivoPOS) {
+                                nombrePOS = dispositivoPOS.nombre;
+                            }
+                        }
+                        catch (error) {
+                            console.error('Error al buscar nombre del POS:', error);
+                        }
+                    }
+                    conceptoMovimiento = `POS ${nombrePOS} - ${data.tipoServicio}`;
+                }
+                else if (data.tipo === 'transferencia') {
+                    // Para transferencias: usar información de la cuenta bancaria
+                    let infoCuentaBancaria = 'Cuenta Desconocida';
+                    if (data.cuentaBancariaId) {
+                        try {
+                            const cuentaBancaria = yield tx.cuentaBancaria.findUnique({
+                                where: { id: data.cuentaBancariaId },
+                                select: { banco: true, numeroCuenta: true }
+                            });
+                            if (cuentaBancaria) {
+                                infoCuentaBancaria = `${cuentaBancaria.banco} ${cuentaBancaria.numeroCuenta}`;
+                            }
+                        }
+                        catch (error) {
+                            console.error('Error al buscar información de cuenta bancaria:', error);
+                        }
+                    }
+                    conceptoMovimiento = `Transferencia ${infoCuentaBancaria} - ${data.tipoServicio}`;
+                }
+                else {
+                    // Fallback para otros tipos
+                    conceptoMovimiento = `Operación Bancaria: ${data.tipo} - ${data.tipoServicio}`;
+                }
                 // El monto se almacena como negativo para representar un EGRESO
-                const montoNegativo = new library_1.Decimal(montoFarmacia || 0).negated();
-                // Crear el movimiento de farmacia
-                yield prisma.movimientoFarmacia.create({
-                    data: Object.assign({ fechaHora: new Date(), tipoMovimiento: 'EGRESO', concepto: `Operación Bancaria: ${data.tipo === 'pos' ? 'POS' : 'Transferencia'} - ${data.tipoServicio}`, movimientoOrigenId: parseInt(nuevaOperacion.id), movimientoOrigenTipo: 'OPERACION_BANCARIA', monto: montoNegativo, monedaCodigo: 'PYG', estado: 'CONFIRMADO' }, (((_a = req.user) === null || _a === void 0 ? void 0 : _a.id) ? { usuarioId: req.user.id } : {}))
+                const montoNegativo = new library_1.Decimal(montoMovimiento).negated();
+                // Crear el movimiento de farmacia dentro de la transacción
+                yield tx.movimientoFarmacia.create({
+                    data: Object.assign({ fechaHora: new Date(), tipoMovimiento: 'EGRESO', concepto: conceptoMovimiento, movimientoOrigenId: parseInt(nuevaOperacion.id), movimientoOrigenTipo: 'OPERACION_BANCARIA', monto: montoNegativo, monedaCodigo: monedaMovimiento, estado: `OPERACION_BANCARIA:${nuevaOperacion.id}` }, (((_a = req.user) === null || _a === void 0 ? void 0 : _a.id) ? { usuarioId: req.user.id } : {}))
                 });
-                console.log('Movimiento de farmacia creado con éxito');
+                console.log(`Movimiento de farmacia creado con éxito - Concepto: "${conceptoMovimiento}", Moneda: ${monedaMovimiento}, Monto: ${montoNegativo}`);
             }
-            catch (error) {
-                console.error('Error al crear movimiento de farmacia:', error);
-                // No interrumpimos el proceso si falla la creación del movimiento de farmacia
-            }
-        }
-        console.log('Operación bancaria creada con éxito:', nuevaOperacion);
-        return res.status(201).json(nuevaOperacion);
+            return nuevaOperacion;
+        }));
+        console.log('Operación bancaria creada con éxito:', resultado);
+        return res.status(201).json(resultado);
     }
     catch (error) {
         console.error('Error al crear operación bancaria:', error);
+        // Si hay un archivo que se guardó y ocurrió un error en la transacción, eliminarlo
+        if (rutaComprobante) {
+            try {
+                const rutaCompleta = path_1.default.join(UPLOADS_DIR, path_1.default.basename(rutaComprobante));
+                if (fs_1.default.existsSync(rutaCompleta)) {
+                    fs_1.default.unlinkSync(rutaCompleta);
+                    console.log('Archivo eliminado debido al error en la transacción');
+                }
+            }
+            catch (fileError) {
+                console.error('Error al eliminar archivo tras fallo en transacción:', fileError);
+            }
+        }
         return res.status(500).json({ error: 'Error al crear operación bancaria' });
     }
 });
@@ -316,7 +388,6 @@ exports.createOperacionBancaria = createOperacionBancaria;
  * Actualizar una operación bancaria existente
  */
 const updateOperacionBancaria = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
     console.log('Actualizando operación bancaria...');
     console.log('Body:', req.body);
     console.log('File:', req.file);
@@ -435,62 +506,127 @@ const updateOperacionBancaria = (req, res) => __awaiter(void 0, void 0, void 0, 
         }
         // Actualizar la operación bancaria en la base de datos
         console.log('Actualizando operación bancaria en la base de datos...');
-        const operacionActualizada = yield prisma.operacionBancaria.update({
-            where: { id },
-            data: {
-                tipo: data.tipo,
-                monto: data.monto,
-                montoACobrar: data.montoACobrar,
-                tipoServicio: data.tipoServicio,
-                codigoBarrasPos: data.codigoBarrasPos,
-                posDescripcion: data.posDescripcion,
-                numeroComprobante: data.numeroComprobante,
-                cuentaBancariaId: data.cuentaBancariaId,
-                cajaId: data.cajaId,
-                rutaComprobante
-            },
-            include: {
-                cuentaBancaria: true
-            }
-        });
-        // Verificar si se debe crear o actualizar un movimiento en la tabla movimientos_farmacia
-        if (operacionData.crearMovimientoFarmacia === true) {
-            try {
+        // Usar transacción para garantizar consistencia entre operación bancaria y movimiento de farmacia
+        const operacionActualizada = yield prisma.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
+            var _a, _b;
+            // Paso 1: Actualizar la operación bancaria
+            const operacionUpdated = yield tx.operacionBancaria.update({
+                where: { id },
+                data: {
+                    tipo: data.tipo,
+                    monto: data.monto,
+                    montoACobrar: data.montoACobrar,
+                    tipoServicio: data.tipoServicio,
+                    codigoBarrasPos: data.codigoBarrasPos,
+                    posDescripcion: data.posDescripcion,
+                    numeroComprobante: data.numeroComprobante,
+                    cuentaBancariaId: data.cuentaBancariaId,
+                    cajaId: data.cajaId,
+                    rutaComprobante
+                },
+                include: {
+                    cuentaBancaria: true
+                }
+            });
+            // Paso 2: Crear o actualizar movimiento de farmacia si se requiere
+            if (data.crearMovimientoFarmacia === true) {
                 console.log('Verificando si existe un movimiento de farmacia para esta operación...');
                 // Buscar si ya existe un movimiento para esta operación
-                const movimientoExistente = yield prisma.movimientoFarmacia.findFirst({
+                const movimientoExistente = yield tx.movimientoFarmacia.findFirst({
                     where: {
-                        movimientoOrigenId: parseInt(id),
-                        movimientoOrigenTipo: 'OPERACION_BANCARIA'
+                        OR: [
+                            // Nuevo formato: buscar por estado
+                            { estado: `OPERACION_BANCARIA:${id}` },
+                            // Formato anterior: buscar por movimientoOrigenId (compatibilidad)
+                            {
+                                movimientoOrigenId: parseInt(id),
+                                movimientoOrigenTipo: 'OPERACION_BANCARIA'
+                            }
+                        ]
                     }
                 });
-                // El monto a cobrar siempre es en guaraníes (moneda local)
-                const montoFarmacia = data.montoACobrar || data.monto;
+                // Determinar la moneda y el monto según el tipo de operación
+                let monedaMovimiento = 'PYG';
+                let montoMovimiento = data.montoACobrar || data.monto || 0;
+                let conceptoMovimiento = '';
+                if (data.tipo === 'pos' && data.posMoneda && data.montoOriginalEnMonedaPOS) {
+                    // Para operaciones POS con moneda diferente a PYG, usar la moneda del POS
+                    monedaMovimiento = data.posMoneda;
+                    // Calcular el monto con comisión en la moneda original del POS
+                    montoMovimiento = data.montoOriginalEnMonedaPOS * 1.06;
+                    console.log(`POS en moneda ${monedaMovimiento}: monto original ${data.montoOriginalEnMonedaPOS}, con comisión: ${montoMovimiento}`);
+                }
+                else {
+                    // Para transferencias o POS en guaraníes, usar guaraníes
+                    monedaMovimiento = 'PYG';
+                    montoMovimiento = data.montoACobrar || data.monto || 0;
+                    console.log(`Operación en guaraníes: monto ${montoMovimiento}`);
+                }
+                // Construir concepto descriptivo según el tipo de operación
+                if (data.tipo === 'pos') {
+                    // Para POS: buscar el nombre del dispositivo por código de barras
+                    let nombrePOS = 'POS Desconocido';
+                    if (data.codigoBarrasPos) {
+                        try {
+                            const dispositivoPOS = yield tx.dispositivoPos.findUnique({
+                                where: { codigoBarras: data.codigoBarrasPos },
+                                select: { nombre: true }
+                            });
+                            if (dispositivoPOS) {
+                                nombrePOS = dispositivoPOS.nombre;
+                            }
+                        }
+                        catch (error) {
+                            console.error('Error al buscar nombre del POS:', error);
+                        }
+                    }
+                    conceptoMovimiento = `POS ${nombrePOS} - ${data.tipoServicio}`;
+                }
+                else if (data.tipo === 'transferencia') {
+                    // Para transferencias: usar información de la cuenta bancaria
+                    let infoCuentaBancaria = 'Cuenta Desconocida';
+                    if (data.cuentaBancariaId) {
+                        try {
+                            const cuentaBancaria = yield tx.cuentaBancaria.findUnique({
+                                where: { id: data.cuentaBancariaId },
+                                select: { banco: true, numeroCuenta: true }
+                            });
+                            if (cuentaBancaria) {
+                                infoCuentaBancaria = `${cuentaBancaria.banco} ${cuentaBancaria.numeroCuenta}`;
+                            }
+                        }
+                        catch (error) {
+                            console.error('Error al buscar información de cuenta bancaria:', error);
+                        }
+                    }
+                    conceptoMovimiento = `Transferencia ${infoCuentaBancaria} - ${data.tipoServicio}`;
+                }
+                else {
+                    // Fallback para otros tipos
+                    conceptoMovimiento = `Operación Bancaria: ${data.tipo} - ${data.tipoServicio}`;
+                }
                 // El monto se almacena como negativo para representar un EGRESO
-                const montoNegativo = new library_1.Decimal(montoFarmacia || 0).negated();
+                const montoNegativo = new library_1.Decimal(montoMovimiento).negated();
                 if (movimientoExistente) {
                     // Actualizar movimiento existente
                     console.log('Actualizando movimiento de farmacia existente...');
-                    yield prisma.movimientoFarmacia.update({
+                    yield tx.movimientoFarmacia.update({
                         where: { id: movimientoExistente.id },
-                        data: Object.assign({ concepto: `Operación Bancaria: ${data.tipo === 'pos' ? 'POS' : 'Transferencia'} - ${data.tipoServicio}`, monto: montoNegativo }, (((_a = req.user) === null || _a === void 0 ? void 0 : _a.id) ? { usuarioId: req.user.id } : {}))
+                        data: Object.assign({ concepto: conceptoMovimiento, monto: montoNegativo, monedaCodigo: monedaMovimiento, estado: `OPERACION_BANCARIA:${id}` }, (((_a = req.user) === null || _a === void 0 ? void 0 : _a.id) ? { usuarioId: req.user.id } : {}))
                     });
-                    console.log('Movimiento de farmacia actualizado con éxito');
+                    console.log(`Movimiento de farmacia actualizado con éxito dentro de la transacción - Concepto: "${conceptoMovimiento}", Moneda: ${monedaMovimiento}, Monto: ${montoNegativo}`);
                 }
                 else {
                     // Crear nuevo movimiento
                     console.log('Creando nuevo movimiento de farmacia...');
-                    yield prisma.movimientoFarmacia.create({
-                        data: Object.assign({ fechaHora: new Date(), tipoMovimiento: 'EGRESO', concepto: `Operación Bancaria: ${data.tipo === 'pos' ? 'POS' : 'Transferencia'} - ${data.tipoServicio}`, movimientoOrigenId: parseInt(id), movimientoOrigenTipo: 'OPERACION_BANCARIA', monto: montoNegativo, monedaCodigo: 'PYG', estado: 'CONFIRMADO' }, (((_b = req.user) === null || _b === void 0 ? void 0 : _b.id) ? { usuarioId: req.user.id } : {}))
+                    yield tx.movimientoFarmacia.create({
+                        data: Object.assign({ fechaHora: new Date(), tipoMovimiento: 'EGRESO', concepto: conceptoMovimiento, movimientoOrigenId: parseInt(id), movimientoOrigenTipo: 'OPERACION_BANCARIA', monto: montoNegativo, monedaCodigo: monedaMovimiento, estado: `OPERACION_BANCARIA:${id}` }, (((_b = req.user) === null || _b === void 0 ? void 0 : _b.id) ? { usuarioId: req.user.id } : {}))
                     });
-                    console.log('Movimiento de farmacia creado con éxito');
+                    console.log(`Movimiento de farmacia creado con éxito dentro de la transacción - Concepto: "${conceptoMovimiento}", Moneda: ${monedaMovimiento}, Monto: ${montoNegativo}`);
                 }
             }
-            catch (error) {
-                console.error('Error al procesar movimiento de farmacia:', error);
-                // No interrumpimos el proceso si falla la creación del movimiento de farmacia
-            }
-        }
+            return operacionUpdated;
+        }));
         console.log('Operación bancaria actualizada con éxito:', operacionActualizada);
         return res.status(200).json(operacionActualizada);
     }
@@ -517,7 +653,41 @@ const deleteOperacionBancaria = (req, res) => __awaiter(void 0, void 0, void 0, 
         if (!operacion) {
             return res.status(404).json({ error: 'Operación bancaria no encontrada' });
         }
-        // Eliminar el archivo de comprobante si existe
+        // Usar una transacción para garantizar consistencia
+        yield prisma.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
+            // Paso 1: Eliminar el movimiento en movimientos_farmacia si existe
+            console.log('Buscando movimiento de farmacia relacionado...');
+            const movimientoFarmacia = yield tx.movimientoFarmacia.findFirst({
+                where: {
+                    OR: [
+                        // Nuevo formato: buscar por estado
+                        { estado: `OPERACION_BANCARIA:${id}` },
+                        // Formato anterior: buscar por movimientoOrigenId (compatibilidad)
+                        {
+                            movimientoOrigenId: parseInt(id),
+                            movimientoOrigenTipo: 'OPERACION_BANCARIA'
+                        }
+                    ]
+                }
+            });
+            if (movimientoFarmacia) {
+                console.log(`Eliminando movimiento de farmacia con ID ${movimientoFarmacia.id}...`);
+                yield tx.movimientoFarmacia.delete({
+                    where: { id: movimientoFarmacia.id }
+                });
+                console.log('Movimiento de farmacia eliminado dentro de la transacción');
+            }
+            else {
+                console.log('No se encontró movimiento de farmacia relacionado');
+            }
+            // Paso 2: Eliminar la operación bancaria
+            console.log('Eliminando operación bancaria...');
+            yield tx.operacionBancaria.delete({
+                where: { id }
+            });
+            console.log('Operación bancaria eliminada dentro de la transacción');
+        }));
+        // Solo después de que la transacción sea exitosa, eliminar el archivo de comprobante
         if (operacion.rutaComprobante) {
             try {
                 const rutaArchivo = path_1.default.join(__dirname, '../../', operacion.rutaComprobante.replace('/', ''));
@@ -528,34 +698,10 @@ const deleteOperacionBancaria = (req, res) => __awaiter(void 0, void 0, void 0, 
             }
             catch (error) {
                 console.error('Error al eliminar archivo de comprobante:', error);
-                // Continuamos con la eliminación aunque haya error al eliminar el archivo
+                // No relanzamos el error aquí porque la operación principal ya fue exitosa
             }
         }
-        // Eliminar el movimiento en movimientos_farmacia si existe
-        try {
-            console.log('Buscando movimiento de farmacia relacionado...');
-            const movimientoFarmacia = yield prisma.movimientoFarmacia.findFirst({
-                where: {
-                    movimientoOrigenId: parseInt(id),
-                    movimientoOrigenTipo: 'OPERACION_BANCARIA'
-                }
-            });
-            if (movimientoFarmacia) {
-                console.log(`Eliminando movimiento de farmacia con ID ${movimientoFarmacia.id}...`);
-                yield prisma.movimientoFarmacia.delete({
-                    where: { id: movimientoFarmacia.id }
-                });
-                console.log('Movimiento de farmacia eliminado');
-            }
-        }
-        catch (error) {
-            console.error('Error al eliminar movimiento de farmacia:', error);
-            // Continuamos con la eliminación aunque haya error al eliminar el movimiento de farmacia
-        }
-        // Eliminar la operación bancaria
-        yield prisma.operacionBancaria.delete({
-            where: { id }
-        });
+        console.log('Operación bancaria y movimiento de farmacia eliminados con éxito');
         return res.status(204).send();
     }
     catch (error) {

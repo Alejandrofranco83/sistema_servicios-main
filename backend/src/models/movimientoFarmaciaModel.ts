@@ -268,8 +268,92 @@ class MovimientoFarmaciaModel {
         monto: mov.monto.toString(), // Convertir Decimal a string para evitar problemas de serialización
       }));
 
+      // Para movimientos que vienen de operaciones bancarias, obtener información adicional de la caja
+      const dataConInfoAdicional = await Promise.all(
+        dataAjustada.map(async (mov) => {
+          if (mov.movimientoOrigenTipo === 'OPERACION_BANCARIA') {
+            console.log(`[DEBUG] Procesando movimiento OPERACION_BANCARIA: ID ${mov.id}, origenId: ${mov.movimientoOrigenId}, estado: ${mov.estado}`);
+            
+            // Extraer el UUID de la operación bancaria del campo estado
+            let operacionBancariaId = null;
+            
+            if (mov.estado && mov.estado.startsWith('OPERACION_BANCARIA:')) {
+              // Nuevo formato: OPERACION_BANCARIA:uuid
+              operacionBancariaId = mov.estado.replace('OPERACION_BANCARIA:', '');
+              console.log(`[DEBUG] UUID extraído del estado: ${operacionBancariaId}`);
+            } else if (mov.movimientoOrigenId) {
+              // Formato anterior: usar movimientoOrigenId (para compatibilidad)
+              operacionBancariaId = mov.movimientoOrigenId.toString();
+              console.log(`[DEBUG] Usando movimientoOrigenId (formato anterior): ${operacionBancariaId}`);
+            }
+            
+            if (operacionBancariaId) {
+              try {
+                // Obtener información de la operación bancaria y su caja
+                const operacionBancaria = await prisma.operacionBancaria.findUnique({
+                  where: { id: operacionBancariaId },
+                  include: {
+                    caja: {
+                      select: {
+                        id: true,
+                        cajaEnteroId: true, // Número de caja
+                        sucursal: {
+                          select: {
+                            id: true,
+                            nombre: true,
+                            codigo: true
+                          }
+                        },
+                        usuario: {
+                          select: {
+                            id: true,
+                            nombre: true,
+                            username: true
+                          }
+                        }
+                      }
+                    }
+                  }
+                });
+
+                console.log(`[DEBUG] Operación bancaria encontrada para ${operacionBancariaId}:`, {
+                  found: !!operacionBancaria,
+                  id: operacionBancaria?.id,
+                  tipo: operacionBancaria?.tipo,
+                  hasCaja: !!operacionBancaria?.caja,
+                  cajaId: operacionBancaria?.caja?.id,
+                  sucursal: operacionBancaria?.caja?.sucursal?.nombre
+                });
+
+                const resultado = {
+                  ...mov,
+                  operacionBancaria: operacionBancaria ? {
+                    id: operacionBancaria.id,
+                    tipo: operacionBancaria.tipo,
+                    caja: operacionBancaria.caja
+                  } : null
+                };
+
+                console.log(`[DEBUG] Resultado final para movimiento ${mov.id}:`, {
+                  hasOperacionBancaria: !!resultado.operacionBancaria,
+                  hasCaja: !!(resultado.operacionBancaria?.caja)
+                });
+
+                return resultado;
+              } catch (error) {
+                console.error(`Error al obtener información de operación bancaria ${operacionBancariaId}:`, error);
+                return mov;
+              }
+            } else {
+              console.log(`[DEBUG] No se pudo extraer ID de operación bancaria para movimiento ${mov.id}`);
+            }
+          }
+          return mov;
+        })
+      );
+
       return {
-        data: dataAjustada,
+        data: dataConInfoAdicional,
         totalCount,
         totalBalancePYG: totalBalancePYG, // El balance total ya incluye conversiones
         totalBalanceUSD, // Añadir balance en USD

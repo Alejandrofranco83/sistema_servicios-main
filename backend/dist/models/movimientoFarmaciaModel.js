@@ -213,8 +213,83 @@ class MovimientoFarmaciaModel {
                 const totalBalanceBRL = balanceBRL._sum.monto || new library_1.Decimal(0);
                 // Ajustar el tipo de 'monto' en la respuesta si es necesario (ej. a string o number)
                 const dataAjustada = movimientos.map(mov => (Object.assign(Object.assign({}, mov), { monto: mov.monto.toString() })));
+                // Para movimientos que vienen de operaciones bancarias, obtener información adicional de la caja
+                const dataConInfoAdicional = yield Promise.all(dataAjustada.map((mov) => __awaiter(this, void 0, void 0, function* () {
+                    var _a, _b, _c, _d;
+                    if (mov.movimientoOrigenTipo === 'OPERACION_BANCARIA') {
+                        console.log(`[DEBUG] Procesando movimiento OPERACION_BANCARIA: ID ${mov.id}, origenId: ${mov.movimientoOrigenId}, estado: ${mov.estado}`);
+                        // Extraer el UUID de la operación bancaria del campo estado
+                        let operacionBancariaId = null;
+                        if (mov.estado && mov.estado.startsWith('OPERACION_BANCARIA:')) {
+                            // Nuevo formato: OPERACION_BANCARIA:uuid
+                            operacionBancariaId = mov.estado.replace('OPERACION_BANCARIA:', '');
+                            console.log(`[DEBUG] UUID extraído del estado: ${operacionBancariaId}`);
+                        }
+                        else if (mov.movimientoOrigenId) {
+                            // Formato anterior: usar movimientoOrigenId (para compatibilidad)
+                            operacionBancariaId = mov.movimientoOrigenId.toString();
+                            console.log(`[DEBUG] Usando movimientoOrigenId (formato anterior): ${operacionBancariaId}`);
+                        }
+                        if (operacionBancariaId) {
+                            try {
+                                // Obtener información de la operación bancaria y su caja
+                                const operacionBancaria = yield prisma.operacionBancaria.findUnique({
+                                    where: { id: operacionBancariaId },
+                                    include: {
+                                        caja: {
+                                            select: {
+                                                id: true,
+                                                cajaEnteroId: true, // Número de caja
+                                                sucursal: {
+                                                    select: {
+                                                        id: true,
+                                                        nombre: true,
+                                                        codigo: true
+                                                    }
+                                                },
+                                                usuario: {
+                                                    select: {
+                                                        id: true,
+                                                        nombre: true,
+                                                        username: true
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                });
+                                console.log(`[DEBUG] Operación bancaria encontrada para ${operacionBancariaId}:`, {
+                                    found: !!operacionBancaria,
+                                    id: operacionBancaria === null || operacionBancaria === void 0 ? void 0 : operacionBancaria.id,
+                                    tipo: operacionBancaria === null || operacionBancaria === void 0 ? void 0 : operacionBancaria.tipo,
+                                    hasCaja: !!(operacionBancaria === null || operacionBancaria === void 0 ? void 0 : operacionBancaria.caja),
+                                    cajaId: (_a = operacionBancaria === null || operacionBancaria === void 0 ? void 0 : operacionBancaria.caja) === null || _a === void 0 ? void 0 : _a.id,
+                                    sucursal: (_c = (_b = operacionBancaria === null || operacionBancaria === void 0 ? void 0 : operacionBancaria.caja) === null || _b === void 0 ? void 0 : _b.sucursal) === null || _c === void 0 ? void 0 : _c.nombre
+                                });
+                                const resultado = Object.assign(Object.assign({}, mov), { operacionBancaria: operacionBancaria ? {
+                                        id: operacionBancaria.id,
+                                        tipo: operacionBancaria.tipo,
+                                        caja: operacionBancaria.caja
+                                    } : null });
+                                console.log(`[DEBUG] Resultado final para movimiento ${mov.id}:`, {
+                                    hasOperacionBancaria: !!resultado.operacionBancaria,
+                                    hasCaja: !!((_d = resultado.operacionBancaria) === null || _d === void 0 ? void 0 : _d.caja)
+                                });
+                                return resultado;
+                            }
+                            catch (error) {
+                                console.error(`Error al obtener información de operación bancaria ${operacionBancariaId}:`, error);
+                                return mov;
+                            }
+                        }
+                        else {
+                            console.log(`[DEBUG] No se pudo extraer ID de operación bancaria para movimiento ${mov.id}`);
+                        }
+                    }
+                    return mov;
+                })));
                 return {
-                    data: dataAjustada,
+                    data: dataConInfoAdicional,
                     totalCount,
                     totalBalancePYG: totalBalancePYG, // El balance total ya incluye conversiones
                     totalBalanceUSD, // Añadir balance en USD
