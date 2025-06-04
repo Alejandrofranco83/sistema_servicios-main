@@ -116,6 +116,9 @@ interface DashboardProps {
   // Props de tema eliminadas ya que solo usamos modo oscuro
 }
 
+// Constante para la versión del sistema
+const SYSTEM_VERSION = 'v1.2.0';
+
 const drawerWidth = 240;
 
 const Dashboard: React.FC<DashboardProps> = () => {
@@ -574,7 +577,7 @@ const Dashboard: React.FC<DashboardProps> = () => {
             }}
           />
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            Sistema de Servicios <Typography variant="caption" sx={{ ml: 1, opacity: 0.8 }}>v1.0.0</Typography>
+            Sistema de Servicios <Typography variant="caption" sx={{ ml: 1, opacity: 0.8 }}>{SYSTEM_VERSION}</Typography>
           </Typography>
           
           {user && (
