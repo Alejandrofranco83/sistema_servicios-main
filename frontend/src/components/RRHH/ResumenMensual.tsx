@@ -28,8 +28,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
-  Fab,
-  GlobalStyles
+  GlobalStyles,
 } from '@mui/material';
 import { SelectChangeEvent } from '@mui/material/Select';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -2137,41 +2136,39 @@ const ResumenMensual: React.FC = () => {
                   color="primary"
                   startIcon={<PrintIcon />}
                   onClick={handleImprimirResumenCompleto}
-                  sx={{ mt: 2, mb: 2, mr: 7 }} /* Margen derecho para evitar superposición con el botón flotante */
+                  sx={{ mt: 2, mb: 2 }}
                 >
                   Imprimir Recibo de Sueldo
                 </Button>
               </Box>
             )}
 
-            {/* Botón Finalizar Mes */}
-            {!mesEstaFinalizado ? (
-              <Fab
-                color="primary"
-                sx={{
-                  position: 'absolute',
-                  bottom: 16,
-                  right: 16,
-                }}
-                onClick={handleIniciarFinalizacion}
-                disabled={loadingMovimientos || movimientos.length === 0}
-              >
-                <DoneAllIcon />
-              </Fab>
-            ) : (
-              <Tooltip title="Reabrir Mes">
-                <Fab
-                  color="secondary"
-                  sx={{
-                    position: 'absolute',
-                    bottom: 16,
-                    right: 16,
-                  }}
-                  onClick={handleReabrirMes}
-                >
-                  <DoneAllIcon />
-                </Fab>
-              </Tooltip>
+            {/* Botones de acciones del mes */}
+            {movimientos.length > 0 && (
+              <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end', gap: 2, alignItems: 'center' }}>
+                {mesEstaFinalizado ? (
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    startIcon={<DoneAllIcon />}
+                    onClick={handleReabrirMes}
+                    sx={{ mt: 1, mb: 2 }}
+                  >
+                    Reabrir Mes
+                  </Button>
+                ) : (
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    startIcon={<DoneAllIcon />}
+                    onClick={handleIniciarFinalizacion}
+                    disabled={loadingMovimientos || movimientos.length === 0}
+                    sx={{ mt: 1, mb: 2 }}
+                  >
+                    Finalizar Mes
+                  </Button>
+                )}
+              </Box>
             )}
           </TableContainer>
         </Box>
