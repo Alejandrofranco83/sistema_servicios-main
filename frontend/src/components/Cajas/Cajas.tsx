@@ -213,10 +213,8 @@ const Cajas: React.FC = () => {
     // Si el usuario es operador, aplicar restricciones adicionales
     if (isOperador) {
       return cajasFiltradas.filter(caja => {
-        // 1. Solo mostrar cajas del usuario logueado (verificar tanto username como nombre completo)
-        const esCajaDelUsuario = 
-          caja.usuario === user?.username || 
-          (user?.username && caja.usuario && caja.usuario.toUpperCase().includes(user.username.toUpperCase()));
+        // 1. Solo mostrar cajas del usuario logueado (comparar IDs)
+        const esCajaDelUsuario = caja.usuarioId === user?.id?.toString();
         
         // 2. Solo mostrar cajas del día actual
         const fechaAperturaCaja = new Date(caja.fechaApertura);
@@ -228,7 +226,7 @@ const Cajas: React.FC = () => {
                            fechaAperturaCaja.getDate() === fechaActual.getDate();
         
         // Para depuración
-        console.log("Caja:", caja.id, "Usuario:", caja.usuario, "Usuario actual:", user?.username);
+        console.log("Caja:", caja.id, "Usuario ID:", caja.usuarioId, "Usuario actual ID:", user?.id?.toString(), "Usuario actual:", user?.username);
         console.log("Es caja del usuario:", esCajaDelUsuario, "Es mismo día:", esMismoDia);
         
         return esCajaDelUsuario && esMismoDia;
