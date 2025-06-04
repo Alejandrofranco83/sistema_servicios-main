@@ -64,6 +64,9 @@ const CambioMoneda: React.FC<CambioMonedaProps> = ({ open, onClose, onGuardarExi
   // Estado para la cotización personalizada
   const [cotizacion, setCotizacion] = useState<string>('');
   
+  // Estado para controlar si el campo de cotización está enfocado
+  const [cotizacionEnfocada, setCotizacionEnfocada] = useState<boolean>(false);
+  
   // Estado para el resultado del cambio
   const [resultado, setResultado] = useState<number | null>(null);
   
@@ -100,11 +103,13 @@ const CambioMoneda: React.FC<CambioMonedaProps> = ({ open, onClose, onGuardarExi
   // Efecto para actualizar el resultado editable cuando cambia el resultado calculado
   useEffect(() => {
     if (resultado !== null) {
-      // Formatear el resultado según la moneda de destino
+      // Para el resultado del cambio, usar formateo directo sin lógica de centavos
       if (monedaDestino === 'PYG') {
-        setResultadoEditable(formatearValorInput(Math.round(resultado).toString(), false));
+        setResultadoEditable(formatearResultadoCambio(Math.round(resultado).toString(), monedaDestino));
       } else {
-        setResultadoEditable(formatearValorInput(resultado.toString(), true));
+        // Para USD y BRL, formatear con decimales correctos
+        const resultadoFormateado = resultado.toFixed(2);
+        setResultadoEditable(formatearResultadoCambio(resultadoFormateado, monedaDestino));
       }
     } else {
       setResultadoEditable('');
@@ -143,6 +148,7 @@ const CambioMoneda: React.FC<CambioMonedaProps> = ({ open, onClose, onGuardarExi
     setMonedaDestino('PYG');
     setMonto('');
     setCotizacion('');
+    setCotizacionEnfocada(false);
     setResultado(null);
     setResultadoEditable('');
     setObservacion('');
@@ -153,28 +159,39 @@ const CambioMoneda: React.FC<CambioMonedaProps> = ({ open, onClose, onGuardarExi
   // Función para obtener la cotización sugerida entre dos monedas
   const obtenerCotizacionSugerida = (de: TipoMoneda, a: TipoMoneda): number => {
     if (!cotizacionVigente) return 0;
-    
-    // Si las monedas son iguales, la cotización es 1
     if (de === a) return 1;
-    
-    // Cuando PYG es moneda de origen, invertimos la cotización para mostrar "1 Moneda extranjera = X Gs"
+
+    // CASO ESPECIAL: BRL -> USD (el usuario quiere ingresar cuántos R$ son 1 US$)
+    if (de === 'BRL' && a === 'USD') {
+      if (cotizacionVigente.valorReal === 0) return 0; // Evitar división por cero
+      // Sugerir valorDolar / valorReal (ej: 7300 PYG/USD / 1500 PYG/BRL = 4.8666 BRL/USD)
+      return cotizacionVigente.valorDolar / cotizacionVigente.valorReal;
+    }
+
+    // CASO 1: Origen es PYG. El texto será "1 [Destino] = X PYG".
+    // El usuario ingresa X (ej. 7300 para USD, 1500 para BRL).
+    // La cotización directa de la BD (valorDolar, valorReal) representa esto.
     if (de === 'PYG') {
       if (a === 'USD') return cotizacionVigente.valorDolar;
       if (a === 'BRL') return cotizacionVigente.valorReal;
     }
+
+    // CASO 2: Destino es PYG. El texto será "1 [Origen] = X PYG".
+    // El usuario ingresa X (ej. 7300 si Origen USD, 1500 si Origen BRL).
+    // La cotización directa de la BD también representa esto.
+    if (a === 'PYG') {
+      if (de === 'USD') return cotizacionVigente.valorDolar;
+      if (de === 'BRL') return cotizacionVigente.valorReal;
+    }
+
+    // CASO 3: Conversiones cruzadas (USD <-> BRL) EXCEPTO BRL -> USD que se maneja arriba.
+    // El texto siempre será "1 [Origen] = X [Destino]".
+    if (de === 'USD' && a === 'BRL') { // 1 USD = X BRL
+      if (cotizacionVigente.valorReal === 0) return 0;
+      return cotizacionVigente.valorDolar / cotizacionVigente.valorReal; // Ej: 7300/1500 = 4.86 BRL por USD
+    }
     
-    // Cotizaciones directas
-    if (de === 'USD' && a === 'PYG') return cotizacionVigente.valorDolar;
-    if (de === 'BRL' && a === 'PYG') return cotizacionVigente.valorReal;
-    
-    // Cotizaciones inversas (solo se aplican si PYG no es la moneda de origen)
-    if (de === 'PYG' && a === 'USD') return 1 / cotizacionVigente.valorDolar;
-    if (de === 'PYG' && a === 'BRL') return 1 / cotizacionVigente.valorReal;
-    
-    // Cotizaciones cruzadas
-    if (de === 'USD' && a === 'BRL') return cotizacionVigente.valorDolar / cotizacionVigente.valorReal;
-    if (de === 'BRL' && a === 'USD') return cotizacionVigente.valorReal / cotizacionVigente.valorDolar;
-    
+    console.warn(`[obtenerCotizacionSugerida] Combinación no cubierta o predeterminada: ${de} -> ${a}`);
     return 0;
   };
   
@@ -197,168 +214,276 @@ const CambioMoneda: React.FC<CambioMonedaProps> = ({ open, onClose, onGuardarExi
   };
   
   // Función para formatear valores de entrada
-  const formatearValorInput = (value: string, esDecimal: boolean): string => {
-    if (esDecimal) {
-      // Permitir decimales para cotización y montos en USD/BRL
-      
-      // Si el valor está vacío, devolver vacío
-      if (!value) return '';
-      
-      // Reemplazar coma por punto para procesamiento interno
-      let valorProcesamiento = value.replace(/\./g, '').replace(',', '.');
-      
-      // Verificar si es un número válido
-      if (!/^[0-9]*\.?[0-9]*$/.test(valorProcesamiento)) {
-        // Si no es un formato numérico válido, intentar recuperar parte numérica
-        valorProcesamiento = valorProcesamiento.replace(/[^0-9.]/g, '');
-        
-        // Si sigue sin ser válido después de la limpieza, devolver el valor anterior
-        if (!/^[0-9]*\.?[0-9]*$/.test(valorProcesamiento)) {
-          return value;
-        }
-      }
-      
-      // Si solo hay un punto decimal, devolver "0," como valor inicial
-      if (valorProcesamiento === '.') {
-        return '0,';
-      }
-      
-      // Procesar número para formato paraguayo
-      const partes = valorProcesamiento.split('.');
-      
-      // Obtener parte entera y parte decimal
-      const parteEntera = partes[0];
-      let parteDecimal = partes.length > 1 ? partes[1] : '';
-      
-      // Si la parte decimal tiene más de 2 dígitos, truncarla
-      if (parteDecimal.length > 2) {
-        parteDecimal = parteDecimal.substring(0, 2);
-      }
-      
-      // Formatear parte entera con separadores de miles
-      let resultado = '';
-      if (parteEntera) {
-        // Convertir a número para aplicar formato
-        const entero = parseInt(parteEntera, 10);
-        resultado = new Intl.NumberFormat('es-PY', {
-          useGrouping: true,
-          maximumFractionDigits: 0
-        }).format(entero);
-      } else {
-        resultado = '0';
-      }
-      
-      // Agregar parte decimal si existe
-      if (parteDecimal || valorProcesamiento.includes('.')) {
-        resultado += ',' + (parteDecimal.padEnd(2, '0')).substring(0, 2);
-      }
-      
-      return resultado;
-    } else {
-      // Para montos en PYG, sin decimales
-      // Remover caracteres no numéricos
+  const formatearValorInput = (value: string, moneda: TipoMoneda): string => {
+    if (!value) return '';
+    
+    if (moneda === 'PYG') {
+      // Guaraníes: solo números enteros con punto como separador de miles
       const numericValue = value.replace(/\D/g, '');
-      
-      // Formatear con separadores de miles
       if (numericValue) {
         const number = parseInt(numericValue, 10);
         return number ? new Intl.NumberFormat('es-PY').format(number) : '';
       }
       return '';
-    }
-  };
-  
-  // Manejar cambios en el monto
-  const handleMontoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let input = e.target.value;
-    
-    if (monedaOrigen !== 'PYG') {
-      // Para reales y dólares, permitir decimales
-      // Permitir solo números, puntos y una coma
-      input = input.replace(/[^\d.,]/g, '');
+    } else if (moneda === 'USD') {
+      // Dólares: formato estadounidense (coma para miles, punto para decimales)
+      let input = value.replace(/[^\d.,]/g, '');
       
-      // Manejar el caso donde el usuario ingresa una coma
+      // Manejar punto decimal
+      if (input.includes('.')) {
+        const parts = input.split('.');
+        if (parts.length > 2) {
+          input = parts[0] + '.' + parts.slice(1).join('').substring(0, 2);
+        } else if (parts.length === 2) {
+          input = parts[0] + '.' + parts[1].substring(0, 2);
+        }
+        
+        // Quitar todas las comas de la parte entera
+        const entero = parts[0].replace(/,/g, '');
+        let enteroFormateado = '';
+        if (entero) {
+          enteroFormateado = Number(entero).toLocaleString('en-US');
+        }
+        
+        const decimal = parts[1] ? parts[1].substring(0, 2) : '';
+        input = enteroFormateado + '.' + decimal;
+      } else {
+        // Si no hay punto decimal, es solo parte entera
+        const entero = input.replace(/,/g, '');
+        if (entero) {
+          input = Number(entero).toLocaleString('en-US');
+        }
+      }
+      
+      return input;
+    } else if (moneda === 'BRL') {
+      // Reales: formato brasileño (punto para miles, coma para decimales)
+      let input = value.replace(/[^\d.,]/g, '');
+      
+      // Manejar coma decimal
       if (input.includes(',')) {
         const parts = input.split(',');
         if (parts.length > 2) {
-          // Si hay más de una coma, nos quedamos con la primera
-          input = parts[0] + ',' + parts.slice(1).join('');
+          input = parts[0] + ',' + parts.slice(1).join('').substring(0, 2);
+        } else if (parts.length === 2) {
+          input = parts[0] + ',' + parts[1].substring(0, 2);
         }
         
-        // Limitar a 2 decimales
-        if (parts[1] && parts[1].length > 2) {
-          parts[1] = parts[1].substring(0, 2);
-          input = parts[0] + ',' + parts[1];
-        }
-        
-        // Quitar todos los puntos de separador de miles de la parte entera
+        // Quitar todos los puntos de la parte entera
         const entero = parts[0].replace(/\./g, '');
-        
-        // Formatear la parte entera con separador de miles
         let enteroFormateado = '';
         if (entero) {
-          enteroFormateado = Number(entero).toLocaleString('es-PY').split(',')[0];
+          // Usar formato brasileño y reemplazar coma por punto para separador de miles
+          enteroFormateado = Number(entero).toLocaleString('pt-BR').replace(',', '.');
         }
         
-        // Reconstruir con la parte decimal
-        input = enteroFormateado + ',' + parts[1];
+        const decimal = parts[1] ? parts[1].substring(0, 2) : '';
+        input = enteroFormateado + ',' + decimal;
       } else {
-        // Si no hay coma, es solo parte entera
-        // Quitar todos los puntos y formatear
+        // Si no hay coma decimal, es solo parte entera
         const entero = input.replace(/\./g, '');
         if (entero) {
-          input = Number(entero).toLocaleString('es-PY');
+          input = Number(entero).toLocaleString('pt-BR').replace(',', '.');
         }
       }
-    } else {
-      // Para guaraníes, solo números enteros
-      // Solo aceptar números
-      const value = input.replace(/[^\d]/g, '');
-      // Formatear con separadores de miles
-      input = value ? Number(value).toLocaleString('es-PY') : '';
+      
+      return input;
     }
     
-    setMonto(input);
+    return value;
+  };
+  
+  // Función para formatear monto durante el tipeo (basada en el documento)
+  const formatMontoForDisplay = (value: string, moneda: TipoMoneda): string => {
+    if (!value) return '';
+    
+    if (moneda === 'PYG') {
+      // Guaraníes: formato con punto como separador de miles
+      const numericValue = value.replace(/\D/g, '');
+      if (numericValue === '') return '';
+      return numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    } else if (moneda === 'BRL') {
+      // Reales: formato con punto para miles y coma para decimales
+      const numericValue = value.replace(/\D/g, '');
+      if (numericValue === '') return '';
+      
+      // Asegurar que tengamos al menos 3 dígitos para tener formato con decimales
+      const paddedValue = numericValue.padStart(3, '0');
+      
+      // Separar enteros y decimales
+      const decimalPart = paddedValue.slice(-2);
+      const integerPart = paddedValue.slice(0, -2).replace(/^0+/, '') || '0'; // Quitar ceros iniciales
+      
+      // Formatear la parte entera con puntos para los miles
+      const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+      
+      return `${formattedInteger},${decimalPart}`;
+    } else if (moneda === 'USD') {
+      // Dólares: formato con coma para miles y punto para decimales
+      const numericValue = value.replace(/\D/g, '');
+      if (numericValue === '') return '';
+      
+      // Asegurar que tengamos al menos 3 dígitos para tener formato con decimales
+      const paddedValue = numericValue.padStart(3, '0');
+      
+      // Separar enteros y decimales
+      const decimalPart = paddedValue.slice(-2);
+      const integerPart = paddedValue.slice(0, -2).replace(/^0+/, '') || '0'; // Quitar ceros iniciales
+      
+      // Formatear la parte entera con comas para los miles (formato USA)
+      const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      
+      return `${formattedInteger}.${decimalPart}`;
+    }
+    
+    return value;
+  };
+
+  // Función para formatear monto en cambio de moneda (SIN lógica de centavos)
+  const formatMontoCambio = (value: string, moneda: TipoMoneda): string => {
+    if (!value) return '';
+    
+    if (moneda === 'PYG') {
+      // Guaraníes: formato con punto como separador de miles
+      const numericValue = value.replace(/\D/g, '');
+      if (numericValue === '') return '';
+      return numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    } else if (moneda === 'USD') {
+      // Dólares: formato estadounidense (coma para miles, punto para decimales)
+      let input = value.replace(/[^\d.,]/g, '');
+      
+      if (input.includes('.')) {
+        const parts = input.split('.');
+        if (parts.length > 2) {
+          input = parts[0] + '.' + parts.slice(1).join('').substring(0, 2);
+        } else if (parts.length === 2) {
+          input = parts[0] + '.' + parts[1].substring(0, 2);
+        }
+        
+        const entero = parts[0].replace(/,/g, '');
+        let enteroFormateado = '';
+        if (entero) {
+          enteroFormateado = Number(entero).toLocaleString('en-US');
+        }
+        
+        input = enteroFormateado + '.' + (parts[1] || '');
+      } else {
+        const entero = input.replace(/,/g, '');
+        if (entero) {
+          input = Number(entero).toLocaleString('en-US');
+        }
+      }
+      
+      return input;
+    } else if (moneda === 'BRL') {
+      // Reales: formato brasileño (punto para miles, coma para decimales)
+      let input = value.replace(/[^\d.,]/g, '');
+      
+      if (input.includes(',')) {
+        const parts = input.split(',');
+        if (parts.length > 2) {
+          input = parts[0] + ',' + parts.slice(1).join('').substring(0, 2);
+        } else if (parts.length === 2) {
+          input = parts[0] + ',' + parts[1].substring(0, 2);
+        }
+        
+        const entero = parts[0].replace(/\./g, '');
+        let enteroFormateado = '';
+        if (entero) {
+          enteroFormateado = Number(entero).toLocaleString('pt-BR').replace(',', '.');
+        }
+        
+        input = enteroFormateado + ',' + (parts[1] || '');
+      } else {
+        const entero = input.replace(/\./g, '');
+        if (entero) {
+          input = Number(entero).toLocaleString('pt-BR').replace(',', '.');
+        }
+      }
+      
+      return input;
+    }
+    
+    return value;
+  };
+
+  // Manejar cambios en el monto
+  const handleMontoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const inputValue = e.target.value;
+    
+    // Para cambio de moneda, usar formateo directo sin lógica de centavos
+    const formattedValue = formatMontoCambio(inputValue, monedaOrigen);
+    
+    setMonto(formattedValue);
   };
   
   // Manejar cambios en la cotización
   const handleCotizacionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let input = e.target.value;
     
-    // Permitir solo números, puntos y una coma
-    input = input.replace(/[^\d.,]/g, '');
-    
-    // Manejar el caso donde el usuario ingresa una coma
-    if (input.includes(',')) {
-      const parts = input.split(',');
-      if (parts.length > 2) {
-        // Si hay más de una coma, nos quedamos con la primera
-        input = parts[0] + ',' + parts.slice(1).join('');
+    if (cotizacionEnfocada) {
+      // Mientras esté enfocado, solo permitir números, una coma para decimal
+      // No aplicar formateo de separadores de miles
+      input = input.replace(/[^\d,]/g, '');
+      
+      // Permitir solo una coma
+      const partes = input.split(',');
+      if (partes.length > 2) {
+        input = partes[0] + ',' + partes.slice(1).join('').substring(0, 2);
+      } else if (partes.length === 2) {
+        // Limitar decimales a 2 dígitos
+        input = partes[0] + ',' + partes[1].substring(0, 2);
       }
-      
-      // Limitar a 2 decimales
-      if (parts[1] && parts[1].length > 2) {
-        parts[1] = parts[1].substring(0, 2);
-        input = parts[0] + ',' + parts[1];
-      }
-      
-      // Quitar todos los puntos de separador de miles de la parte entera
-      const entero = parts[0].replace(/\./g, '');
-      
-      // Formatear la parte entera con separador de miles
-      let enteroFormateado = '';
-      if (entero) {
-        enteroFormateado = Number(entero).toLocaleString('es-PY').split(',')[0];
-      }
-      
-      // Reconstruir con la parte decimal
-      input = enteroFormateado + ',' + parts[1];
     } else {
-      // Si no hay coma, es solo parte entera
-      // Quitar todos los puntos y formatear
-      const entero = input.replace(/\./g, '');
-      if (entero) {
-        input = Number(entero).toLocaleString('es-PY');
+      // Cuando no está enfocado, aplicar el formateo completo
+      // Determinar si necesitamos permitir decimales para la cotización
+      // Las cotizaciones siempre pueden tener decimales independientemente de la moneda
+      const permitirDecimales = true;
+      
+      if (permitirDecimales) {
+        // Para cotizaciones, siempre permitir decimales
+        // Permitir solo números, puntos y una coma
+        input = input.replace(/[^\d.,]/g, '');
+        
+        // Manejar el caso donde el usuario ingresa una coma
+        if (input.includes(',')) {
+          const parts = input.split(',');
+          if (parts.length > 2) {
+            // Si hay más de una coma, nos quedamos con la primera
+            input = parts[0] + ',' + parts.slice(1).join('');
+          }
+          
+          // Limitar a 2 decimales
+          if (parts[1] && parts[1].length > 2) {
+            parts[1] = parts[1].substring(0, 2);
+            input = parts[0] + ',' + parts[1];
+          }
+          
+          // Quitar todos los puntos de separador de miles de la parte entera
+          const entero = parts[0].replace(/\./g, '');
+          
+          // Formatear la parte entera con separador de miles
+          let enteroFormateado = '';
+          if (entero) {
+            enteroFormateado = Number(entero).toLocaleString('es-PY').split(',')[0];
+          }
+          
+          // Reconstruir con la parte decimal
+          input = enteroFormateado + ',' + parts[1];
+        } else {
+          // Si no hay coma, es solo parte entera
+          // Quitar todos los puntos y formatear
+          const entero = input.replace(/\./g, '');
+          if (entero) {
+            input = Number(entero).toLocaleString('es-PY');
+          }
+        }
+      } else {
+        // Para cotizaciones sin decimales (caso poco común)
+        // Solo aceptar números
+        const value = input.replace(/[^\d]/g, '');
+        // Formatear con separadores de miles
+        input = value ? Number(value).toLocaleString('es-PY') : '';
       }
     }
     
@@ -368,57 +493,44 @@ const CambioMoneda: React.FC<CambioMonedaProps> = ({ open, onClose, onGuardarExi
     setTimeout(() => calcularResultado(), 0);
   };
   
+  // Manejar enfoque del campo cotización
+  const handleCotizacionFocus = () => {
+    setCotizacionEnfocada(true);
+    // Remover formateo cuando gana el foco
+    const valorSinFormato = cotizacion.replace(/\./g, '').replace(',', '.');
+    const valorNumerico = parseFloat(valorSinFormato);
+    if (!isNaN(valorNumerico)) {
+      // Convertir de vuelta a formato simple con coma decimal
+      const valorFormateado = valorNumerico.toString().replace('.', ',');
+      setCotizacion(valorFormateado);
+    }
+  };
+  
+  // Manejar pérdida de enfoque del campo cotización
+  const handleCotizacionBlur = () => {
+    setCotizacionEnfocada(false);
+    // Aplicar formateo cuando pierde el foco
+    if (cotizacion) {
+      // Parsear el valor actual
+      const valorSinFormato = cotizacion.replace(',', '.');
+      const valorNumerico = parseFloat(valorSinFormato);
+      
+      if (!isNaN(valorNumerico)) {
+        // Aplicar formateo completo
+        const valorFormateado = formatearNumero(valorNumerico);
+        setCotizacion(valorFormateado);
+        
+        // Recalcular después del formateo
+        setTimeout(() => calcularResultado(), 0);
+      }
+    }
+  };
+  
   // Manejar cambios en el resultado editable
   const handleResultadoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let input = e.target.value;
-    
-    if (monedaDestino !== 'PYG') {
-      // Para reales y dólares, permitir decimales
-      // Permitir solo números, puntos y una coma
-      input = input.replace(/[^\d.,]/g, '');
-      
-      // Manejar el caso donde el usuario ingresa una coma
-      if (input.includes(',')) {
-        const parts = input.split(',');
-        if (parts.length > 2) {
-          // Si hay más de una coma, nos quedamos con la primera
-          input = parts[0] + ',' + parts.slice(1).join('');
-        }
-        
-        // Limitar a 2 decimales
-        if (parts[1] && parts[1].length > 2) {
-          parts[1] = parts[1].substring(0, 2);
-          input = parts[0] + ',' + parts[1];
-        }
-        
-        // Quitar todos los puntos de separador de miles de la parte entera
-        const entero = parts[0].replace(/\./g, '');
-        
-        // Formatear la parte entera con separador de miles
-        let enteroFormateado = '';
-        if (entero) {
-          enteroFormateado = Number(entero).toLocaleString('es-PY').split(',')[0];
-        }
-        
-        // Reconstruir con la parte decimal
-        input = enteroFormateado + ',' + parts[1];
-      } else {
-        // Si no hay coma, es solo parte entera
-        // Quitar todos los puntos y formatear
-        const entero = input.replace(/\./g, '');
-        if (entero) {
-          input = Number(entero).toLocaleString('es-PY');
-        }
-      }
-    } else {
-      // Para guaraníes, solo números enteros
-      // Solo aceptar números
-      const value = input.replace(/[^\d]/g, '');
-      // Formatear con separadores de miles
-      input = value ? Number(value).toLocaleString('es-PY') : '';
-    }
-    
-    setResultadoEditable(input);
+    const input = e.target.value;
+    const inputFormateado = formatearResultadoCambio(input, monedaDestino);
+    setResultadoEditable(inputFormateado);
   };
   
   // Manejar cambios en el selector de moneda origen
@@ -482,35 +594,69 @@ const CambioMoneda: React.FC<CambioMonedaProps> = ({ open, onClose, onGuardarExi
     
     try {
       let montoNumerico: number;
-      
-      // Parsear el monto según la moneda
+      let cotizacionNumerica: number;
+
+      // Parsear monto (lógica existente, parece correcta)
       if (monedaOrigen === 'PYG') {
-        montoNumerico = parseFloat(monto.replace(/\./g, ''));
+        montoNumerico = parseInt(monto.replace(/\./g, ''), 10);
+      } else if (monedaOrigen === 'BRL') {
+        montoNumerico = parseFloat(monto.replace(/\./g, '').replace(',', '.'));
+      } else if (monedaOrigen === 'USD') {
+        montoNumerico = parseFloat(monto.replace(/,/g, ''));
       } else {
         montoNumerico = parseFloat(monto.replace(/\./g, '').replace(',', '.'));
       }
-      
-      // Parsear la cotización
-      const cotizacionNumerica = parseFloat(cotizacion.replace(/\./g, '').replace(',', '.'));
-      
-      if (isNaN(montoNumerico) || isNaN(cotizacionNumerica) || cotizacionNumerica <= 0) {
+
+      // Parsear cotización (lógica existente, parece correcta)
+      if (cotizacionEnfocada) {
+        cotizacionNumerica = parseFloat(cotizacion.replace(',', '.'));
+      } else {
+        if (cotizacion.includes(',') && !cotizacion.includes('.')) {
+          cotizacionNumerica = parseFloat(cotizacion.replace(/\./g, '').replace(',', '.'));
+        } else if (cotizacion.includes('.') && !cotizacion.includes(',')) {
+          const puntos = cotizacion.split('.');
+          if (puntos.length === 2 && puntos[1].length <= 2) {
+            cotizacionNumerica = parseFloat(cotizacion);
+          } else {
+            const entero = puntos.slice(0, -1).join('');
+            const decimal = puntos[puntos.length - 1];
+            cotizacionNumerica = parseFloat(entero + '.' + decimal);
+          }
+        } else {
+          cotizacionNumerica = parseFloat(cotizacion.replace(/[^\d.,]/g, ''));
+        }
+      }
+
+      if (isNaN(montoNumerico) || isNaN(cotizacionNumerica)) { 
         setResultado(null);
         return;
       }
-      
-      // Calcular el resultado según el formato de cotización
+      if (cotizacionNumerica <= 0 && monedaOrigen === 'PYG') { // Solo para división si origen es PYG
+        setResultado(null);
+        return;
+      }
+      if (cotizacionNumerica < 0 && monedaOrigen !== 'PYG') { // Para multiplicación, no puede ser negativa
+          setResultado(null);
+          return;
+      }
+
       let resultadoCalculado: number;
-      
+
       if (monedaOrigen === 'PYG') {
-        // Si el origen es guaraníes: monto ÷ cotización 
-        // (porque cotización está en formato "1 moneda destino = X guaraníes")
+        // Texto dice: "1 [Destino] = X PYG". El usuario ingresa X PYG.
+        // Para obtener el monto en [Destino], dividimos: Monto en PYG / (X PYG / 1 [Destino])
         resultadoCalculado = montoNumerico / cotizacionNumerica;
-      } else if (monedaDestino === 'PYG') {
-        // Si el destino es guaraníes: monto × cotización
-        // (porque cotización está en formato "1 moneda origen = X guaraníes")
-        resultadoCalculado = montoNumerico * cotizacionNumerica;
+      } else if (monedaOrigen === 'BRL' && monedaDestino === 'USD') {
+        // Texto dice: "1 US$ = X R$". El usuario ingresa X R$.
+        // Cotización es R$/US$. Para obtener US$, dividimos: Monto en R$ / (X R$/US$)
+        if (cotizacionNumerica === 0) { // Evitar división por cero
+            setResultado(null);
+            return;
+        }
+        resultadoCalculado = montoNumerico / cotizacionNumerica;
       } else {
-        // Para otras combinaciones: monto × cotización
+        // Texto dice: "1 [Origen] = X [Destino]". El usuario ingresa X [Destino].
+        // Para obtener el monto en [Destino], multiplicamos: Monto en [Origen] * (X [Destino] / 1 [Origen])
         resultadoCalculado = montoNumerico * cotizacionNumerica;
       }
       
@@ -650,19 +796,62 @@ const CambioMoneda: React.FC<CambioMonedaProps> = ({ open, onClose, onGuardarExi
         return;
       }
       
-      // Parsear valores numéricos
+      // Parsear valores numéricos usando la lógica del documento
       let montoNumerico: number;
       if (monedaOrigen === 'PYG') {
-        montoNumerico = parseInt(monto.replace(/\./g, ''), 10);
+        // Para guaraníes, remover puntos separadores de miles
+        const numericValue = monto.replace(/\./g, '');
+        montoNumerico = parseInt(numericValue, 10);
+      } else if (monedaOrigen === 'BRL') {
+        // Para reales: formato brasileño (punto para miles, coma para decimales)
+        montoNumerico = parseFloat(monto.replace(/\./g, '').replace(',', '.'));
+      } else if (monedaOrigen === 'USD') {
+        // Para dólares: formato estadounidense (coma para miles, punto para decimales)
+        montoNumerico = parseFloat(monto.replace(/,/g, ''));
       } else {
         montoNumerico = parseFloat(monto.replace(/\./g, '').replace(',', '.'));
       }
       
-      const cotizacionNumerica = parseFloat(cotizacion.replace(/\./g, '').replace(',', '.'));
+      // Parsear la cotización según el estado de enfoque
+      let cotizacionNumerica: number;
+      if (cotizacionEnfocada) {
+        // Cuando está enfocada, formato simple con coma decimal
+        cotizacionNumerica = parseFloat(cotizacion.replace(',', '.'));
+      } else {
+        // Cuando no está enfocada, puede estar en formato decimal inglés (6.01) o paraguayo (6,01)
+        // Necesitamos detectar el formato correcto
+        if (cotizacion.includes(',') && !cotizacion.includes('.')) {
+          // Formato paraguayo: solo coma decimal (ej: 6,01 o 1.234,56)
+          cotizacionNumerica = parseFloat(cotizacion.replace(/\./g, '').replace(',', '.'));
+        } else if (cotizacion.includes('.') && !cotizacion.includes(',')) {
+          // Formato inglés: solo punto decimal (ej: 6.01 o 1,234.56)
+          // Si hay más de un punto, el último es decimal, los anteriores son separadores de miles
+          const puntos = cotizacion.split('.');
+          if (puntos.length === 2 && puntos[1].length <= 2) {
+            // Solo un punto con máximo 2 decimales: es decimal directo (ej: 6.01)
+            cotizacionNumerica = parseFloat(cotizacion);
+          } else {
+            // Múltiples puntos: formato con separadores de miles (ej: 1.234.567.89)
+            const entero = puntos.slice(0, -1).join('');
+            const decimal = puntos[puntos.length - 1];
+            cotizacionNumerica = parseFloat(entero + '.' + decimal);
+          }
+        } else {
+          // Solo números enteros o formato mixto, usar parseFloat directo
+          cotizacionNumerica = parseFloat(cotizacion.replace(/[^\d.,]/g, ''));
+        }
+      }
       
       let resultadoFinalNumerico: number;
       if (monedaDestino === 'PYG') {
+        // Para guaraníes, solo parte entera
         resultadoFinalNumerico = parseInt(resultadoEditable.replace(/\./g, ''), 10);
+      } else if (monedaDestino === 'USD') {
+        // Para dólares: formato estadounidense (coma para miles, punto para decimales)
+        resultadoFinalNumerico = parseFloat(resultadoEditable.replace(/,/g, ''));
+      } else if (monedaDestino === 'BRL') {
+        // Para reales: formato brasileño (punto para miles, coma para decimales)
+        resultadoFinalNumerico = parseFloat(resultadoEditable.replace(/\./g, '').replace(',', '.'));
       } else {
         resultadoFinalNumerico = parseFloat(resultadoEditable.replace(/\./g, '').replace(',', '.'));
       }
@@ -785,18 +974,17 @@ const CambioMoneda: React.FC<CambioMonedaProps> = ({ open, onClose, onGuardarExi
   
   // Obtener texto explicativo para la cotización
   const obtenerTextoCotizacion = (): string => {
+    // Si el origen es PYG, el formato es "1 [Moneda Destino] = X PYG"
     if (monedaOrigen === 'PYG') {
-      // Si el origen es guaraníes, la cotización se expresa como:
-      // "1 Moneda extranjera = X Guaraníes"
       return `Ingrese la cotización: 1 ${obtenerSimboloMoneda(monedaDestino)} = X ${obtenerSimboloMoneda(monedaOrigen)}`;
-    } else if (monedaDestino === 'PYG') {
-      // Si el destino es guaraníes:
-      // "1 Moneda origen = X Guaraníes"
-      return `Ingrese la cotización: 1 ${obtenerSimboloMoneda(monedaOrigen)} = X ${obtenerSimboloMoneda(monedaDestino)}`;
-    } else {
-      // Para otras combinaciones
-      return `Ingrese la cotización: 1 ${obtenerSimboloMoneda(monedaOrigen)} = X ${obtenerSimboloMoneda(monedaDestino)}`;
     }
+    // Si es BRL -> USD, formato especial
+    if (monedaOrigen === 'BRL' && monedaDestino === 'USD') {
+      return `Ingrese la cotización: 1 ${obtenerSimboloMoneda(monedaDestino)} (${monedaDestino}) = X ${obtenerSimboloMoneda(monedaOrigen)} (${monedaOrigen})`;
+    }
+    // Para todos los demás casos (incluyendo cuando el destino es PYG, o USD -> BRL):
+    // El formato es "1 [Moneda Origen] = X [Moneda Destino]"
+    return `Ingrese la cotización: 1 ${obtenerSimboloMoneda(monedaOrigen)} = X ${obtenerSimboloMoneda(monedaDestino)}`;
   };
 
   // Obtener las monedas disponibles para destino (excluyendo la seleccionada en origen)
@@ -807,6 +995,92 @@ const CambioMoneda: React.FC<CambioMonedaProps> = ({ open, onClose, onGuardarExi
   // Obtener las monedas disponibles para origen (excluyendo la seleccionada en destino)
   const getMonedasOrigenDisponibles = () => {
     return ['PYG', 'USD', 'BRL'].filter(moneda => moneda !== monedaDestino);
+  };
+
+  // Función para formatear resultado del cambio (sin lógica de centavos)
+  const formatearResultadoCambio = (value: string, moneda: TipoMoneda): string => {
+    if (!value) return '';
+    
+    // Si el valor viene en formato decimal inglés (como "601.00"), convertirlo
+    if (value.includes('.') && !value.includes(',') && moneda !== 'USD') {
+      const partes = value.split('.');
+      if (partes.length === 2 && !isNaN(parseFloat(value))) {
+        const entero = parseInt(partes[0], 10);
+        const decimal = partes[1];
+        
+        if (moneda === 'PYG') {
+          // Para guaraníes, solo usar la parte entera
+          return entero.toLocaleString('es-PY');
+        } else if (moneda === 'BRL') {
+          // Para reales: formato brasileño (punto para miles, coma para decimales)
+          const enteroFormateado = entero.toLocaleString('pt-BR').replace(',', '.');
+          return `${enteroFormateado},${decimal}`;
+        }
+      }
+    }
+    
+    if (moneda === 'PYG') {
+      // Guaraníes: formato con punto como separador de miles
+      const numericValue = value.replace(/\D/g, '');
+      if (numericValue === '') return '';
+      return numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    } else if (moneda === 'USD') {
+      // Dólares: formato estadounidense (coma para miles, punto para decimales)
+      let input = value.replace(/[^\d.,]/g, '');
+      
+      if (input.includes('.')) {
+        const parts = input.split('.');
+        if (parts.length > 2) {
+          input = parts[0] + '.' + parts.slice(1).join('').substring(0, 2);
+        } else if (parts.length === 2) {
+          input = parts[0] + '.' + parts[1].substring(0, 2);
+        }
+        
+        const entero = parts[0].replace(/,/g, '');
+        let enteroFormateado = '';
+        if (entero) {
+          enteroFormateado = Number(entero).toLocaleString('en-US');
+        }
+        
+        input = enteroFormateado + '.' + (parts[1] || '');
+      } else {
+        const entero = input.replace(/,/g, '');
+        if (entero) {
+          input = Number(entero).toLocaleString('en-US');
+        }
+      }
+      
+      return input;
+    } else if (moneda === 'BRL') {
+      // Reales: formato brasileño (punto para miles, coma para decimales)
+      let input = value.replace(/[^\d.,]/g, '');
+      
+      if (input.includes(',')) {
+        const parts = input.split(',');
+        if (parts.length > 2) {
+          input = parts[0] + ',' + parts.slice(1).join('').substring(0, 2);
+        } else if (parts.length === 2) {
+          input = parts[0] + ',' + parts[1].substring(0, 2);
+        }
+        
+        const entero = parts[0].replace(/\./g, '');
+        let enteroFormateado = '';
+        if (entero) {
+          enteroFormateado = Number(entero).toLocaleString('pt-BR').replace(',', '.');
+        }
+        
+        input = enteroFormateado + ',' + (parts[1] || '');
+      } else {
+        const entero = input.replace(/\./g, '');
+        if (entero) {
+          input = Number(entero).toLocaleString('pt-BR').replace(',', '.');
+        }
+      }
+      
+      return input;
+    }
+    
+    return value;
   };
 
   return (
@@ -924,6 +1198,8 @@ const CambioMoneda: React.FC<CambioMonedaProps> = ({ open, onClose, onGuardarExi
                 label="Cotización"
                 value={cotizacion}
                 onChange={handleCotizacionChange}
+                onFocus={handleCotizacionFocus}
+                onBlur={handleCotizacionBlur}
                 onClick={handleInputClick}
                 onKeyDown={(e) => handleKeyDown(e, 'observacion')}
                 disabled={loading}
@@ -980,10 +1256,12 @@ const CambioMoneda: React.FC<CambioMonedaProps> = ({ open, onClose, onGuardarExi
               </Box>
               
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 3, textAlign: 'center' }}>
-                {monto && cotizacion 
+                {monto && cotizacion
                   ? monedaOrigen === 'PYG'
                     ? `${monto} ${obtenerSimboloMoneda(monedaOrigen)} ÷ ${cotizacion} = ${formatearResultadoMostrar()}`
-                    : `${monto} ${obtenerSimboloMoneda(monedaOrigen)} × ${cotizacion} = ${formatearResultadoMostrar()}`
+                    : (monedaOrigen === 'BRL' && monedaDestino === 'USD')
+                      ? `${monto} ${obtenerSimboloMoneda(monedaOrigen)} ÷ ${cotizacion} (${obtenerSimboloMoneda(monedaOrigen)}/${obtenerSimboloMoneda(monedaDestino)}) = ${formatearResultadoMostrar()}`
+                      : `${monto} ${obtenerSimboloMoneda(monedaOrigen)} × ${cotizacion} = ${formatearResultadoMostrar()}`
                   : 'Complete los campos para ver el cálculo automático'}
               </Typography>
               

@@ -122,7 +122,7 @@ interface CambioDetalles {
   monedaOrigen: TipoMoneda; 
   monedaDestino: TipoMoneda;
   monto: number; 
-  cotizacion: number;
+  cotizacion: number | string;
   resultado: number; 
   observacion?: string;
   fecha?: string;
@@ -822,25 +822,52 @@ const Balance: React.FC = () => {
     const details = cambioDetails[operacionId];
     if (!details) {
       if (loadingCambioDetails[operacionId] === undefined) {
-          return "Obteniendo detalles...";
+          return "Obteniendo detalles..."; 
       }
       return "Error al cargar detalles";
     }
-        
-    const montoOrigenF = formatOrError(details.monto, details.monedaOrigen);
-    const montoDestinoF = formatOrError(details.resultado, details.monedaDestino);
     
-    // Formateo de cotización
-    let cotizacionTexto = `Cotización: ${details.cotizacion.toLocaleString('es-PY')}`;
-    if (details.monedaDestino === 'PYG') {
-        cotizacionTexto = `Cotización: 1 ${details.monedaOrigen} = ${formatOrError(details.cotizacion, 'PYG')}`;
-    } else if (details.monedaOrigen === 'PYG') {
-         cotizacionTexto = `Cotización: 1 ${details.monedaDestino} = ${formatOrError(details.cotizacion, 'PYG')}`;
-    } else { 
-        cotizacionTexto = `Cotización: 1 ${details.monedaOrigen} = ${details.cotizacion.toFixed(4)} ${details.monedaDestino}`;
+    const montoOrigen = details.monto;
+    const montoDestino = details.resultado;
+        
+    const montoOrigenF = formatOrError(montoOrigen, details.monedaOrigen);
+    const montoDestinoF = formatOrError(montoDestino, details.monedaDestino);
+    
+    let cotizacionNum: number;
+    if (typeof details.cotizacion === 'string') {
+        // Intenta parsear como flotante. Asume que el string guardado es un número válido.
+        // La lógica de parseo compleja de formatos mixtos es más para la entrada del usuario.
+        const num = parseFloat(details.cotizacion.replace(',', '.')); // Reemplaza coma por punto para JS
+        cotizacionNum = isNaN(num) ? 0 : num;
+    } else {
+      cotizacionNum = details.cotizacion; // Ya es un número
+    }
+    
+    if (isNaN(cotizacionNum)) {
+      cotizacionNum = 0;
+    }
+    
+    let cotizacionTexto = "";
+    // El tooltip debe reflejar cómo se ingresó la cotización originalmente.
+    if (details.monedaOrigen === 'PYG') {
+      // Cuando el origen fue PYG, el usuario ingresó: 1 [Destino] = X PYG.
+      // La cotizacionNum guardada es ese valor X en PYG.
+      cotizacionTexto = `Cotización: 1 ${details.monedaDestino} = ${formatOrError(cotizacionNum, 'PYG')}`;
+    } else if (details.monedaOrigen === 'BRL' && details.monedaDestino === 'USD') {
+      // Para BRL -> USD, el usuario ingresó: 1 USD = X BRL.
+      // La cotizacionNum guardada es ese valor X en BRL.
+      const cotizacionFormateada = cotizacionNum.toFixed(4); // Mostrar con 4 decimales
+      cotizacionTexto = `Cotización: 1 ${details.monedaDestino} (${details.monedaDestino}) = ${cotizacionFormateada} ${details.monedaOrigen} (${details.monedaOrigen})`;
+    } else {
+      // Para todos los demás casos (USD -> BRL, USD -> PYG, BRL -> PYG):
+      // El usuario ingresó: 1 [Origen] = X [Destino].
+      // La cotizacionNum guardada es ese valor X en la moneda de destino.
+      const cotizacionFormateada = (details.monedaDestino === 'PYG') 
+                                      ? formatOrError(cotizacionNum, 'PYG') 
+                                      : cotizacionNum.toFixed(4); // 4 decimales para tasas cruzadas no PYG
+      cotizacionTexto = `Cotización: 1 ${details.monedaOrigen} = ${cotizacionFormateada} ${details.monedaDestino}`;
     }
 
-    // Retornar JSX válido
     return (
       <Box sx={{ textAlign: 'left', p: 0.5 }}>
         <Typography variant="caption" display="block">Origen: {montoOrigenF} {details.monedaOrigen}</Typography>
@@ -848,7 +875,7 @@ const Balance: React.FC = () => {
         <Typography variant="caption" display="block">{cotizacionTexto}</Typography>
       </Box>
     );
-  }; // Asegurar que la función cierra correctamente
+  };
 
   // Cerrar diálogo de editar uso y devolución
   const handleCloseEditarUsoDevolucion = () => {
