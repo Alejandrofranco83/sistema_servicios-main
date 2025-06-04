@@ -20,9 +20,20 @@ import {
   Divider,
   Grid,
   CircularProgress,
-  Alert
+  Alert,
+  Card,
+  CardContent,
+  useTheme,
+  GlobalStyles
 } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import {
+  TrendingUp as TrendingUpIcon,
+  TrendingDown as TrendingDownIcon,
+  AccountBalance as AccountBalanceIcon,
+  AttachMoney as AttachMoneyIcon,
+  CurrencyExchange as CurrencyExchangeIcon
+} from '@mui/icons-material';
 import api from '../../services/api';
 
 // Interfaz actualizada para los items (coincide con backend, monto es string)
@@ -87,6 +98,8 @@ const getCurrencySymbol = (currency: string) => {
 }
 
 const BalanceFarmaciaLista: React.FC = () => {
+  const theme = useTheme();
+  
   // Estados para datos, paginación, filtros, carga y error
   const [movimientos, setMovimientos] = useState<MovimientoFarmacia[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -142,7 +155,7 @@ const BalanceFarmaciaLista: React.FC = () => {
           });
         }
       });
-
+      
       setMovimientos(movimientosData);
       setTotalCount(response.data.totalCount || 0);
       
@@ -207,92 +220,254 @@ const BalanceFarmaciaLista: React.FC = () => {
 
   return (
     <Box>
-      {/* Sección de Totales (usa dato de API) */}
-      <Box sx={{ mb: 2, p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-         <Grid container spacing={2}>
-           <Grid item xs={12} md={4}>
-             {(() => {
-               // Convertir el balance (string) a número
-               const balanceNum = parseFloat(totalBalanceDesdeAPI);
-               let label = "Balance Gs"; // Etiqueta por defecto o para balance cero
+      {/* Aplicar estilos globales de scrollbar */}
+      <GlobalStyles
+        styles={{
+          '*::-webkit-scrollbar': {
+            width: '12px',
+            height: '12px',
+          },
+          '*::-webkit-scrollbar-track': {
+            backgroundColor: '#121212', // Casi negro
+          },
+          '*::-webkit-scrollbar-thumb': {
+            backgroundColor: '#333', // Gris muy oscuro
+            borderRadius: '6px',
+            '&:hover': {
+              backgroundColor: '#444', // Ligeramente más claro al pasar el mouse
+            },
+          },
+          'html': {
+            scrollbarColor: '#333 #121212', // Formato: thumb track
+            scrollbarWidth: 'thin',
+          },
+          'body': {
+            scrollbarColor: '#333 #121212',
+            scrollbarWidth: 'thin',
+          }
+        }}
+      />
 
-               // Determinar la etiqueta según el signo del balance
-               if (!isNaN(balanceNum)) {
-                 if (balanceNum > 0) {
-                   label = "Debemos a Farmacia Gs"; // Saldo positivo (Debemos)
-                 } else if (balanceNum < 0) {
-                   label = "Farmacia nos debe Gs"; // Saldo negativo (Nos debe)
-                 }
-               }
+      {/* Sección de Totales con Cards coloridas */}
+      <Grid container spacing={2} sx={{ mb: 2 }}>
+        {/* Balance Guaraníes */}
+        <Grid item xs={12} md={4}>
+          {(() => {
+            const balanceNum = parseFloat(totalBalanceDesdeAPI);
+            const isPositive = !isNaN(balanceNum) && balanceNum > 0;
+            const isNegative = !isNaN(balanceNum) && balanceNum < 0;
+            
+            let titulo = "Balance Gs";
+            let color = theme.palette.grey[600];
+            let icon = <AccountBalanceIcon fontSize="small" />;
+            
+            if (isPositive) {
+              titulo = "Debemos a Farmacia";
+              color = theme.palette.error.main;
+              icon = <TrendingDownIcon fontSize="small" />;
+            } else if (isNegative) {
+              titulo = "Farmacia nos debe";
+              color = theme.palette.success.main;
+              icon = <TrendingUpIcon fontSize="small" />;
+            }
 
-               return (
-                 <>
-                   <Typography variant="h6" gutterBottom>{label}</Typography>
-                   <Typography variant="body1">
-                     {/* Formatear el total (formatCurrency ya usa el absoluto) */}
-                     {formatCurrency(totalBalanceDesdeAPI, 'PYG')} Gs
-                   </Typography>
-                 </>
-               );
-             })()}
-           </Grid>
-           <Grid item xs={12} md={4}>
-             {(() => {
-               // Convertir el balance (string) a número
-               const balanceNum = parseFloat(totalBalanceUSD);
-               let label = "Balance $"; // Etiqueta por defecto o para balance cero
+            return (
+              <Card 
+                sx={{ 
+                  height: '100%',
+                  borderLeft: `4px solid ${color}`,
+                  transition: 'transform 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: theme.shadows[4]
+                  }
+                }}
+              >
+                <CardContent sx={{ p: 1.5, pb: 1.5, '&:last-child': { pb: 1.5 } }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                    <Box 
+                      sx={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        bgcolor: `${color}20`,
+                        color: color,
+                        borderRadius: '50%',
+                        p: 0.5,
+                        mr: 1,
+                        minWidth: 28,
+                        height: 28
+                      }}
+                    >
+                      {icon}
+                    </Box>
+                    <Typography variant="subtitle2" component="div" sx={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                      {titulo}
+                    </Typography>
+                  </Box>
+                  <Typography 
+                    variant="h6" 
+                    component="div" 
+                    sx={{ textAlign: 'right', fontWeight: 'bold', fontSize: '1.1rem', mt: 0.5 }}
+                  >
+                    {formatCurrency(totalBalanceDesdeAPI, 'PYG')} Gs
+                  </Typography>
+                </CardContent>
+              </Card>
+            );
+          })()}
+        </Grid>
 
-               // Determinar la etiqueta según el signo del balance
-               if (!isNaN(balanceNum)) {
-                 if (balanceNum > 0) {
-                   label = "Debemos a Farmacia $"; // Saldo positivo (Debemos)
-                 } else if (balanceNum < 0) {
-                   label = "Farmacia nos debe $"; // Saldo negativo (Nos debe)
-                 }
-               }
+        {/* Balance USD */}
+        <Grid item xs={12} md={4}>
+          {(() => {
+            const balanceNum = parseFloat(totalBalanceUSD);
+            const isPositive = !isNaN(balanceNum) && balanceNum > 0;
+            const isNegative = !isNaN(balanceNum) && balanceNum < 0;
+            
+            let titulo = "Balance USD";
+            let color = theme.palette.grey[600];
+            let icon = <AttachMoneyIcon fontSize="small" />;
+            
+            if (isPositive) {
+              titulo = "Debemos a Farmacia USD";
+              color = theme.palette.error.main;
+              icon = <TrendingDownIcon fontSize="small" />;
+            } else if (isNegative) {
+              titulo = "Farmacia nos debe USD";
+              color = theme.palette.success.main;
+              icon = <TrendingUpIcon fontSize="small" />;
+            }
 
-               return (
-                 <>
-                   <Typography variant="h6" gutterBottom>{label}</Typography>
-                   <Typography variant="body1">
-                     {/* Formatear el total (formatCurrency ya usa el absoluto) */}
-                     {formatCurrency(totalBalanceUSD, 'USD')} $
-                   </Typography>
-                 </>
-               );
-             })()}
-           </Grid>
-           <Grid item xs={12} md={4}>
-             {(() => {
-               // Convertir el balance (string) a número
-               const balanceNum = parseFloat(totalBalanceBRL);
-               let label = "Balance R$"; // Etiqueta por defecto o para balance cero
+            return (
+              <Card 
+                sx={{ 
+                  height: '100%',
+                  borderLeft: `4px solid ${color}`,
+                  transition: 'transform 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: theme.shadows[4]
+                  }
+                }}
+              >
+                <CardContent sx={{ p: 1.5, pb: 1.5, '&:last-child': { pb: 1.5 } }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                    <Box 
+                      sx={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        bgcolor: `${color}20`,
+                        color: color,
+                        borderRadius: '50%',
+                        p: 0.5,
+                        mr: 1,
+                        minWidth: 28,
+                        height: 28
+                      }}
+                    >
+                      {icon}
+                    </Box>
+                    <Typography variant="subtitle2" component="div" sx={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                      {titulo}
+                    </Typography>
+                  </Box>
+                  <Typography 
+                    variant="h6" 
+                    component="div" 
+                    sx={{ textAlign: 'right', fontWeight: 'bold', fontSize: '1.1rem', mt: 0.5 }}
+                  >
+                    {formatCurrency(totalBalanceUSD, 'USD')} $
+                  </Typography>
+                </CardContent>
+              </Card>
+            );
+          })()}
+        </Grid>
 
-               // Determinar la etiqueta según el signo del balance
-               if (!isNaN(balanceNum)) {
-                 if (balanceNum > 0) {
-                   label = "Debemos a Farmacia R$"; // Saldo positivo (Debemos)
-                 } else if (balanceNum < 0) {
-                   label = "Farmacia nos debe R$"; // Saldo negativo (Nos debe)
-                 }
-               }
+        {/* Balance BRL */}
+        <Grid item xs={12} md={4}>
+          {(() => {
+            const balanceNum = parseFloat(totalBalanceBRL);
+            const isPositive = !isNaN(balanceNum) && balanceNum > 0;
+            const isNegative = !isNaN(balanceNum) && balanceNum < 0;
+            
+            let titulo = "Balance BRL";
+            let color = theme.palette.grey[600];
+            let icon = <CurrencyExchangeIcon fontSize="small" />;
+            
+            if (isPositive) {
+              titulo = "Debemos a Farmacia BRL";
+              color = theme.palette.error.main;
+              icon = <TrendingDownIcon fontSize="small" />;
+            } else if (isNegative) {
+              titulo = "Farmacia nos debe BRL";
+              color = theme.palette.success.main;
+              icon = <TrendingUpIcon fontSize="small" />;
+            }
 
-               return (
-                 <>
-                   <Typography variant="h6" gutterBottom>{label}</Typography>
-                   <Typography variant="body1">
-                     {/* Formatear el total (formatCurrency ya usa el absoluto) */}
-                     {formatCurrency(totalBalanceBRL, 'BRL')} R$
-                   </Typography>
-                 </>
-               );
-             })()}
-           </Grid>
-         </Grid>
-      </Box>
+            return (
+              <Card 
+                sx={{ 
+                  height: '100%',
+                  borderLeft: `4px solid ${color}`,
+                  transition: 'transform 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: theme.shadows[4]
+                  }
+                }}
+              >
+                <CardContent sx={{ p: 1.5, pb: 1.5, '&:last-child': { pb: 1.5 } }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                    <Box 
+                      sx={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        bgcolor: `${color}20`,
+                        color: color,
+                        borderRadius: '50%',
+                        p: 0.5,
+                        mr: 1,
+                        minWidth: 28,
+                        height: 28
+                      }}
+                    >
+                      {icon}
+                    </Box>
+                    <Typography variant="subtitle2" component="div" sx={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                      {titulo}
+                    </Typography>
+                  </Box>
+                  <Typography 
+                    variant="h6" 
+                    component="div" 
+                    sx={{ textAlign: 'right', fontWeight: 'bold', fontSize: '1.1rem', mt: 0.5 }}
+                  >
+                    {formatCurrency(totalBalanceBRL, 'BRL')} R$
+                  </Typography>
+                </CardContent>
+              </Card>
+            );
+          })()}
+        </Grid>
+      </Grid>
 
       {/* Sección de Filtros */}
-      <Box sx={{ mb: 2 }}>
+      <Paper elevation={2} sx={{ mb: 2, p: 1.5, bgcolor: theme.palette.background.default }}>
+        <Typography variant="subtitle1" gutterBottom sx={{ 
+          color: theme.palette.primary.main,
+          display: 'flex',
+          alignItems: 'center',
+          mb: 1.5,
+          fontSize: '1rem',
+          fontWeight: 600
+        }}>
+          <CurrencyExchangeIcon fontSize="small" sx={{ mr: 1 }} />
+          Filtros de Búsqueda
+        </Typography>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} sm={4}>
             <TextField
@@ -343,7 +518,7 @@ const BalanceFarmaciaLista: React.FC = () => {
             </FormControl>
           </Grid>
         </Grid>
-      </Box>
+      </Paper>
 
       {/* Mostrar error si existe */}
       {error && (
@@ -352,8 +527,21 @@ const BalanceFarmaciaLista: React.FC = () => {
         </Alert>
       )}
 
-      {/* Tabla de Movimientos (usa datos de API) */}
-      <TableContainer component={Paper} variant="outlined">
+      {/* Tabla de Movimientos con encabezado mejorado */}
+      <TableContainer 
+        component={Paper} 
+        variant="outlined"
+        sx={{
+          '& .MuiTableHead-root': {
+            background: 'linear-gradient(135deg, #CD853F 0%, #8B6914 50%, #5D4E0B 100%)', // Dorado oscuro con degradé e iluminación lateral
+          },
+          '& .MuiTableHead-root .MuiTableCell-root': {
+            color: '#2C1810', // Texto marrón oscuro para contraste con el dorado
+            fontWeight: 'bold',
+            fontSize: '0.875rem',
+          }
+        }}
+      >
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -361,8 +549,12 @@ const BalanceFarmaciaLista: React.FC = () => {
               <TableCell>Tipo Movimiento</TableCell>
               <TableCell>Concepto</TableCell>
               <TableCell align="center">Detalle</TableCell>
-              <TableCell align="right">Entrada</TableCell>
-              <TableCell align="right">Salida</TableCell>
+              <TableCell align="right" sx={{ color: theme.palette.success.main + '!important' }}>
+                Entrada
+              </TableCell>
+              <TableCell align="right" sx={{ color: theme.palette.error.main + '!important' }}>
+                Salida
+              </TableCell>
               <TableCell>Mon</TableCell>
             </TableRow>
           </TableHead>
@@ -381,9 +573,32 @@ const BalanceFarmaciaLista: React.FC = () => {
                 const esSalida = !isNaN(montoNum) && montoNum < 0;
                 
                 return (
-                  <TableRow key={mov.id}>
+                  <TableRow 
+                    key={mov.id}
+                    sx={{
+                      '&:hover': {
+                        bgcolor: theme.palette.action.hover,
+                      },
+                      '&:nth-of-type(odd)': {
+                        bgcolor: '#2A2A2A', // Gris más oscuro para filas alternadas
+                      }
+                    }}
+                  >
                     <TableCell>{new Date(mov.fechaHora).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}</TableCell>
-                    <TableCell>{mov.movimientoOrigenTipo || mov.tipoMovimiento}</TableCell>
+                    <TableCell>
+                      <Box sx={{ 
+                        px: 1, 
+                        py: 0.5, 
+                        borderRadius: 1, 
+                        bgcolor: '#8B691430', // Dorado oscuro con transparencia
+                        color: '#CD853F', // Dorado más claro para el texto
+                        fontSize: '0.75rem',
+                        fontWeight: 'medium',
+                        display: 'inline-block'
+                      }}>
+                        {mov.movimientoOrigenTipo || mov.tipoMovimiento}
+                      </Box>
+                    </TableCell>
                     <TableCell>{mov.concepto}</TableCell>
                     <TableCell align="center">
                       {/* Mostrar tooltip con información de operación bancaria si está disponible */}
@@ -411,32 +626,79 @@ const BalanceFarmaciaLista: React.FC = () => {
                           arrow
                           placement="left"
                         >
-                          <IconButton size="small">
+                          <IconButton 
+                            size="small"
+                            sx={{
+                              color: theme.palette.info.main,
+                              '&:hover': {
+                                bgcolor: theme.palette.info.main + '20'
+                              }
+                            }}
+                          >
                             <VisibilityIcon fontSize="inherit" />
                           </IconButton>
                         </Tooltip>
                       ) : (mov.detalleAdicional || mov.movimientoOrigenId) ? (
                         <Tooltip title={mov.detalleAdicional || `Origen: ${mov.movimientoOrigenTipo} ID: ${mov.movimientoOrigenId}`} arrow>
-                          <IconButton size="small">
+                          <IconButton 
+                            size="small"
+                            sx={{
+                              color: theme.palette.grey[500],
+                              '&:hover': {
+                                bgcolor: theme.palette.grey[500] + '20'
+                              }
+                            }}
+                          >
                             <VisibilityIcon fontSize="inherit" />
                           </IconButton>
                         </Tooltip>
                       ) : null}
                     </TableCell>
                     <TableCell align="right">
-                      {esEntrada ? formatCurrency(montoNum, mov.monedaCodigo) : '-'}
+                      {esEntrada ? (
+                        <Typography sx={{ 
+                          color: theme.palette.success.main, 
+                          fontWeight: 'bold' 
+                        }}>
+                          {formatCurrency(montoNum, mov.monedaCodigo)}
+                        </Typography>
+                      ) : '-'}
                     </TableCell>
                     <TableCell align="right">
-                      {esSalida ? formatCurrency(montoNum, mov.monedaCodigo) : '-'}
+                      {esSalida ? (
+                        <Typography sx={{ 
+                          color: theme.palette.error.main, 
+                          fontWeight: 'bold' 
+                        }}>
+                          {formatCurrency(montoNum, mov.monedaCodigo)}
+                        </Typography>
+                      ) : '-'}
                     </TableCell>
-                    <TableCell>{getCurrencySymbol(mov.monedaCodigo)}</TableCell>
+                    <TableCell>
+                      <Box sx={{ 
+                        px: 1, 
+                        py: 0.25, 
+                        borderRadius: 1, 
+                        bgcolor: theme.palette.secondary.dark + '20',
+                        color: theme.palette.secondary.main,
+                        fontSize: '0.75rem',
+                        fontWeight: 'bold',
+                        display: 'inline-block',
+                        minWidth: '30px',
+                        textAlign: 'center'
+                      }}>
+                        {getCurrencySymbol(mov.monedaCodigo)}
+                      </Box>
+                    </TableCell>
                   </TableRow>
                 );
               })
             ) : (
               <TableRow>
                 <TableCell colSpan={7} align="center">
+                  <Typography variant="body2" sx={{ py: 3, color: theme.palette.text.secondary }}>
                   No hay movimientos que coincidan con los filtros.
+                  </Typography>
                 </TableCell>
               </TableRow>
             )}
