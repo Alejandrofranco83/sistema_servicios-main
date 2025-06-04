@@ -6,6 +6,35 @@ const { initialize, enable } = require('@electron/remote/main');
 // Inicializar @electron/remote
 initialize();
 
+// ===============================================
+// IMPLEMENTAR INSTANCIA ÚNICA - SOLO UNA VENTANA
+// ===============================================
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  // Si ya hay una instancia corriendo, salir inmediatamente
+  console.log('Ya hay una instancia de la aplicación ejecutándose. Cerrando esta instancia.');
+  app.quit();
+} else {
+  // Alguien trató de ejecutar una segunda instancia, enfocamos nuestra ventana en su lugar
+  app.on('second-instance', (event, commandLine, workingDirectory) => {
+    console.log('Se intentó abrir una segunda instancia. Enfocando la ventana existente.');
+    // Alguien trató de ejecutar una segunda instancia, enfocamos nuestra ventana
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) {
+        mainWindow.restore();
+      }
+      if (!mainWindow.isVisible()) {
+        mainWindow.show();
+      }
+      mainWindow.focus();
+      if (mainWindow.moveTop) {
+        mainWindow.moveTop();
+      }
+    }
+  });
+}
+
 // Optimizaciones básicas y compatibles para Linux - mantener Windows intacto
 if (process.platform === 'linux') {
   console.log('Aplicando configuración básica para Linux...');

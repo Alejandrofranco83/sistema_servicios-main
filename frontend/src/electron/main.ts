@@ -10,24 +10,31 @@ const Store = require('electron-store');
 // Inicializar remote
 remoteMain.initialize();
 
-// Implementar instancia única solo en producción
-const isProduction = process.env.NODE_ENV !== 'development';
+// Declarar mainWindow antes de la lógica de instancia única
+let mainWindow: BrowserWindow | null = null;
 
-if (isProduction) {
-  const gotTheLock = app.requestSingleInstanceLock();
+// Implementar instancia única SIEMPRE (desarrollo y producción)
+const gotTheLock = app.requestSingleInstanceLock();
 
-  if (!gotTheLock) {
-    // Si ya hay una instancia corriendo, salir inmediatamente
-    app.quit();
-  } else {
-    // Alguien trató de ejecutar una segunda instancia, enfocamos nuestra ventana en su lugar
-    app.on('second-instance', (event: Electron.Event, commandLine: string[], workingDirectory: string) => {
-      if (mainWindow) {
-        if (mainWindow.isMinimized()) mainWindow.restore();
-        mainWindow.focus();
+if (!gotTheLock) {
+  // Si ya hay una instancia corriendo, salir inmediatamente
+  console.log('Ya hay una instancia de la aplicación ejecutándose. Cerrando esta instancia.');
+  app.quit();
+} else {
+  // Alguien trató de ejecutar una segunda instancia, enfocamos nuestra ventana en su lugar
+  app.on('second-instance', (event: Electron.Event, commandLine: string[], workingDirectory: string) => {
+    console.log('Se intentó abrir una segunda instancia. Enfocando la ventana existente.');
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) {
+        mainWindow.restore();
       }
-    });
-  }
+      if (!mainWindow.isVisible()) {
+        mainWindow.show();
+      }
+      mainWindow.focus();
+      mainWindow.moveTop();
+    }
+  });
 }
 
 // Inicializar store para persistir configuraciones
@@ -41,8 +48,6 @@ const store = new Store({
     }
   }
 });
-
-let mainWindow: BrowserWindow | null = null;
 
 /**
  * Crea la ventana principal de la aplicación
