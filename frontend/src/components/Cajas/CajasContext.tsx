@@ -89,7 +89,7 @@ interface CajasContextType {
   setConfirmarEliminarPagoId: (id: string | null) => void;
   
   // Funciones
-  loadCajas: (sucursalId: string) => Promise<void>;
+  loadCajas: (sucursalId?: string) => Promise<void>;
   loadMaletines: (sucursalId: string) => Promise<void>;
   loadPersonasElegibles: () => Promise<void>;
   handleRetiros: (caja: Caja) => void;
@@ -197,6 +197,7 @@ export const CajasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const { sucursalActual } = useSucursal();
   const { user, hasPermission } = useAuth();
   const isOperador = user && user.rol && user.rol.nombre.toUpperCase() === 'OPERADOR';
+  const isAdmin = user && user.rol && user.rol.nombre.toUpperCase() === 'ADMINISTRADOR';
   
   // Actualizar maletines en uso cuando cambien las cajas
   useEffect(() => {
@@ -208,13 +209,17 @@ export const CajasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setMaletinesEnUso(maletinesUsados);
   }, [cajas]);
   
-  // Cargar cajas cuando cambie la sucursal
+  // Cargar cajas cuando cambie la sucursal o el usuario
   useEffect(() => {
-    if (sucursalActual) {
+    if (isAdmin) {
+      // Los administradores cargan todas las cajas por defecto
+      loadCajas();
+    } else if (sucursalActual) {
+      // Los demás usuarios cargan solo las cajas de su sucursal
       loadCajas(sucursalActual.id);
       loadMaletines(sucursalActual.id);
     }
-  }, [sucursalActual]);
+  }, [sucursalActual, isAdmin]);
   
   // Efecto para filtrar personas según el texto de búsqueda
   useEffect(() => {
@@ -243,19 +248,25 @@ export const CajasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, [busquedaPersona, personasDisponibles, formRetiro.personaId]);
   
   // Función para cargar cajas
-  const loadCajas = async (sucursalId: string) => {
+  const loadCajas = async (sucursalId?: string) => {
     try {
       setLoading(true);
       setErrorMessage(null);
       
-      // Convertir el ID de sucursal de 'SUC001' a '1'
-      let backendSucursalId = sucursalId;
-      if (sucursalId.startsWith('SUC')) {
-        const numericId = parseInt(sucursalId.replace('SUC', ''), 10);
-        backendSucursalId = numericId.toString();
+      let endpoint = '/api/cajas'; // Por defecto, cargar todas las cajas
+      
+      // Solo filtrar por sucursal si NO es administrador y se especifica sucursal
+      if (!isAdmin && sucursalId) {
+        // Convertir el ID de sucursal de 'SUC001' a '1'
+        let backendSucursalId = sucursalId;
+        if (sucursalId.startsWith('SUC')) {
+          const numericId = parseInt(sucursalId.replace('SUC', ''), 10);
+          backendSucursalId = numericId.toString();
+        }
+        endpoint = `/api/cajas/sucursal/${backendSucursalId}`;
       }
       
-      const response = await api.get(`/api/cajas/sucursal/${backendSucursalId}`);
+      const response = await api.get(endpoint);
       setCajas(response.data);
     } catch (error) {
       console.error('Error al cargar cajas:', error);
@@ -425,7 +436,9 @@ export const CajasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       setListaRetirosDialogOpen(true);
       
       // Recargar los datos de la caja para reflejar el retiro
-      if (sucursalActual) {
+      if (isAdmin) {
+        loadCajas();
+      } else if (sucursalActual) {
         loadCajas(sucursalActual.id);
       }
       
@@ -637,7 +650,9 @@ export const CajasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setSuccessMessage('Retiro eliminado correctamente');
         
         // Recargar los datos de la caja para reflejar la eliminación
-        if (sucursalActual && cajaSeleccionada) {
+        if (isAdmin) {
+          loadCajas();
+        } else if (sucursalActual && cajaSeleccionada) {
           loadCajas(sucursalActual.id);
         }
       } catch (error) {
@@ -928,7 +943,9 @@ export const CajasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       );
       
       // Actualizar la lista de cajas
-      if (sucursalActual) {
+      if (isAdmin) {
+        await loadCajas();
+      } else if (sucursalActual) {
         await loadCajas(sucursalActual.id);
       }
       

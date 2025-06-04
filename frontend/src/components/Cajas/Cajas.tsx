@@ -162,18 +162,16 @@ const Cajas: React.FC = () => {
 
   // Función para filtrar cajas por fecha
   const filtrarCajasPorFecha = (cajasFiltradas: any[]) => {
-    // Si hay filtro de sucursal activado para administradores, aplicarlo
-    if (isAdmin && sucursalSeleccionada) {
-      cajasFiltradas = cajasFiltradas.filter(caja => 
-        caja.sucursalId === sucursalSeleccionada
-      );
-    }
-
     // Si hay filtro activado por el usuario, aplicarlo
     if (filtroActivado) {
       return cajasFiltradas.filter(caja => {
         const fechaAperturaCaja = new Date(caja.fechaApertura);
         let cumpleFiltro = true;
+
+        // Aplicar filtro de sucursal solo si está activado el filtro y hay una sucursal seleccionada
+        if (isAdmin && sucursalSeleccionada) {
+          cumpleFiltro = cumpleFiltro && caja.sucursalId === sucursalSeleccionada;
+        }
 
         if (fechaDesde) {
           const fechaDesdeString = fechaDesde + "T00:00:00";
