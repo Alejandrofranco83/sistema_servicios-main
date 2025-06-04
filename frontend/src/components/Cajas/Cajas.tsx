@@ -29,7 +29,8 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  GlobalStyles
+  GlobalStyles,
+  TablePagination
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -116,6 +117,10 @@ const Cajas: React.FC = () => {
   const [sucursalSeleccionada, setSucursalSeleccionada] = React.useState<string>("");
   const [loadingSucursales, setLoadingSucursales] = React.useState<boolean>(false);
 
+  // Estados para la paginación
+  const [page, setPage] = React.useState<number>(0);
+  const [rowsPerPage, setRowsPerPage] = React.useState<number>(50);
+
   // Cargar sucursales al iniciar para el filtro
   React.useEffect(() => {
     const cargarSucursales = async () => {
@@ -145,6 +150,8 @@ const Cajas: React.FC = () => {
   // Manejador para cambio de pestaña
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabIndex(newValue);
+    // Resetear paginación al cambiar de pestaña
+    setPage(0);
   };
 
   // Función para limpiar filtros
@@ -153,11 +160,25 @@ const Cajas: React.FC = () => {
     setFechaHasta("");
     setSucursalSeleccionada("");
     setFiltroActivado(false);
+    // Resetear paginación al limpiar filtros
+    setPage(0);
   };
 
   // Función para aplicar filtros
   const aplicarFiltros = () => {
     setFiltroActivado(true);
+    // Resetear paginación al aplicar filtros
+    setPage(0);
+  };
+
+  // Manejadores de paginación
+  const handleChangePage = (_event: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
   };
 
   // Función para filtrar cajas por fecha
@@ -217,6 +238,27 @@ const Cajas: React.FC = () => {
     // Si no es operador o no hay filtros, devolver todas las cajas
     return cajasFiltradas;
   };
+
+  // Obtener cajas filtradas y aplicar paginación
+  const cajasFiltradas = filtrarCajasPorFecha(
+    cajas.filter(caja => {
+      if (!isOperador) {
+        // Filtros para administradores (existentes)
+        if (tabIndex === 1) return caja.estado === 'abierta';
+        if (tabIndex === 2) return caja.estado === 'cerrada';
+        return true;
+      } else {
+        // Para operadores, mostrar todas sus cajas del día
+        return true;
+      }
+    })
+  );
+
+  // Aplicar paginación
+  const cajasPaginadas = cajasFiltradas.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
 
   return (
     <Container maxWidth="xl">
@@ -434,149 +476,175 @@ const Cajas: React.FC = () => {
         </Box>
       )}
 
+      {/* Información de resultados */}
+      {!loading && cajasFiltradas.length > 0 && (
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="body2" color="textSecondary">
+            Mostrando {cajasPaginadas.length} de {cajasFiltradas.length} cajas
+            {cajasFiltradas.length > rowsPerPage && ` (Página ${page + 1} de ${Math.ceil(cajasFiltradas.length / rowsPerPage)})`}
+          </Typography>
+        </Box>
+      )}
+
       {/* Tabla de cajas */}
-      {!loading && cajas.length === 0 ? (
+      {!loading && cajasFiltradas.length === 0 ? (
         <Alert severity="info">
           No hay cajas disponibles para mostrar.
         </Alert>
       ) : (
         !loading && (
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>ID</TableCell>
-                  <TableCell>Sucursal</TableCell>
-                  <TableCell>Usuario</TableCell>
-                  <TableCell>Fecha Apertura</TableCell>
-                  <TableCell>Fecha Cierre</TableCell>
-                  <TableCell>Estado</TableCell>
-                  <TableCell>Acciones</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filtrarCajasPorFecha(
-                  cajas.filter(caja => {
-                    if (!isOperador) {
-                      // Filtros para administradores (existentes)
-                      if (tabIndex === 1) return caja.estado === 'abierta';
-                      if (tabIndex === 2) return caja.estado === 'cerrada';
-                      return true;
-                    } else {
-                      // Para operadores, mostrar todas sus cajas del día
-                      return true;
-                    }
-                  })
-                ).map((caja) => (
-                  <TableRow key={caja.id}>
-                    <TableCell>{caja.cajaEnteroId}</TableCell>
-                    <TableCell>{caja.sucursal?.nombre || 'N/A'}</TableCell>
-                    <TableCell>{caja.usuario}</TableCell>
-                    <TableCell>
-                      {new Date(caja.fechaApertura).toLocaleString()}
-                    </TableCell>
-                    <TableCell>
-                      {caja.fechaCierre ? new Date(caja.fechaCierre).toLocaleString() : '-'}
-                    </TableCell>
-                    <TableCell>
-                      <Box
-                        sx={{
-                          display: 'inline-block',
-                          px: 1,
-                          py: 0.5,
-                          borderRadius: 1,
-                          bgcolor: caja.estado === 'abierta' ? 'success.light' : 'error.light',
-                          color: 'white',
-                          fontSize: '0.875rem',
-                          fontWeight: 'bold'
-                        }}
-                      >
-                        {caja.estado === 'abierta' ? 'Abierta' : 'Cerrada'}
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Tooltip title="Ver Detalles">
-                        <IconButton 
-                          size="small" 
-                          color="primary"
-                          onClick={() => handleVerDetalle(caja)}
-                          sx={{ marginRight: 1 }}
-                        >
-                          <VisibilityIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      
-                      <Tooltip title="Ver Datos de Apertura">
-                        <IconButton 
-                          size="small" 
-                          color="info"
-                          onClick={() => handleVerApertura(caja)}
-                          sx={{ marginRight: 1 }}
-                        >
-                          <MonetizationOnIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      
-                      <Tooltip title="Ver Movimientos">
-                        <IconButton 
-                          size="small" 
-                          color="secondary"
-                          onClick={() => handleVerMovimientos(caja)}
-                          sx={{ marginRight: 1 }}
-                        >
-                          <AssignmentIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      
-                      <Tooltip title="Retiros">
-                        <IconButton 
-                          size="small" 
-                          color="warning"
-                          onClick={() => handleRetiros(caja)}
-                          sx={{ marginRight: 1 }}
-                        >
-                          <AttachMoneyIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      
-                      <Tooltip title="Operaciones Bancarias">
-                        <IconButton 
-                          size="small" 
-                          color="success"
-                          onClick={() => handleVerOperacionesBancarias(caja)}
-                          sx={{ marginRight: 1 }}
-                        >
-                          <AccountBalanceIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      
-                      <Tooltip title="Pagos">
-                        <IconButton 
-                          size="small" 
-                          color="info"
-                          onClick={() => handlePagos(caja)}
-                          sx={{ marginRight: 1 }}
-                        >
-                          <PaymentIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      
-                      <Tooltip title={caja.estado === 'abierta' ? "Cerrar Caja" : "Editar Cierre"}>
-                        <IconButton 
-                          size="small" 
-                          color="error"
-                          onClick={() => handleCerrarCaja(caja)}
-                          sx={{ marginRight: 1 }}
-                        >
-                          <CloseIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </TableCell>
+          <Paper>
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>ID</TableCell>
+                    <TableCell>Sucursal</TableCell>
+                    <TableCell>Usuario</TableCell>
+                    <TableCell>Fecha Apertura</TableCell>
+                    <TableCell>Fecha Cierre</TableCell>
+                    <TableCell>Estado</TableCell>
+                    <TableCell>Acciones</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                </TableHead>
+                <TableBody>
+                  {cajasPaginadas.map((caja) => (
+                    <TableRow key={caja.id}>
+                      <TableCell>{caja.cajaEnteroId}</TableCell>
+                      <TableCell>{caja.sucursal?.nombre || 'N/A'}</TableCell>
+                      <TableCell>{caja.usuario}</TableCell>
+                      <TableCell>
+                        {new Date(caja.fechaApertura).toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        {caja.fechaCierre ? new Date(caja.fechaCierre).toLocaleString() : '-'}
+                      </TableCell>
+                      <TableCell>
+                        <Box
+                          sx={{
+                            display: 'inline-block',
+                            px: 1,
+                            py: 0.5,
+                            borderRadius: 1,
+                            bgcolor: caja.estado === 'abierta' ? 'success.light' : 'error.light',
+                            color: 'white',
+                            fontSize: '0.875rem',
+                            fontWeight: 'bold'
+                          }}
+                        >
+                          {caja.estado === 'abierta' ? 'Abierta' : 'Cerrada'}
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Tooltip title="Ver Detalles">
+                          <IconButton 
+                            size="small" 
+                            color="primary"
+                            onClick={() => handleVerDetalle(caja)}
+                            sx={{ marginRight: 1 }}
+                          >
+                            <VisibilityIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        
+                        <Tooltip title="Ver Datos de Apertura">
+                          <IconButton 
+                            size="small" 
+                            color="info"
+                            onClick={() => handleVerApertura(caja)}
+                            sx={{ marginRight: 1 }}
+                          >
+                            <MonetizationOnIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        
+                        <Tooltip title="Ver Movimientos">
+                          <IconButton 
+                            size="small" 
+                            color="secondary"
+                            onClick={() => handleVerMovimientos(caja)}
+                            sx={{ marginRight: 1 }}
+                          >
+                            <AssignmentIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        
+                        <Tooltip title="Retiros">
+                          <IconButton 
+                            size="small" 
+                            color="warning"
+                            onClick={() => handleRetiros(caja)}
+                            sx={{ marginRight: 1 }}
+                          >
+                            <AttachMoneyIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        
+                        <Tooltip title="Operaciones Bancarias">
+                          <IconButton 
+                            size="small" 
+                            color="success"
+                            onClick={() => handleVerOperacionesBancarias(caja)}
+                            sx={{ marginRight: 1 }}
+                          >
+                            <AccountBalanceIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        
+                        <Tooltip title="Pagos">
+                          <IconButton 
+                            size="small" 
+                            color="info"
+                            onClick={() => handlePagos(caja)}
+                            sx={{ marginRight: 1 }}
+                          >
+                            <PaymentIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        
+                        <Tooltip title={caja.estado === 'abierta' ? "Cerrar Caja" : "Editar Cierre"}>
+                          <IconButton 
+                            size="small" 
+                            color="error"
+                            onClick={() => handleCerrarCaja(caja)}
+                            sx={{ marginRight: 1 }}
+                          >
+                            <CloseIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+
+            {/* Paginación */}
+            <TablePagination
+              rowsPerPageOptions={[50, 100]}
+              component="div"
+              count={cajasFiltradas.length}
+              rowsPerPage={rowsPerPage}
+              page={page}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              labelRowsPerPage="Filas por página:"
+              labelDisplayedRows={({ from, to, count }) => 
+                `${from}-${to} de ${count !== -1 ? count : `más de ${to}`}`
+              }
+              sx={{
+                borderTop: 1,
+                borderColor: 'divider',
+                '& .MuiTablePagination-toolbar': {
+                  paddingLeft: 2,
+                  paddingRight: 2,
+                },
+                '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                  marginBottom: 0,
+                },
+              }}
+            />
+          </Paper>
         )
       )}
 
