@@ -214,6 +214,10 @@ export const CajasProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (isAdmin) {
       // Los administradores cargan todas las cajas por defecto
       loadCajas();
+      // Agregar carga de maletines de la sucursal actual para administradores
+      if (sucursalActual) {
+        loadMaletines(sucursalActual.id);
+      }
     } else if (sucursalActual) {
       // Los demás usuarios cargan solo las cajas de su sucursal
       loadCajas(sucursalActual.id);

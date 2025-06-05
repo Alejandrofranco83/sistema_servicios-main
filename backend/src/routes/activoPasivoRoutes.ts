@@ -10,6 +10,9 @@ router.use(authenticateToken);
 // Obtener el efectivo en cajas para el componente ActivoPasivo
 router.get('/efectivo-en-cajas', ResumenActivoPasivoController.getEfectivoEnCajas);
 
+// Obtener el efectivo en caja mayor excluyendo retiros de cajas abiertas
+router.get('/efectivo-caja-mayor', ResumenActivoPasivoController.getEfectivoCajaMayor);
+
 // Obtener los saldos de servicios de todas las sucursales
 router.get('/saldos-servicios', ResumenActivoPasivoController.getSaldosServicios);
 

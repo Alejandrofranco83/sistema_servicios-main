@@ -294,14 +294,13 @@ const ActivoPasivo: React.FC = () => {
         const indexPersonas = nuevosBalances.findIndex(b => b.id === 'balance-personas');
         
         if (indexPersonas !== -1) {
-          // Mostrar el valor predominante (nosDebenTotal o debemosTotal)
-          // Si nosDebenTotal > debemosTotal, entonces en total nos deben
-          const mostrarValorNosDeben = nosDebenTotal > debemosTotal;
+          // Calcular el balance neto: lo que debemos menos lo que nos deben
+          const balanceNeto = debemosTotal - nosDebenTotal;
           
           nuevosBalances[indexPersonas] = {
             ...nuevosBalances[indexPersonas],
-            monto: mostrarValorNosDeben ? nosDebenTotal : debemosTotal,
-            titulo: mostrarValorNosDeben ? 'Personas nos deben' : 'Debemos a Personas'
+            monto: Math.abs(balanceNeto),
+            titulo: balanceNeto >= 0 ? 'Debemos a Personas' : 'Personas nos deben'
           };
         }
         
@@ -424,7 +423,55 @@ const ActivoPasivo: React.FC = () => {
   // Función para cargar el efectivo en caja mayor
   const cargarEfectivoCajaMayor = async () => {
     try {
-      console.log('Obteniendo efectivo en caja mayor...');
+      console.log('Obteniendo efectivo en caja mayor desde el nuevo endpoint...');
+      
+      // Usar el nuevo endpoint que ya maneja la exclusión de retiros de cajas abiertas
+      const response = await api.get('/api/activo-pasivo/efectivo-caja-mayor');
+      
+      if (!response.data || typeof response.data.totalEfectivoCajaMayor !== 'number') {
+        console.error('Respuesta inválida del endpoint de caja mayor:', response.data);
+        throw new Error('Respuesta inválida del endpoint');
+      }
+      
+      const totalEfectivoCajaMayor = response.data.totalEfectivoCajaMayor;
+      const detalles = response.data.detallesPorMoneda;
+      const retirosExcluidos = response.data.retirosExcluidos;
+      
+      console.log('Efectivo Caja Mayor (nuevo endpoint) - Resumen:', {
+        totalEnGs: totalEfectivoCajaMayor,
+        detallesPorMoneda: detalles,
+        retirosExcluidos: retirosExcluidos
+      });
+      
+      // Actualizar el balance de caja mayor en el estado
+      setBalances(balancesPrevios => {
+        const nuevosBalances = [...balancesPrevios];
+        const indexCajaMayor = nuevosBalances.findIndex(b => b.id === 'efectivo-caja-mayor');
+        
+        if (indexCajaMayor !== -1) {
+          nuevosBalances[indexCajaMayor] = {
+            ...nuevosBalances[indexCajaMayor],
+            monto: totalEfectivoCajaMayor
+          };
+        }
+        
+        return nuevosBalances;
+      });
+
+      return totalEfectivoCajaMayor;
+    } catch (error) {
+      console.error('Error al cargar el efectivo de caja mayor:', error);
+      
+      // Si falla el nuevo endpoint, usar el método anterior como respaldo
+      console.log('Usando método de respaldo para caja mayor...');
+      return cargarEfectivoCajaMayorAntiguo();
+    }
+  };
+
+  // Función de respaldo para cargar el efectivo en caja mayor (método anterior)
+  const cargarEfectivoCajaMayorAntiguo = async () => {
+    try {
+      console.log('Obteniendo efectivo en caja mayor (método anterior)...');
       
       // Verificar si tenemos la cotización vigente
       if (!cotizacionVigente) {
@@ -455,7 +502,7 @@ const ActivoPasivo: React.FC = () => {
       // Calcular el total sumando todas las monedas convertidas a guaraníes
       const totalEfectivoCajaMayor = saldoGuaranies + saldoDolaresEnGs + saldoRealesEnGs;
       
-      console.log('Efectivo Caja Mayor - Detalle:', {
+      console.log('Efectivo Caja Mayor (método anterior) - Detalle:', {
         guaranies: saldoGuaranies,
         dolares: saldoDolares,
         cotizacionDolar: cotizacionVigente.valorDolar,
@@ -483,13 +530,13 @@ const ActivoPasivo: React.FC = () => {
 
       return totalEfectivoCajaMayor;
     } catch (error) {
-      console.error('Error al cargar el efectivo de caja mayor:', error);
+      console.error('Error al cargar el efectivo de caja mayor (método anterior):', error);
       throw error;
     }
   };
 
   // Función para cargar los retiros por recibir
-  const cargarRetirosPorRecibir = async () => {
+  const cargarRetirosPorRecibir = async (idsCajasAbiertas?: Set<string>) => {
     try {
       console.log('Obteniendo retiros por recibir...');
       
@@ -511,12 +558,72 @@ const ActivoPasivo: React.FC = () => {
       
       console.log('Retiros pendientes recibidos:', retirosPendientes);
 
-      // Sumar todos los montos de los retiros pendientes
+      // Si no se pasaron las cajas abiertas como parámetro, obtenerlas
+      let cajasAbiertasParaFiltrar = idsCajasAbiertas;
+      if (!cajasAbiertasParaFiltrar) {
+        try {
+          // El endpoint /api/cajas no filtra por estado, así que obtenemos todas y filtramos aquí
+          const cajasAbiertasResponse = await api.get('/api/cajas');
+          const todasLasCajas = cajasAbiertasResponse.data || [];
+          
+          // Filtrar solo las cajas que están en estado 'abierta'
+          const cajasAbiertas = todasLasCajas.filter((caja: any) => 
+            caja.estado && caja.estado.toLowerCase() === 'abierta'
+          );
+          
+          cajasAbiertasParaFiltrar = new Set(cajasAbiertas.map((caja: any) => caja.id));
+          console.log('Total de cajas obtenidas:', todasLasCajas.length);
+          console.log('Cajas abiertas filtradas:', cajasAbiertas.length);
+          console.log('IDs de cajas abiertas:', Array.from(cajasAbiertasParaFiltrar));
+        } catch (error) {
+          console.warn('Error al obtener cajas abiertas, continuando sin filtros:', error);
+          cajasAbiertasParaFiltrar = new Set();
+        }
+      } else {
+        console.log('Usando cajas abiertas pasadas como parámetro:', Array.from(cajasAbiertasParaFiltrar));
+      }
+
+      // Debug: Verificar la estructura de los retiros
+      console.log('Muestra de retiros pendientes (primeros 3):', retirosPendientes.slice(0, 3));
+
+      // NUEVO: Filtrar solo retiros de cajas cerradas
+      const retirosDeCajasCerradas = retirosPendientes.filter((retiro: any) => {
+        // Debug: verificar la estructura del retiro
+        if (!retiro.cajaId) {
+          console.warn('Retiro sin cajaId encontrado:', retiro);
+          return true; // Incluir retiros sin cajaId (podrían ser de cajas eliminadas/cerradas)
+        }
+        
+        const esDeCajaAbierta = cajasAbiertasParaFiltrar!.has(retiro.cajaId);
+        console.log(`Retiro ${retiro.id}: cajaId=${retiro.cajaId}, esDeCajaAbierta=${esDeCajaAbierta}, estadoRecepcion=${retiro.estadoRecepcion}`);
+        
+        if (esDeCajaAbierta) {
+          console.log(`❌ Excluyendo retiro ${retiro.id} de caja abierta ${retiro.cajaId}`);
+        } else {
+          console.log(`✅ Incluyendo retiro ${retiro.id} de caja cerrada ${retiro.cajaId}`);
+        }
+        
+        return !esDeCajaAbierta;
+      });
+      
+      console.log(`Retiros filtrados: ${retirosDeCajasCerradas.length} de ${retirosPendientes.length} (excluidos ${retirosPendientes.length - retirosDeCajasCerradas.length} de cajas abiertas)`);
+
+      // Debug: Mostrar retiros que pasaron el filtro
+      console.log('Retiros de cajas cerradas:', retirosDeCajasCerradas.map((r: any) => ({
+        id: r.id,
+        cajaId: r.cajaId,
+        estadoRecepcion: r.estadoRecepcion,
+        montoPYG: r.montoPYG,
+        montoUSD: r.montoUSD,
+        montoBRL: r.montoBRL
+      })));
+
+      // Sumar todos los montos de los retiros filtrados (solo de cajas cerradas)
       let totalGuaranies = 0;
       let totalDolares = 0;
       let totalReales = 0;
       
-      retirosPendientes.forEach((retiro: any) => {
+      retirosDeCajasCerradas.forEach((retiro: any) => {
         // Solo procesar retiros que estén realmente pendientes
         if (retiro.estadoRecepcion === 'PENDIENTE') {
           totalGuaranies += retiro.montoPYG || 0;
@@ -532,8 +639,9 @@ const ActivoPasivo: React.FC = () => {
       // Calcular el total sumando todas las monedas convertidas a guaraníes
       const totalRetirosPorRecibir = totalGuaranies + totalDolaresEnGs + totalRealesEnGs;
       
-      console.log('Retiros Por Recibir - Detalle:', {
-        cantidadRetiros: retirosPendientes.filter((r: any) => r.estadoRecepcion === 'PENDIENTE').length,
+      console.log('Retiros Por Recibir (solo cajas cerradas) - Detalle:', {
+        cantidadRetiros: retirosDeCajasCerradas.filter((r: any) => r.estadoRecepcion === 'PENDIENTE').length,
+        retirosExcluidos: retirosPendientes.length - retirosDeCajasCerradas.length,
         guaranies: totalGuaranies,
         dolares: totalDolares,
         cotizacionDolar: cotizacionVigente.valorDolar,
@@ -587,6 +695,26 @@ const ActivoPasivo: React.FC = () => {
       } else {
         console.log('Cotización vigente lista para cálculos:', cotizacionVigente);
       }
+
+      // Obtener cajas abiertas para filtrar retiros
+      let idsCajasAbiertas: Set<string>;
+      try {
+        // El endpoint /api/cajas no filtra por estado, así que obtenemos todas y filtramos aquí
+        const cajasAbiertasResponse = await api.get('/api/cajas');
+        const todasLasCajas = cajasAbiertasResponse.data || [];
+        
+        // Filtrar solo las cajas que están en estado 'abierta'
+        const cajasAbiertas = todasLasCajas.filter((caja: any) => 
+          caja.estado && caja.estado.toLowerCase() === 'abierta'
+        );
+        
+        idsCajasAbiertas = new Set(cajasAbiertas.map((caja: any) => caja.id));
+        console.log('Cajas abiertas obtenidas para filtros:', cajasAbiertas.length);
+        console.log('Total de cajas en el sistema:', todasLasCajas.length);
+      } catch (error) {
+        console.warn('Error al obtener cajas abiertas, continuando sin filtros:', error);
+        idsCajasAbiertas = new Set();
+      }
       
       // Crear un nuevo array para los balances
       const nuevosBalances = [...balances];
@@ -617,8 +745,8 @@ const ActivoPasivo: React.FC = () => {
         // Obtener el efectivo en caja mayor
         await cargarEfectivoCajaMayor();
         
-        // Obtener los retiros por recibir
-        await cargarRetirosPorRecibir();
+        // Obtener los retiros por recibir (pasando las cajas abiertas para filtrar)
+        await cargarRetirosPorRecibir(idsCajasAbiertas);
         
         // Obtener los saldos en servicios de todas las sucursales
         const saldosServicios = await obtenerSaldosServicios();
@@ -1294,8 +1422,13 @@ const ActivoPasivo: React.FC = () => {
   // Función para formatear valores monetarios
   const formatearMonto = (monto: number, moneda: string) => {
     if (moneda === 'GS') {
-      return new Intl.NumberFormat('es-PY').format(monto);
+      // Formatear guaraníes con puntos como separadores de miles (formato paraguayo)
+      return new Intl.NumberFormat('es-PY', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).format(Math.round(monto));
     } else {
+      // Formatear otras monedas (USD, etc.) con decimales
       return new Intl.NumberFormat('es-PY', { 
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
@@ -1455,7 +1588,7 @@ const ActivoPasivo: React.FC = () => {
                   }}>
                     <Typography variant="subtitle1">Balance Neto</Typography>
                     <Typography variant="h5">
-                      {balanceGeneral >= 0 ? '+' : ''}{formatearMonto(balanceGeneral, 'GS')} Gs
+                      {balanceGeneral >= 0 ? '+' : '-'}{formatearMonto(Math.abs(balanceGeneral), 'GS')} Gs
                     </Typography>
                   </Box>
                 </Grid>

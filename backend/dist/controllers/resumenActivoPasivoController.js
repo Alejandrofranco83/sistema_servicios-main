@@ -415,6 +415,178 @@ class ResumenActivoPasivoController {
         });
     }
     /**
+     * Obtiene el efectivo en caja mayor, excluyendo retiros de cajas abiertas
+     */
+    getEfectivoCajaMayor(req, res) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                // 1. Obtener la cotización vigente para hacer conversiones
+                const cotizacion = yield cotizacion_model_1.CotizacionModel.findVigente();
+                if (!cotizacion) {
+                    res.status(400).json({
+                        error: 'No hay cotización vigente disponible para realizar los cálculos'
+                    });
+                    return;
+                }
+                // Valores de conversión
+                const valorDolar = parseFloat(cotizacion.valorDolar.toString());
+                const valorReal = parseFloat(cotizacion.valorReal.toString());
+                // 2. Obtener las cajas que están actualmente abiertas
+                const cajasAbiertas = yield prisma.caja.findMany({
+                    where: { estado: 'abierta' },
+                    select: { id: true }
+                });
+                const idsCajasAbiertas = cajasAbiertas.map(caja => caja.id);
+                console.log(`Cajas abiertas encontradas: ${idsCajasAbiertas.length}`);
+                // 3. Obtener los saldos de caja mayor desde el servicio original
+                // Aquí usamos la misma lógica que cajaMayorService.getSaldosActuales()
+                // Obtener el total por moneda sumando todos los movimientos de caja mayor
+                const resumenPorMoneda = yield prisma.$queryRaw `
+        SELECT 
+          moneda,
+          SUM(CASE WHEN "esIngreso" = true THEN monto ELSE -monto END) as saldo_total
+        FROM caja_mayor_movimientos
+        GROUP BY moneda
+      `;
+                console.log('Resumen por moneda (antes de filtros):', resumenPorMoneda);
+                // 4. Obtener retiros de cajas abiertas que impactan en caja mayor
+                // Estos son los montos que debemos restar del saldo de caja mayor
+                let retirosCajasAbiertasPYG = 0;
+                let retirosCajasAbiertasUSD = 0;
+                let retirosCajasAbiertasBRL = 0;
+                if (idsCajasAbiertas.length > 0) {
+                    // Obtener retiros recibidos (que ya están en caja mayor) de cajas abiertas
+                    // Los retiros están en la tabla Movimiento con tipo EGRESO y descripción "Retiro de caja"
+                    const retirosDesCajasAbiertas = yield prisma.$queryRaw `
+          SELECT 
+            monto,
+            moneda
+          FROM "Movimiento"
+          WHERE "cajaId" IN (${client_1.Prisma.join(idsCajasAbiertas)})
+          AND "tipoMovimiento" = 'EGRESO'
+          AND "descripcion" = 'Retiro de caja'
+          AND "estadoRecepcion" = 'RECIBIDO'
+        `;
+                    console.log(`Retiros recibidos de cajas abiertas: ${retirosDesCajasAbiertas.length}`);
+                    // Sumar los montos de retiros de cajas abiertas por moneda
+                    retirosDesCajasAbiertas.forEach((retiro) => {
+                        const monto = parseFloat(retiro.monto.toString()) || 0;
+                        switch (retiro.moneda) {
+                            case 'PYG':
+                                retirosCajasAbiertasPYG += monto;
+                                break;
+                            case 'USD':
+                                retirosCajasAbiertasUSD += monto;
+                                break;
+                            case 'BRL':
+                                retirosCajasAbiertasBRL += monto;
+                                break;
+                        }
+                    });
+                    console.log('Retiros de cajas abiertas a restar:', {
+                        PYG: retirosCajasAbiertasPYG,
+                        USD: retirosCajasAbiertasUSD,
+                        BRL: retirosCajasAbiertasBRL
+                    });
+                }
+                // 5. Procesar los saldos por moneda y restar retiros de cajas abiertas
+                let saldoGuaranies = 0;
+                let saldoDolares = 0;
+                let saldoReales = 0;
+                console.log('[DEBUG EFECTIVO CAJA MAYOR] Saldos inicializados:', { saldoGuaranies, saldoDolares, saldoReales });
+                // Primero, asignar los saldos iniciales desde resumenPorMoneda
+                resumenPorMoneda.forEach((item) => {
+                    console.log('[DEBUG EFECTIVO CAJA MAYOR] Procesando item crudo:', JSON.stringify(item));
+                    console.log('[DEBUG EFECTIVO CAJA MAYOR] typeof item.saldo_total:', typeof item.saldo_total, 'Valor item.saldo_total:', item.saldo_total);
+                    let saldoCalculadoIndividual = 0;
+                    if (item.saldo_total !== null && item.saldo_total !== undefined) {
+                        if (typeof item.saldo_total.toNumber === 'function') {
+                            saldoCalculadoIndividual = item.saldo_total.toNumber();
+                            console.log('[DEBUG EFECTIVO CAJA MAYOR] Usando .toNumber(), resultado:', saldoCalculadoIndividual);
+                        }
+                        else if (typeof item.saldo_total === 'number') {
+                            saldoCalculadoIndividual = item.saldo_total;
+                            console.log('[DEBUG EFECTIVO CAJA MAYOR] Usando valor numérico directo, resultado:', saldoCalculadoIndividual);
+                        }
+                        else {
+                            console.warn('[DEBUG EFECTIVO CAJA MAYOR] item.saldo_total no es Decimal ni número, usando 0. Valor:', item.saldo_total);
+                        }
+                    }
+                    else {
+                        console.log('[DEBUG EFECTIVO CAJA MAYOR] item.saldo_total es null o undefined, usando 0.');
+                    }
+                    console.log(`[DEBUG EFECTIVO CAJA MAYOR] Moneda: ${item.moneda}, Saldo calculado final para switch: ${saldoCalculadoIndividual}`);
+                    switch (item.moneda) {
+                        case 'PYG':
+                        case 'guaranies': // Alias por si el valor de la DB es 'guaranies'
+                            saldoGuaranies = saldoCalculadoIndividual;
+                            break;
+                        case 'USD':
+                        case 'dolares': // Alias por si el valor de la DB es 'dolares'
+                            saldoDolares = saldoCalculadoIndividual;
+                            break;
+                        case 'BRL':
+                        case 'reales': // Alias por si el valor de la DB es 'reales'
+                            saldoReales = saldoCalculadoIndividual;
+                            break;
+                        default:
+                            console.warn(`[DEBUG EFECTIVO CAJA MAYOR] Moneda no reconocida en switch: ${item.moneda}`);
+                    }
+                    console.log(`[DEBUG EFECTIVO CAJA MAYOR] Saldos acumulados después de switch para ${item.moneda}:`, { saldoGuaranies, saldoDolares, saldoReales });
+                });
+                console.log('[DEBUG EFECTIVO CAJA MAYOR] Saldos finales después del loop de resumenPorMoneda:', { saldoGuaranies, saldoDolares, saldoReales });
+                // Ahora, restar los retiros de cajas abiertas
+                saldoGuaranies -= retirosCajasAbiertasPYG;
+                saldoDolares -= retirosCajasAbiertasUSD;
+                saldoReales -= retirosCajasAbiertasBRL;
+                console.log('[DEBUG EFECTIVO CAJA MAYOR] Saldos después de restar retiros de cajas abiertas:', { saldoGuaranies, saldoDolares, saldoReales, retirosCajasAbiertasPYG, retirosCajasAbiertasUSD, retirosCajasAbiertasBRL });
+                // 6. Convertir todo a guaraníes
+                const saldoDolaresEnGs = saldoDolares * valorDolar;
+                const saldoRealesEnGs = saldoReales * valorReal;
+                const totalEfectivoCajaMayor = saldoGuaranies + saldoDolaresEnGs + saldoRealesEnGs;
+                console.log('Efectivo Caja Mayor (excluyendo retiros de cajas abiertas):', {
+                    guaranies: saldoGuaranies,
+                    dolares: saldoDolares,
+                    reales: saldoReales,
+                    dolaresEnGs: saldoDolaresEnGs,
+                    realesEnGs: saldoRealesEnGs,
+                    totalEnGs: totalEfectivoCajaMayor,
+                    cajasAbiertasExcluidas: idsCajasAbiertas.length
+                });
+                // 7. Enviar respuesta
+                res.json({
+                    totalEfectivoCajaMayor,
+                    detallesPorMoneda: {
+                        guaranies: saldoGuaranies,
+                        dolares: saldoDolares,
+                        reales: saldoReales
+                    },
+                    conversion: {
+                        dolaresEnGs: saldoDolaresEnGs,
+                        realesEnGs: saldoRealesEnGs
+                    },
+                    cotizacion: {
+                        valorDolar,
+                        valorReal,
+                        fecha: cotizacion.fecha
+                    },
+                    retirosExcluidos: {
+                        cantidadCajasAbiertas: idsCajasAbiertas.length,
+                        montosPYG: retirosCajasAbiertasPYG,
+                        montosUSD: retirosCajasAbiertasUSD,
+                        montosBRL: retirosCajasAbiertasBRL
+                    }
+                });
+            }
+            catch (error) {
+                console.error('Error al obtener efectivo en caja mayor:', error);
+                res.status(500).json({
+                    error: 'Error al calcular el efectivo en caja mayor'
+                });
+            }
+        });
+    }
+    /**
      * Obtiene un resumen completo para el componente ActivoPasivo
      */
     getResumenCompleto(req, res) {
