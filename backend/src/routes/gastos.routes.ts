@@ -1,5 +1,5 @@
 import express from 'express';
-import { upload, getGastos, getGastoById, createGasto, updateGasto, deleteGasto, getSucursales } from '../controllers/gastos.controller';
+import { upload, getGastos, getGastoById, createGasto, updateGasto, deleteGasto, getSucursales, deleteGastoCajaMayor, updateGastoCajaMayor } from '../controllers/gastos.controller';
 import authMiddleware from '../middleware/auth';
 import { Router } from 'express';
 import { Request, Response } from 'express';
@@ -87,5 +87,9 @@ router.delete('/gastos/:id', deleteGasto);
 
 // Ruta para obtener sucursales (para el selector)
 router.get('/sucursales', getSucursales);
+
+// Rutas específicas para gastos de caja mayor
+router.put('/gastos/caja-mayor/:id', upload.single('comprobante'), updateGastoCajaMayor);
+router.delete('/gastos/caja-mayor/eliminar-gasto/:id', deleteGastoCajaMayor);
 
 export default router; 

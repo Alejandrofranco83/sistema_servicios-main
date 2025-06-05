@@ -77,5 +77,8 @@ router.put('/gastos/:id', gastos_controller_1.upload.single('comprobante'), gast
 router.delete('/gastos/:id', gastos_controller_1.deleteGasto);
 // Ruta para obtener sucursales (para el selector)
 router.get('/sucursales', gastos_controller_1.getSucursales);
+// Rutas específicas para gastos de caja mayor
+router.put('/gastos/caja-mayor/:id', gastos_controller_1.upload.single('comprobante'), gastos_controller_1.updateGastoCajaMayor);
+router.delete('/gastos/caja-mayor/eliminar-gasto/:id', gastos_controller_1.deleteGastoCajaMayor);
 exports.default = router;
 //# sourceMappingURL=gastos.routes.js.map

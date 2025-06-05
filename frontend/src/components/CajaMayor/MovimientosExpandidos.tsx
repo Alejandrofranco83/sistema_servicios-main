@@ -52,6 +52,7 @@ import AnularPagoServicio from './AnularPagoServicio';
 import EliminarCambio from './EliminarCambio';
 import DevolverRetiro from './DevolverRetiro';
 import ImprimirValeDialog from './ImprimirValeDialog';
+import EditarEliminarGasto from './EditarEliminarGasto';
 import { cajaMayorService } from '../../services/api';
 import api from '../../services/api';
 
@@ -168,8 +169,10 @@ const MovimientosExpandidos: React.FC<MovimientosExpandidosProps> = ({
   const [anularPagoServicioOpen, setAnularPagoServicioOpen] = useState(false);
   const [eliminarCambioOpen, setEliminarCambioOpen] = useState(false);
   const [dialogoDevolverRetiroOpen, setDialogoDevolverRetiroOpen] = useState(false);
+  const [editarEliminarGastoOpen, setEditarEliminarGastoOpen] = useState(false);
   const [selectedCambioId, setSelectedCambioId] = useState<string | null>(null);
   const [retiroIdSeleccionado, setRetiroIdSeleccionado] = useState<string>('');
+  const [selectedGastoId, setSelectedGastoId] = useState<number | null>(null);
 
   // Estados para almacenar detalles de cambios por operacionId (tooltips informativos)
   const [cambioDetails, setCambioDetails] = useState<Record<string, CambioDetalles>>({});
@@ -429,6 +432,21 @@ const MovimientosExpandidos: React.FC<MovimientosExpandidosProps> = ({
       } else {
         console.error('No se puede devolver el retiro: ID del retiro no encontrado', movimientoId, movimiento);
         setError('No se puede devolver el retiro: ID del retiro no encontrado');
+      }
+      return;
+    }
+    
+    // --- CASO: GASTO -> ELIMINAR GASTO DE CAJA MAYOR ---
+    if (tipo === 'Gasto') {
+      const movimiento = movimientosPaginados.find(m => m.id === movimientoId);
+      const gastoId = movimiento?.operacionId;
+      
+      if (movimiento && gastoId) {
+        setSelectedGastoId(parseInt(gastoId));
+        setEditarEliminarGastoOpen(true);
+      } else {
+        console.error('No se puede editar/eliminar el gasto: ID del gasto no encontrado', movimientoId, movimiento);
+        setError('No se puede editar/eliminar el gasto: ID del gasto no encontrado');
       }
       return;
     }
@@ -731,6 +749,12 @@ const MovimientosExpandidos: React.FC<MovimientosExpandidosProps> = ({
   const handleCerrarDialogoDevolverRetiro = () => {
     setDialogoDevolverRetiroOpen(false);
     setRetiroIdSeleccionado('');
+  };
+
+  // Función para cerrar el diálogo de editar/eliminar gasto
+  const handleCloseEditarEliminarGasto = () => {
+    setEditarEliminarGastoOpen(false);
+    setSelectedGastoId(null);
   };
 
   return (
@@ -1170,6 +1194,14 @@ const MovimientosExpandidos: React.FC<MovimientosExpandidosProps> = ({
         onClose={handleCerrarDialogoDevolverRetiro}
         onGuardarExito={cargarMovimientos}
         retiroId={retiroIdSeleccionado}
+      />
+
+      {/* Diálogo para editar/eliminar gasto */}
+      <EditarEliminarGasto
+        open={editarEliminarGastoOpen}
+        onClose={handleCloseEditarEliminarGasto}
+        onSuccess={cargarMovimientos}
+        gastoId={selectedGastoId}
       />
     </Dialog>
   );

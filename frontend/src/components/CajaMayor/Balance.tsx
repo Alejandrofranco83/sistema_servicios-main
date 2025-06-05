@@ -74,6 +74,7 @@ import DevolverRetiro from './DevolverRetiro';
 import { cajaMayorService } from '../../services/api';
 import cotizacionExternaService from '../../services/cotizacionExternaService';
 import api from '../../services/api';
+import EditarEliminarGasto from './EditarEliminarGasto';
 
 // Definir TipoMoneda para representar las abreviaturas estándar
 type TipoMoneda = 'PYG' | 'USD' | 'BRL';
@@ -296,6 +297,8 @@ const Balance: React.FC = () => {
   const [retiroIdSeleccionado, setRetiroIdSeleccionado] = useState('');
 
   const [loadingComprobante, setLoadingComprobante] = useState<boolean>(false);
+  const [editarGastoOpen, setEditarGastoOpen] = useState(false);
+  const [selectedGastoId, setSelectedGastoId] = useState<number | null>(null);
 
   // Cargar la preferencia de orden desde localStorage al inicio
   useEffect(() => {
@@ -648,6 +651,8 @@ const Balance: React.FC = () => {
   
   const handleCloseMovimientosExpandidos = () => {
     setMovimientosExpandidosOpen(false);
+    // Recargar datos cuando se cierra MovimientosExpandidos
+    recargarTodo();
   };
 
   // Buscar la función que maneja la edición de movimientos
@@ -691,6 +696,16 @@ const Balance: React.FC = () => {
       } else {
         console.error('No se pudo obtener el operacionId para el movimiento de cambio:', movimientoId);
         setError('No se pudo obtener la información necesaria para anular este cambio.');
+      }
+    } else if (tipoNormalizado === 'gasto') {
+      // Encontrar el operacionId del movimiento de gasto
+      const movimientoGasto = movimientosMonedaActiva.find(m => m.id === movimientoNumericoId);
+      if (movimientoGasto && movimientoGasto.operacionId) {
+        setSelectedGastoId(parseInt(movimientoGasto.operacionId)); // Guardar el ID del GASTO (operacionId)
+        setEditarGastoOpen(true); // Abrir el diálogo para editar/eliminar el gasto
+      } else {
+        console.error('No se pudo obtener el operacionId para el movimiento de gasto:', movimientoId);
+        setError('No se pudo obtener la información necesaria para editar este gasto.');
       }
     } else {
       console.warn(`No hay editor definido para el tipo: ${tipo}`);
@@ -1734,6 +1749,13 @@ const Balance: React.FC = () => {
           onClose={handleCerrarDialogoDevolverRetiro}
           onGuardarExito={recargarTodo}
           retiroId={retiroIdSeleccionado}
+        />
+
+        <EditarEliminarGasto
+          open={editarGastoOpen}
+          onClose={() => setEditarGastoOpen(false)}
+          gastoId={selectedGastoId}
+          onSuccess={recargarTodo}
         />
 
         <Dialog

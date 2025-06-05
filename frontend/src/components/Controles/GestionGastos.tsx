@@ -39,7 +39,8 @@ import {
   useTheme,
   Stack,
   Autocomplete,
-  GlobalStyles
+  GlobalStyles,
+  Checkbox
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -59,7 +60,8 @@ import {
   CalendarToday as CalendarTodayIcon,
   Business as BusinessIcon,
   Category as CategoryIcon,
-  Visibility as VisibilityIcon
+  Visibility as VisibilityIcon,
+  AccountBalance as AccountBalanceIcon
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -67,6 +69,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import es from 'date-fns/locale/es';
 import api from '../../services/api'; // Usar instancia api global
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, sub, isWithinInterval, parseISO } from 'date-fns';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
@@ -117,6 +120,7 @@ interface Gasto {
     nombre: string | null;
     apellido: string | null;
   };
+  saleDeCajaMayor?: boolean; // Campo opcional para indicar si sale de caja mayor
 }
 
 interface FiltrosGastos {
@@ -155,6 +159,26 @@ interface EstadisticasResumen {
   porcentajeCambio: number;
 }
 
+// Función para obtener el valor guardado de saleDeCajaMayor desde localStorage
+const getSaleDeCajaMayorGuardado = (): boolean => {
+  try {
+    const valorGuardado = localStorage.getItem('saleDeCajaMayorDefault');
+    return valorGuardado === 'true';
+  } catch (error) {
+    console.error('Error al leer saleDeCajaMayorDefault desde localStorage:', error);
+    return false;
+  }
+};
+
+// Función para guardar el valor de saleDeCajaMayor en localStorage
+const setSaleDeCajaMayorGuardado = (valor: boolean): void => {
+  try {
+    localStorage.setItem('saleDeCajaMayorDefault', valor.toString());
+  } catch (error) {
+    console.error('Error al guardar saleDeCajaMayorDefault en localStorage:', error);
+  }
+};
+
 // Estado inicial para un nuevo gasto
 const gastoInicial = {
   fecha: new Date(),
@@ -165,7 +189,8 @@ const gastoInicial = {
   subcategoriaId: '',
   sucursalId: '',
   observaciones: '',
-  comprobante: null as File | null
+  comprobante: null as File | null,
+  saleDeCajaMayor: getSaleDeCajaMayorGuardado() // Cargar valor guardado como predeterminado
 };
 
 // Colores para gráficos
@@ -386,6 +411,7 @@ const GestionGastos: React.FC = () => {
   });
   
   const { token } = useAuth();
+  const navigate = useNavigate();
   
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -437,6 +463,22 @@ const GestionGastos: React.FC = () => {
   // Estado para las cotizaciones
   const [cotizaciones, setCotizaciones] = useState({ dolar: 7200, real: 1400 });
   const [loadingCotizaciones, setLoadingCotizaciones] = useState(false);
+
+  // Estado para snackbar de notificaciones
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error' | 'warning' | 'info';
+  }>({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
+
+  // Función para cerrar el snackbar
+  const handleCloseSnackbar = () => {
+    setSnackbar(prev => ({ ...prev, open: false }));
+  };
 
   // Función para abrir el comprobante en una nueva ventana
   const handleViewComprobante = (comprobanteUrl: string | null) => {
@@ -671,6 +713,11 @@ const GestionGastos: React.FC = () => {
       });
     }
     
+    // Guardar en localStorage si es el campo saleDeCajaMayor
+    if (campo === 'saleDeCajaMayor' && typeof valor === 'boolean') {
+      setSaleDeCajaMayorGuardado(valor);
+    }
+    
     // Reset errors
     if (campo in formErrors) {
       setFormErrors({
@@ -725,7 +772,11 @@ const GestionGastos: React.FC = () => {
 
   // Abrir diálogo para crear gasto
   const abrirDialogoCrear = () => {
-    setGasto(gastoInicial);
+    setGasto({
+      ...gastoInicial,
+      fecha: new Date(), // Asegurar fecha actual
+      saleDeCajaMayor: getSaleDeCajaMayorGuardado() // Cargar valor guardado
+    });
     setComprobantePreview(null);
     setDialogAction('crear');
     setOpenDialog(true);
@@ -752,6 +803,7 @@ const GestionGastos: React.FC = () => {
       sucursalId: gastoToEdit.sucursalId ? gastoToEdit.sucursalId.toString() : '',
       observaciones: gastoToEdit.observaciones || '',
       comprobante: null as File | null,
+      saleDeCajaMayor: false, // Por defecto en false para edición (no modificamos movimientos existentes)
       id: gastoToEdit.id
     };
     
@@ -815,6 +867,9 @@ const GestionGastos: React.FC = () => {
       if (gasto.comprobante) {
         formData.append('comprobante', gasto.comprobante);
       }
+      
+      // Agregar el campo saleDeCajaMayor
+      formData.append('saleDeCajaMayor', gasto.saleDeCajaMayor.toString());
       
       if (dialogAction === 'crear') {
         await api.post('/api/gastos', formData, {
@@ -1112,6 +1167,62 @@ const GestionGastos: React.FC = () => {
     }
   };
 
+  // Función para manejar eliminación con verificación
+  const handleEliminarGasto = async (gasto: any) => {
+    // Verificar si el gasto sale de caja mayor
+    if (gasto.saleDeCajaMayor) {
+      setSnackbar({
+        open: true,
+        message: 'Este gasto debe eliminarse desde el Balance de Caja Mayor',
+        severity: 'warning'
+      });
+      return;
+    }
+
+    // Confirmar eliminación
+    const confirmacion = window.confirm(
+      `¿Estás seguro de que deseas eliminar el gasto "${gasto.descripcion}"?`
+    );
+    
+    if (confirmacion) {
+      try {
+        const response = await fetch(`/api/gastos/${gasto.id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+
+        if (response.ok) {
+          setSnackbar({
+            open: true,
+            message: 'Gasto eliminado exitosamente',
+            severity: 'success'
+          });
+          cargarGastos();
+        } else {
+          const errorData = await response.json();
+          if (errorData.code === 'DEBE_ELIMINAR_DESDE_BALANCE') {
+            setSnackbar({
+              open: true,
+              message: errorData.error,
+              severity: 'warning'
+            });
+          } else {
+            throw new Error(errorData.error || 'Error al eliminar el gasto');
+          }
+        }
+      } catch (error: any) {
+        console.error('Error al eliminar gasto:', error);
+        setSnackbar({
+          open: true,
+          message: error.message || 'Error al eliminar el gasto',
+          severity: 'error'
+        });
+      }
+    }
+  };
+
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
       <Box sx={{ width: '100%' }}>
@@ -1382,35 +1493,117 @@ const GestionGastos: React.FC = () => {
                         .map((gasto) => (
                           <TableRow key={gasto.id}>
                             <TableCell>{format(new Date(gasto.fecha), 'dd/MM/yyyy')}</TableCell>
-                            <TableCell>{gasto.descripcion}</TableCell>
                             <TableCell>
-                              {gasto.moneda === 'GS' ? 'Gs.' : gasto.moneda === 'USD' ? 'US$' : 'R$'} {formatearMonto(gasto.monto, gasto.moneda)}
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                {/* Indicador visual más discreto si sale de caja mayor */}
+                                {gasto.saleDeCajaMayor && (
+                                  <Tooltip title="Este gasto sale de Caja Mayor">
+                                    <Chip
+                                      label="CM"
+                                      size="small"
+                                      color="primary"
+                                      variant="outlined"
+                                      icon={<AccountBalanceIcon />}
+                                      sx={{ 
+                                        fontSize: '0.65rem', 
+                                        height: '20px',
+                                        '& .MuiChip-label': { px: 0.5 },
+                                        '& .MuiChip-icon': { fontSize: '12px' }
+                                      }}
+                                    />
+                                  </Tooltip>
+                                )}
+                                
+                                <Typography variant="body2">
+                                  {gasto.descripcion}
+                                </Typography>
+                              </Box>
+                            </TableCell>
+                            <TableCell>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Chip
+                                  label={gasto.moneda}
+                                  size="small"
+                                  color={gasto.moneda === 'GS' ? 'default' : gasto.moneda === 'USD' ? 'success' : 'info'}
+                                />
+                                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                                  {formatearMonto(gasto.monto, gasto.moneda)}
+                                </Typography>
+                              </Box>
                             </TableCell>
                             <TableCell>{gasto.categoria.nombre}</TableCell>
-                            <TableCell>{gasto.subcategoria ? gasto.subcategoria.nombre : '-'}</TableCell>
-                            <TableCell>{gasto.sucursal ? gasto.sucursal.nombre : '-'}</TableCell>
+                            <TableCell>{gasto.subcategoria?.nombre || '-'}</TableCell>
+                            <TableCell>{gasto.sucursal?.nombre || 'General/Adm'}</TableCell>
                             <TableCell>
-                              <Tooltip title="Editar">
-                                <IconButton size="small" onClick={() => abrirDialogoEditar(gasto)}>
-                                  <EditIcon fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
-                              <Tooltip title="Eliminar">
-                                <IconButton size="small" color="error" onClick={() => confirmarEliminarGasto(gasto.id)}>
-                                  <DeleteIcon fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
-                              {gasto.comprobante && (
-                                <Tooltip title="Ver comprobante">
-                                  <IconButton 
-                                    size="small" 
+                              <Box sx={{ display: 'flex', gap: 1 }}>
+                                {/* Botón de editar - deshabilitado si sale de caja mayor */}
+                                {gasto.saleDeCajaMayor ? (
+                                  <Tooltip title="Este gasto debe editarse desde Balance de Caja Mayor">
+                                    <IconButton
+                                      size="small"
+                                      disabled
+                                      color="primary"
+                                    >
+                                      <EditIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                ) : (
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => {
+                                      abrirDialogoEditar(gasto);
+                                    }}
+                                    color="primary"
+                                  >
+                                    <EditIcon fontSize="small" />
+                                  </IconButton>
+                                )}
+                                
+                                {/* Botón de eliminación o ver en balance */}
+                                {gasto.saleDeCajaMayor ? (
+                                  <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                    <Tooltip title="Este gasto debe eliminarse desde Balance de Caja Mayor">
+                                      <IconButton
+                                        size="small"
+                                        disabled
+                                        color="error"
+                                      >
+                                        <DeleteIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Ver en Balance de Caja Mayor">
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => {
+                                          // Navegar al balance con filtro del gasto usando navegación interna
+                                          navigate(`/caja-mayor/balance?operacionId=${gasto.id}`);
+                                        }}
+                                        color="info"
+                                      >
+                                        <VisibilityIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                  </Box>
+                                ) : (
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleEliminarGasto(gasto)}
+                                    color="error"
+                                  >
+                                    <DeleteIcon fontSize="small" />
+                                  </IconButton>
+                                )}
+                                
+                                {gasto.comprobante && (
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => window.open(`/api/gastos/comprobante/${gasto.id}`, '_blank')}
                                     color="info"
-                                    onClick={() => handleViewComprobante(gasto.comprobante)}
                                   >
                                     <DescriptionIcon fontSize="small" />
                                   </IconButton>
-                                </Tooltip>
-                              )}
+                                )}
+                              </Box>
                             </TableCell>
                           </TableRow>
                         ))
@@ -1939,6 +2132,33 @@ const GestionGastos: React.FC = () => {
                 />
               </Grid>
               
+              {/* Nuevo campo: Checkbox para indicar si sale de caja mayor */}
+              <Grid item xs={12}>
+                <FormControl fullWidth>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+                    <Checkbox
+                      checked={gasto.saleDeCajaMayor}
+                      onChange={(e) => handleChangeGasto('saleDeCajaMayor', e.target.checked)}
+                      disabled={dialogAction === 'editar'} // Deshabilitar en edición
+                      color="primary"
+                    />
+                    <Typography variant="body2" sx={{ ml: 1 }}>
+                      Este gasto sale de Caja Mayor
+                    </Typography>
+                    <Tooltip title="Si se marca esta opción, se generará automáticamente un movimiento de egreso en Caja Mayor y un movimiento de salida en Balance Farmacia">
+                      <IconButton size="small" sx={{ ml: 1 }}>
+                        <DescriptionIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                  {dialogAction === 'editar' && (
+                    <FormHelperText sx={{ ml: 4 }}>
+                      La opción de Caja Mayor no puede modificarse en gastos existentes
+                    </FormHelperText>
+                  )}
+                </FormControl>
+              </Grid>
+              
               <Grid item xs={12}>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <Button
@@ -2043,6 +2263,23 @@ const GestionGastos: React.FC = () => {
             sx={{ width: '100%' }}
           >
             {errorMsg}
+          </Alert>
+        </Snackbar>
+        
+        {/* Snackbar para notificaciones del sistema */}
+        <Snackbar 
+          open={snackbar.open} 
+          autoHideDuration={6000} 
+          onClose={handleCloseSnackbar}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        >
+          <Alert 
+            onClose={handleCloseSnackbar} 
+            severity={snackbar.severity} 
+            variant="filled"
+            sx={{ width: '100%' }}
+          >
+            {snackbar.message}
           </Alert>
         </Snackbar>
       </Box>
