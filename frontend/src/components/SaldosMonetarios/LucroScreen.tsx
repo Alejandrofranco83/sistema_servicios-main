@@ -144,7 +144,12 @@ const PORCENTAJES_LUCRO: Record<string, Record<string, number>> = {
 
 const formatGuaranies = (value: number) => {
   const numeroSeguro = isNaN(value) ? 0 : value;
-  return new Intl.NumberFormat('es-PY').format(numeroSeguro);
+  return new Intl.NumberFormat('es-PY', {
+    style: 'decimal',
+    useGrouping: true,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(numeroSeguro);
 };
 
 const formatDolares = (value: number) => {
@@ -998,7 +1003,7 @@ const LucroScreen: React.FC = () => {
                       <Card variant="outlined" sx={{ bgcolor: '#2d2d2d', height: '100%' }}>
                         <CardContent>
                           <Typography variant="h6" gutterBottom sx={{ color: '#e0e0e0' }}>
-                            Movimientos por Día de la Semana
+                            Lucro por Día de la Semana
                           </Typography>
                           <Divider sx={{ mb: 2, bgcolor: '#424242' }} />
                           <Box sx={{ height: 300 }}>
@@ -1009,29 +1014,21 @@ const LucroScreen: React.FC = () => {
                               >
                                 <CartesianGrid strokeDasharray="3 3" stroke="#424242" />
                                 <XAxis dataKey="dia" stroke="#9e9e9e" />
-                                <YAxis yAxisId="left" stroke="#9e9e9e" />
-                                <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
+                                <YAxis stroke="#9e9e9e" />
                                 <RechartsTooltip 
                                   formatter={(value: any, name: string) => {
-                                    if (name === 'lucro') return formatGuaranies(value);
+                                    if (name === 'Lucro') return formatGuaranies(value);
                                     return value;
                                   }}
                                   contentStyle={{ backgroundColor: '#333333', border: 'none', color: '#e0e0e0' }}
                                 />
                                 <Legend wrapperStyle={{ color: '#e0e0e0' }} />
                                 <Line 
-                                  yAxisId="left"
-                                  type="monotone" 
-                                  dataKey="cantidad" 
-                                  stroke="#0088ce" 
-                                  activeDot={{ r: 8 }}
-                                  name="Cantidad"
-                                />
-                                <Line 
-                                  yAxisId="right"
                                   type="monotone" 
                                   dataKey="lucro" 
                                   stroke="#82ca9d" 
+                                  strokeWidth={3}
+                                  activeDot={{ r: 6 }}
                                   name="Lucro"
                                 />
                               </LineChart>
