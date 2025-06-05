@@ -489,82 +489,63 @@ const MovimientosExpandidos: React.FC<MovimientosExpandidosProps> = ({
 
   // Función para verificar si un comprobante es válido
   const esComprobanteValido = (rutaComprobante: string | null | undefined): boolean => {
-    // Añadir log para diagnóstico más detallado
-    console.log('[MovimientosExpandidos] Verificando comprobante:');
-    console.log('  - Valor recibido:', rutaComprobante);
-    console.log('  - Tipo:', typeof rutaComprobante);
-    console.log('  - Es null:', rutaComprobante === null);
-    console.log('  - Es undefined:', rutaComprobante === undefined);
-    console.log('  - Es string vacío:', rutaComprobante === '');
+    console.log('[MovimientosExpandidos] Verificando comprobante:', rutaComprobante);
     
-    // Verificación inicial: debe existir y ser un string no vacío
     if (!rutaComprobante) {
-      console.log('  - Resultado: FALSE (null, undefined o falsy)');
-      return false;
-    }
-    
-    // Verificar que sea string
-    if (typeof rutaComprobante !== 'string') {
-      console.log('  - Resultado: FALSE (no es string)');
+      console.log('[MovimientosExpandidos] Resultado: FALSE (rutaComprobante vacía o undefined)');
       return false;
     }
     
     const textoLimpio = rutaComprobante.trim().toLowerCase();
-    console.log('  - Texto limpio:', textoLimpio);
+    console.log('[MovimientosExpandidos] Texto limpio:', textoLimpio);
     
-    // Si está vacío después de trim, no es válido
+    // Si está vacío, no es válido
     if (textoLimpio === '') {
-      console.log('  - Resultado: FALSE (string vacío después de trim)');
+      console.log('[MovimientosExpandidos] Resultado: FALSE (texto vacío después de trim)');
       return false;
     }
     
     // IMPORTANTE: Los archivos .txt indican que NO hay comprobante adjunto
     if (textoLimpio.endsWith('.txt')) {
-      console.log('  - Resultado: FALSE (archivo .txt indica sin comprobante)');
+      console.log('[MovimientosExpandidos] Resultado: FALSE (archivo .txt indica sin comprobante)');
       return false;
     }
     
-    // Detectar textos que indican que no hay comprobante
-    const textosInvalidos = [
+    // Detectar textos que indican que no hay comprobante (solo texto exacto, no partes de nombres de archivo)
+    const textosInvalidosExactos = [
       'sin comprobante', 
       'no hay comprobante',
       'no disponible',
       'n/a',
       'ninguno',
-      'no existe',
-      '-',
-      'null',
-      'undefined',
-      'sin archivo',
-      'no adjuntado',
-      'pendiente'
+      'no existe'
     ];
     
-    // Si contiene alguno de los textos inválidos, no es un comprobante válido
-    for (const texto of textosInvalidos) {
+    // Si contiene alguno de los textos inválidos exactos
+    for (const texto of textosInvalidosExactos) {
       if (textoLimpio.includes(texto)) {
-        console.log(`  - Resultado: FALSE (contiene texto inválido: "${texto}")`);
+        console.log(`[MovimientosExpandidos] Resultado: FALSE (contiene texto inválido: "${texto}")`);
         return false;
       }
     }
     
+    // Verificar si es solo un guión (indicador de sin comprobante)
+    if (textoLimpio === '-') {
+      console.log('[MovimientosExpandidos] Resultado: FALSE (solo guión indica sin comprobante)');
+      return false;
+    }
+    
     // Verificar si parece una ruta de archivo válida (excluyendo .txt)
-    const tieneExtensionValida = /\.(pdf|jpg|jpeg|png|gif|tiff|bmp|doc|docx)$/i.test(textoLimpio);
-    console.log('  - Tiene extensión válida (sin .txt):', tieneExtensionValida);
+    const tieneExtension = /\.(pdf|jpg|jpeg|png|gif|tiff|bmp)$/i.test(textoLimpio);
+    console.log('[MovimientosExpandidos] Tiene extensión válida:', tieneExtension);
     
-    if (!tieneExtensionValida) {
-      console.log('  - Resultado: FALSE (sin extensión de archivo válida)');
+    // Si no tiene extensión de archivo válida, probablemente no sea un comprobante válido
+    if (!tieneExtension) {
+      console.log('[MovimientosExpandidos] Resultado: FALSE (sin extensión de archivo válida)');
       return false;
     }
     
-    // Verificar que no sea solo una extensión sin nombre
-    const nombreSinExtension = textoLimpio.replace(/\.(pdf|jpg|jpeg|png|gif|tiff|bmp|doc|docx)$/i, '');
-    if (nombreSinExtension.length < 1) {
-      console.log('  - Resultado: FALSE (solo extensión sin nombre de archivo)');
-      return false;
-    }
-    
-    console.log('  - Resultado: TRUE (comprobante válido)');
+    console.log('[MovimientosExpandidos] Resultado: TRUE (comprobante válido)');
     return true;
   };
 
@@ -580,7 +561,7 @@ const MovimientosExpandidos: React.FC<MovimientosExpandidosProps> = ({
       console.log('Ruta de comprobante original:', nombreArchivo);
       
       // Extraer el nombre del archivo sin la ruta
-      const nombreArchivoSolo = nombreArchivo.split('/').pop() || nombreArchivo;
+      const nombreArchivoSolo = nombreArchivo.split(/[\/\\]/).pop() || nombreArchivo;
       
       // Detectar el servicio basado en el nombre del archivo
       let servicioDetectado = 'caja-mayor'; // Valor por defecto

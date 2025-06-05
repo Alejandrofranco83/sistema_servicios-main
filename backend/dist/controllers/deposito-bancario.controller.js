@@ -553,6 +553,7 @@ const cancelarDepositoBancario = (req, res) => __awaiter(void 0, void 0, void 0,
         let usuarioId = req.usuarioId || ((_a = req.usuario) === null || _a === void 0 ? void 0 : _a.id) || ((_b = req.user) === null || _b === void 0 ? void 0 : _b.id) || 1;
         // Transacción para cancelar el depósito y crear el movimiento inverso
         yield db_1.prisma.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
+            var _a, _b, _c;
             // 1. Actualizar la observación del depósito para marcarlo como cancelado
             yield tx.$executeRaw `
         UPDATE "DepositoBancario" 
@@ -563,13 +564,62 @@ const cancelarDepositoBancario = (req, res) => __awaiter(void 0, void 0, void 0,
       `;
             // 2. Si existe el ID de movimiento, crear un movimiento inverso en caja_mayor_movimientos
             if (movimientoId) {
-                // Obtener el movimiento original
+                // Obtener el movimiento original para conocer la moneda y el monto
                 const movimientoOriginal = yield tx.$queryRaw `
           SELECT * FROM "caja_mayor_movimientos" WHERE id = ${movimientoId}
         `;
                 if (movimientoOriginal && Array.isArray(movimientoOriginal) && movimientoOriginal.length > 0) {
                     const mov = movimientoOriginal[0];
-                    // Crear movimiento inverso (con monto negativo)
+                    // Obtener información completa del depósito para el concepto detallado
+                    const depositoCompleto = yield tx.depositoBancario.findUnique({
+                        where: {
+                            id: id
+                        },
+                        include: {
+                            banco: {
+                                select: {
+                                    id: true,
+                                    nombre: true
+                                }
+                            },
+                            cuentaBancaria: {
+                                select: {
+                                    id: true,
+                                    numeroCuenta: true,
+                                    tipo: true,
+                                    banco: true
+                                }
+                            }
+                        }
+                    });
+                    let conceptoDetallado = `Cancelación depósito`;
+                    if (depositoCompleto) {
+                        // Obtener el nombre del banco usando la misma lógica que getDepositoBancarioPorMovimiento
+                        const nombreBanco = ((_a = depositoCompleto.cuentaBancaria) === null || _a === void 0 ? void 0 : _a.banco) || ((_b = depositoCompleto.banco) === null || _b === void 0 ? void 0 : _b.nombre) || 'N/A';
+                        // Formatear fecha del depósito
+                        const fechaDeposito = depositoCompleto.fecha ? new Date(depositoCompleto.fecha).toLocaleDateString('es-PY') : 'N/A';
+                        // Construir concepto detallado
+                        conceptoDetallado = `Cancelación depósito: ${nombreBanco} - Cta: ${((_c = depositoCompleto.cuentaBancaria) === null || _c === void 0 ? void 0 : _c.numeroCuenta) || 'N/A'} - Boleta: ${depositoCompleto.numeroBoleta || 'N/A'} - Fecha: ${fechaDeposito} - Motivo: ${razon}`;
+                    }
+                    else {
+                        // Fallback si no se puede obtener la información completa
+                        conceptoDetallado = `Cancelación del depósito ID: ${id}. Motivo: ${razon}`;
+                    }
+                    // CORREGIR: Buscar el último movimiento de la misma moneda para obtener el saldo actual correcto
+                    const ultimoMovimiento = yield tx.$queryRaw `
+            SELECT * FROM "caja_mayor_movimientos" 
+            WHERE moneda = ${mov.moneda || 'guaranies'}
+            ORDER BY id DESC 
+            LIMIT 1
+          `;
+                    // Calcular el saldo anterior y actual correctamente
+                    const saldoAnterior = ultimoMovimiento && Array.isArray(ultimoMovimiento) && ultimoMovimiento.length > 0
+                        ? parseFloat(ultimoMovimiento[0].saldoActual.toString())
+                        : 0;
+                    const montoDeposito = Math.abs(parseFloat(mov.monto));
+                    const saldoActual = saldoAnterior + montoDeposito; // Ingreso a caja mayor (sumar el depósito cancelado)
+                    console.log(`Cancelación depósito - Saldo anterior: ${saldoAnterior}, Monto a sumar: ${montoDeposito}, Saldo resultante: ${saldoActual}`);
+                    // Crear movimiento inverso (como ingreso positivo)
                     yield tx.$executeRaw `
             INSERT INTO "caja_mayor_movimientos" (
               "fechaHora",
@@ -588,13 +638,13 @@ const cancelarDepositoBancario = (req, res) => __awaiter(void 0, void 0, void 0,
             ) VALUES (
               NOW(),
               'Cancelación depósito',
-              ${-Math.abs(parseFloat(mov.monto))},
+              ${montoDeposito},
               ${mov.moneda || 'guaranies'},
-              ${`Cancelación del depósito ID: ${id}. Motivo: ${razon}`},
+              ${conceptoDetallado},
               ${mov.id},
-              false,
-              ${parseFloat(mov.saldoActual) || 0},
-              ${(parseFloat(mov.saldoActual) || 0) - Math.abs(parseFloat(mov.monto))},
+              true,
+              ${saldoAnterior},
+              ${saldoActual},
               ${usuarioId},
               ${id},
               NOW(),

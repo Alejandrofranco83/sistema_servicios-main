@@ -940,12 +940,19 @@ const Balance: React.FC = () => {
     // Añadir log para diagnóstico
     console.log('[Balance] Verificando comprobante:', rutaComprobante);
     
-    if (!rutaComprobante) return false;
+    if (!rutaComprobante) {
+      console.log('[Balance] Resultado: FALSE (rutaComprobante vacía o undefined)');
+      return false;
+    }
     
     const textoLimpio = rutaComprobante.trim().toLowerCase();
+    console.log('[Balance] Texto limpio:', textoLimpio);
     
     // Si está vacío, no es válido
-    if (textoLimpio === '') return false;
+    if (textoLimpio === '') {
+      console.log('[Balance] Resultado: FALSE (texto vacío después de trim)');
+      return false;
+    }
     
     // IMPORTANTE: Los archivos .txt indican que NO hay comprobante adjunto
     if (textoLimpio.endsWith('.txt')) {
@@ -953,33 +960,41 @@ const Balance: React.FC = () => {
       return false;
     }
     
-    // Detectar textos que indican que no hay comprobante
-    const textosInvalidos = [
+    // Detectar textos que indican que no hay comprobante (solo texto exacto, no partes de nombres de archivo)
+    const textosInvalidosExactos = [
       'sin comprobante', 
       'no hay comprobante',
       'no disponible',
       'n/a',
       'ninguno',
-      'no existe',
-      '-'
+      'no existe'
     ];
     
-    // Si contiene alguno de los textos inválidos, no es un comprobante válido
-    for (const texto of textosInvalidos) {
+    // Si contiene alguno de los textos inválidos exactos
+    for (const texto of textosInvalidosExactos) {
       if (textoLimpio.includes(texto)) {
+        console.log(`[Balance] Resultado: FALSE (contiene texto inválido: "${texto}")`);
         return false;
       }
     }
     
-    // Verificar si parece una ruta de archivo válida (excluyendo .txt)
-    const tieneExtension = /\.(pdf|jpg|jpeg|png|gif|tiff|bmp)$/i.test(textoLimpio);
-    
-    // Si no tiene extensión de archivo válida, probablemente no sea un comprobante válido
-    if (!tieneExtension) {
-      console.log('[Balance] Comprobante sin extensión de archivo válida:', rutaComprobante);
+    // Verificar si es solo un guión (indicador de sin comprobante)
+    if (textoLimpio === '-') {
+      console.log('[Balance] Resultado: FALSE (solo guión indica sin comprobante)');
       return false;
     }
     
+    // Verificar si parece una ruta de archivo válida (excluyendo .txt)
+    const tieneExtension = /\.(pdf|jpg|jpeg|png|gif|tiff|bmp)$/i.test(textoLimpio);
+    console.log('[Balance] Tiene extensión válida:', tieneExtension);
+    
+    // Si no tiene extensión de archivo válida, probablemente no sea un comprobante válido
+    if (!tieneExtension) {
+      console.log('[Balance] Resultado: FALSE (sin extensión de archivo válida)');
+      return false;
+    }
+    
+    console.log('[Balance] Resultado: TRUE (comprobante válido)');
     return true;
   };
 
@@ -995,7 +1010,7 @@ const Balance: React.FC = () => {
       console.log('Ruta de comprobante original:', nombreArchivo);
       
       // Extraer el nombre del archivo sin la ruta
-      const nombreArchivoSolo = nombreArchivo.split('/').pop() || nombreArchivo;
+      const nombreArchivoSolo = nombreArchivo.split(/[\/\\]/).pop() || nombreArchivo;
       
       // Detectar el servicio basado en el nombre del archivo
       let servicioDetectado = 'caja-mayor'; // Valor por defecto

@@ -590,7 +590,7 @@ export const cancelarDepositoBancario = async (req: Request, res: Response) => {
 
       // 2. Si existe el ID de movimiento, crear un movimiento inverso en caja_mayor_movimientos
       if (movimientoId) {
-        // Obtener el movimiento original
+        // Obtener el movimiento original para conocer la moneda y el monto
         const movimientoOriginal = await tx.$queryRaw`
           SELECT * FROM "caja_mayor_movimientos" WHERE id = ${movimientoId}
         `;
@@ -598,7 +598,64 @@ export const cancelarDepositoBancario = async (req: Request, res: Response) => {
         if (movimientoOriginal && Array.isArray(movimientoOriginal) && movimientoOriginal.length > 0) {
           const mov = movimientoOriginal[0] as any;
           
-          // Crear movimiento inverso (con monto negativo)
+          // Obtener información completa del depósito para el concepto detallado
+          const depositoCompleto = await tx.depositoBancario.findUnique({
+            where: {
+              id: id
+            },
+            include: {
+              banco: {
+                select: {
+                  id: true,
+                  nombre: true
+                }
+              },
+              cuentaBancaria: {
+                select: {
+                  id: true,
+                  numeroCuenta: true,
+                  tipo: true,
+                  banco: true
+                }
+              }
+            }
+          });
+          
+          let conceptoDetallado = `Cancelación depósito`;
+          
+          if (depositoCompleto) {
+            // Obtener el nombre del banco usando la misma lógica que getDepositoBancarioPorMovimiento
+            const nombreBanco = depositoCompleto.cuentaBancaria?.banco || depositoCompleto.banco?.nombre || 'N/A';
+            
+            // Formatear fecha del depósito
+            const fechaDeposito = depositoCompleto.fecha ? new Date(depositoCompleto.fecha).toLocaleDateString('es-PY') : 'N/A';
+            
+            // Construir concepto detallado
+            conceptoDetallado = `Cancelación depósito: ${nombreBanco} - Cta: ${depositoCompleto.cuentaBancaria?.numeroCuenta || 'N/A'} - Boleta: ${depositoCompleto.numeroBoleta || 'N/A'} - Fecha: ${fechaDeposito} - Motivo: ${razon}`;
+          } else {
+            // Fallback si no se puede obtener la información completa
+            conceptoDetallado = `Cancelación del depósito ID: ${id}. Motivo: ${razon}`;
+          }
+          
+          // CORREGIR: Buscar el último movimiento de la misma moneda para obtener el saldo actual correcto
+          const ultimoMovimiento = await tx.$queryRaw`
+            SELECT * FROM "caja_mayor_movimientos" 
+            WHERE moneda = ${mov.moneda || 'guaranies'}
+            ORDER BY id DESC 
+            LIMIT 1
+          `;
+          
+          // Calcular el saldo anterior y actual correctamente
+          const saldoAnterior = ultimoMovimiento && Array.isArray(ultimoMovimiento) && ultimoMovimiento.length > 0 
+            ? parseFloat(ultimoMovimiento[0].saldoActual.toString()) 
+            : 0;
+          
+          const montoDeposito = Math.abs(parseFloat(mov.monto));
+          const saldoActual = saldoAnterior + montoDeposito; // Ingreso a caja mayor (sumar el depósito cancelado)
+          
+          console.log(`Cancelación depósito - Saldo anterior: ${saldoAnterior}, Monto a sumar: ${montoDeposito}, Saldo resultante: ${saldoActual}`);
+          
+          // Crear movimiento inverso (como ingreso positivo)
           await tx.$executeRaw`
             INSERT INTO "caja_mayor_movimientos" (
               "fechaHora",
@@ -617,13 +674,13 @@ export const cancelarDepositoBancario = async (req: Request, res: Response) => {
             ) VALUES (
               NOW(),
               'Cancelación depósito',
-              ${-Math.abs(parseFloat(mov.monto))},
+              ${montoDeposito},
               ${mov.moneda || 'guaranies'},
-              ${`Cancelación del depósito ID: ${id}. Motivo: ${razon}`},
+              ${conceptoDetallado},
               ${mov.id},
-              false,
-              ${parseFloat(mov.saldoActual) || 0},
-              ${(parseFloat(mov.saldoActual) || 0) - Math.abs(parseFloat(mov.monto))},
+              true,
+              ${saldoAnterior},
+              ${saldoActual},
               ${usuarioId},
               ${id},
               NOW(),
