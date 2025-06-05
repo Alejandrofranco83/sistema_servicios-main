@@ -22,11 +22,16 @@ import {
   KeyboardArrowLeft,
   KeyboardArrowRight,
   Info as InfoIcon,
-  Notifications as NotificationsIcon
+  Notifications as NotificationsIcon,
+  CurrencyExchange as CurrencyExchangeIcon,
+  AttachMoney as AttachMoneyIcon,
+  Euro as EuroIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { globalScrollbarStyles } from '../../utils/scrollbarStyles';
+import { useCotizacion } from '../../contexts/CotizacionContext';
+import { formatCurrency } from '../../utils/formatUtils';
 
 // Interfaces para los datos del carrusel y panel informativo
 interface CarouselSlide {
@@ -53,6 +58,7 @@ interface OperadorViewProps {
 const OperadorView: React.FC<OperadorViewProps> = ({ username }) => {
   const navigate = useNavigate();
   const theme = useTheme();
+  const { cotizacionVigente, loading: cotizacionLoading, error: cotizacionError, refrescarCotizacion } = useCotizacion();
   const [activeStep, setActiveStep] = useState(0);
   const [slides, setSlides] = useState<CarouselSlide[]>([]);
   const [infoPanel, setInfoPanel] = useState<InfoPanel | null>(null);
@@ -182,13 +188,6 @@ const OperadorView: React.FC<OperadorViewProps> = ({ username }) => {
     }, 300); // Este tiempo debe ser menor que la duración de la transición
   };
 
-  // Funciones auxiliares para formatear montos
-  const formatCurrency = (amount: number): string => {
-    return amount.toLocaleString('es-PY', {
-      maximumFractionDigits: 0
-    });
-  };
-
   if (loading) {
     return (
       <Box sx={{ 
@@ -220,12 +219,101 @@ const OperadorView: React.FC<OperadorViewProps> = ({ username }) => {
         color: 'white',
         boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)'
       }}>
-        <Typography variant="h4" gutterBottom fontWeight="bold">
-          Bienvenido, {username}
-        </Typography>
-        <Typography variant="body1" sx={{ opacity: 0.9 }}>
-          Panel de operaciones del sistema de servicios
-        </Typography>
+        <Grid container alignItems="center" spacing={2}>
+          {/* Lado izquierdo: Bienvenida */}
+          <Grid item xs={12} md={9}>
+            <Typography variant="h4" gutterBottom fontWeight="bold">
+              Bienvenido, {username}
+            </Typography>
+            <Typography variant="body1" sx={{ opacity: 0.9 }}>
+              Panel de operaciones del sistema de servicios
+            </Typography>
+          </Grid>
+          
+          {/* Lado derecho: Cotización Vigente */}
+          <Grid item xs={12} md={3}>
+            <Box sx={{ 
+              bgcolor: alpha(theme.palette.common.white, 0.1), 
+              borderRadius: 1.5, 
+              p: 1.2,
+              border: `1px solid ${alpha(theme.palette.common.white, 0.2)}`
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, mb: 1 }}>
+                <CurrencyExchangeIcon sx={{ color: 'white', fontSize: 16 }} />
+                <Typography variant="body2" component="div" align="center" fontWeight="bold" sx={{ color: 'white', fontSize: '0.85rem' }}>
+                  Cotización Vigente
+                </Typography>
+              </Box>
+              
+              {cotizacionLoading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 0.5 }}>
+                  <CircularProgress size={16} sx={{ color: 'white' }} />
+                </Box>
+              ) : cotizacionError ? (
+                <Typography variant="body2" align="center" sx={{ py: 0.5, color: alpha(theme.palette.common.white, 0.8), fontSize: '0.75rem' }}>
+                  Error al cargar cotización
+                </Typography>
+              ) : cotizacionVigente ? (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  {/* Dólar */}
+                  <Box 
+                    sx={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'space-between',
+                      p: 0.7,
+                      borderRadius: 0.8,
+                      bgcolor: alpha(theme.palette.common.white, 0.15),
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                      <AttachMoneyIcon sx={{ color: 'white', fontSize: 14 }} />
+                      <Typography variant="body2" fontWeight="medium" sx={{ color: 'white', fontSize: '0.75rem' }}>USD</Typography>
+                    </Box>
+                    <Typography variant="body2" fontWeight="bold" sx={{ color: 'white', fontSize: '0.8rem' }}>
+                      {formatCurrency.guaranies(cotizacionVigente.valorDolar)}
+                    </Typography>
+                  </Box>
+                  
+                  {/* Real */}
+                  <Box 
+                    sx={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'space-between',
+                      p: 0.7,
+                      borderRadius: 0.8,
+                      bgcolor: alpha(theme.palette.common.white, 0.15),
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3 }}>
+                      <Box component="span" sx={{ 
+                        fontWeight: 'bold', 
+                        fontSize: '0.75rem',
+                        color: 'white',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 14,
+                        height: 14
+                      }}>
+                        R$
+                      </Box>
+                      <Typography variant="body2" fontWeight="medium" sx={{ color: 'white', fontSize: '0.75rem' }}>BRL</Typography>
+                    </Box>
+                    <Typography variant="body2" fontWeight="bold" sx={{ color: 'white', fontSize: '0.8rem' }}>
+                      {formatCurrency.guaranies(cotizacionVigente.valorReal)}
+                    </Typography>
+                  </Box>
+                </Box>
+              ) : (
+                <Typography variant="body2" align="center" sx={{ py: 0.5, color: alpha(theme.palette.common.white, 0.8), fontSize: '0.75rem' }}>
+                  No hay cotización disponible
+                </Typography>
+              )}
+            </Box>
+          </Grid>
+        </Grid>
       </Box>
 
       <Grid container spacing={3}>
