@@ -126,6 +126,15 @@ declare global {
        */
       resetZoom: () => Promise<number>;
     };
+
+    electronAPI: {
+      checkForUpdates: () => Promise<any>;
+      startUpdateDownload: () => Promise<{ success: boolean; error?: string }>;
+      installUpdate: () => void;
+      onUpdateAvailable: (callback: (info: UpdateInfo) => void) => void;
+      onDownloadProgress: (callback: (progress: DownloadProgress) => void) => void;
+      onUpdateDownloaded: (callback: (info: UpdateInfo) => void) => void;
+    };
   }
 }
 
@@ -147,4 +156,20 @@ interface TicketContent {
   total?: string;
   footer?: string;
   htmlContent?: any[];
-} 
+}
+
+interface UpdateInfo {
+  version: string;
+  releaseDate: string;
+  releaseName?: string;
+  releaseNotes?: string;
+}
+
+interface DownloadProgress {
+  bytesPerSecond: number;
+  percent: number;
+  transferred: number;
+  total: number;
+}
+
+export {}; 

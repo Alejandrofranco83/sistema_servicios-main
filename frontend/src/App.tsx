@@ -4,6 +4,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Dashboard from './components/Dashboard/Dashboard';
 import Login from './components/Login';
+import UpdateNotification from './components/UpdateNotification';
 import api from './services/api'; // Usar instancia api global
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CotizacionProvider } from './contexts/CotizacionContext';
@@ -76,6 +77,7 @@ const App: React.FC = () => {
           <CotizacionProvider>
             <SucursalProvider>
               <ServerStatusProvider>
+                <UpdateNotification />
                 <Routes>
                   <Route path="/login" element={<Login />} />
                   <Route element={<ProtectedRoute />}>

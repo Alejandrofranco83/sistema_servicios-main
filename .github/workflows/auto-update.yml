@@ -1,0 +1,96 @@
+name: Auto Update Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.1)'
+        required: true
+        type: string
+      release_notes:
+        description: 'Release notes (optional)'
+        required: false
+        type: string
+        default: 'Mejoras y correcciones de errores'
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      release_id: ${{ steps.create_release.outputs.id }}
+    steps:
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.event.inputs.version }}
+          release_name: "Sistema Servicios v${{ github.event.inputs.version }}"
+          draft: false
+          prerelease: false
+          body: |
+            ## 🚀 Actualización Automática v${{ github.event.inputs.version }}
+            
+            ${{ github.event.inputs.release_notes }}
+            
+            ### 📦 Instalación:
+            - **Windows**: Se actualizará automáticamente
+            - **Linux**: Se actualizará automáticamente
+            
+            ### 🔄 Proceso de actualización:
+            1. Recibirás una notificación en la aplicación
+            2. Haz clic en "Actualizar" cuando estés listo
+            3. La actualización se descarga en segundo plano
+            4. Instala cuando sea conveniente para ti
+
+  build:
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        
+    steps:
+    - name: Checkout código
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+        
+    - name: Instalar dependencias
+      working-directory: frontend
+      run: |
+        npm ci
+        npm install electron-updater
+        
+    - name: Actualizar versión
+      working-directory: frontend
+      run: npm version ${{ github.event.inputs.version }} --no-git-tag-version
+        
+    - name: Build React
+      working-directory: frontend
+      env:
+        CI: false
+      run: npm run build
+      
+    - name: Build y Publish
+      working-directory: frontend
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: npm run release
+
+  notify-completion:
+    needs: [create-release, build]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Notify Success
+      run: |
+        echo "✅ Actualización v${{ github.event.inputs.version }} publicada exitosamente"
+        echo "🔄 Los usuarios recibirán la notificación automáticamente" 

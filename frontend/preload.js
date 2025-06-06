@@ -1,7 +1,7 @@
 // Archivo preload.js
 // Este archivo se ejecuta en el proceso de renderizado antes de que se cargue la página web
 // y tiene acceso al contexto de Node.js
-const { contextBridge } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -701,4 +701,25 @@ window.addEventListener('DOMContentLoaded', () => {
   for (const dependency of ['chrome', 'node', 'electron']) {
     replaceText(`${dependency}-version`, process.versions[dependency])
   }
-}) 
+})
+
+// APIs de actualización automática
+const { ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('electronAPI', {
+  // APIs de actualización
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  startUpdateDownload: () => ipcRenderer.invoke('start-update-download'),
+  installUpdate: () => ipcRenderer.invoke('install-update'),
+  
+  // Listeners para eventos de actualización
+  onUpdateAvailable: (callback) => {
+    ipcRenderer.on('update-available', (event, info) => callback(info));
+  },
+  onDownloadProgress: (callback) => {
+    ipcRenderer.on('download-progress', (event, progress) => callback(progress));
+  },
+  onUpdateDownloaded: (callback) => {
+    ipcRenderer.on('update-downloaded', (event, info) => callback(info));
+  }
+}); 

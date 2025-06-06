@@ -1,7 +1,12 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const url = require('url');
 const { initialize, enable } = require('@electron/remote/main');
+
+// Configurar auto-updater
+autoUpdater.autoDownload = false; // No descargar automáticamente
+autoUpdater.autoInstallOnAppQuit = false; // No instalar automáticamente al salir
 
 // Inicializar @electron/remote
 initialize();
@@ -84,6 +89,66 @@ async function initializeStore() {
 // se cierre automáticamente cuando el objeto JavaScript es recolectado por el GC.
 let mainWindow;
 
+// Función para configurar el auto-updater
+function setupAutoUpdater() {
+  // Verificar actualizaciones cada 30 minutos (menos frecuente)
+  setInterval(() => {
+    console.log('Verificando actualizaciones automáticamente...');
+    autoUpdater.checkForUpdates();
+  }, 30 * 60 * 1000);
+
+  // También verificar al iniciar, pero después de 2 minutos
+  setTimeout(() => {
+    console.log('Verificación inicial de actualizaciones...');
+    autoUpdater.checkForUpdates();
+  }, 2 * 60 * 1000);
+
+  // Eventos del auto-updater
+  autoUpdater.on('checking-for-update', () => {
+    console.log('Verificando actualizaciones...');
+  });
+
+  autoUpdater.on('update-available', (info) => {
+    console.log('Actualización disponible:', info.version);
+    // Solo notificar si la ventana está enfocada o después de un delay
+    if (mainWindow && mainWindow.isFocused()) {
+      mainWindow.webContents.send('update-available', info);
+    } else if (mainWindow) {
+      // Si la ventana no está enfocada, esperar a que lo esté
+      mainWindow.once('focus', () => {
+        setTimeout(() => {
+          if (mainWindow) {
+            mainWindow.webContents.send('update-available', info);
+          }
+        }, 1000); // Delay de 1 segundo para no ser intrusivo
+      });
+    }
+  });
+
+  autoUpdater.on('update-not-available', (info) => {
+    console.log('No hay actualizaciones disponibles');
+  });
+
+  autoUpdater.on('error', (err) => {
+    console.error('Error en auto-updater:', err);
+  });
+
+  autoUpdater.on('download-progress', (progressObj) => {
+    const logMessage = `Velocidad de descarga: ${progressObj.bytesPerSecond} - Descargado ${progressObj.percent}% (${progressObj.transferred}/${progressObj.total})`;
+    console.log(logMessage);
+    if (mainWindow) {
+      mainWindow.webContents.send('download-progress', progressObj);
+    }
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log('Actualización descargada, preparando para instalar...');
+    if (mainWindow) {
+      mainWindow.webContents.send('update-downloaded', info);
+    }
+  });
+}
+
 async function createWindow() {
   console.log('Creando ventana de Electron...');
   
@@ -130,6 +195,9 @@ async function createWindow() {
 
   // Habilitar @electron/remote para esta ventana
   enable(mainWindow.webContents);
+
+  // Configurar auto-updater después de crear la ventana
+  setupAutoUpdater();
 
   // Restaurar el nivel de zoom guardado
   mainWindow.webContents.once('did-finish-load', () => {
@@ -253,6 +321,34 @@ ipcMain.handle('reset-zoom', () => {
     return 0;
   }
   return 0;
+});
+
+// IPC handlers para actualizaciones
+ipcMain.handle('start-update-download', async () => {
+  try {
+    console.log('Iniciando descarga de actualización...');
+    await autoUpdater.downloadUpdate();
+    return { success: true };
+  } catch (error) {
+    console.error('Error al descargar actualización:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('install-update', async () => {
+  console.log('Instalando actualización...');
+  autoUpdater.quitAndInstall();
+});
+
+ipcMain.handle('check-for-updates', async () => {
+  try {
+    console.log('Verificando actualizaciones manualmente...');
+    const result = await autoUpdater.checkForUpdates();
+    return result;
+  } catch (error) {
+    console.error('Error al verificar actualizaciones:', error);
+    return null;
+  }
 });
 
 // Este método será llamado cuando Electron haya terminado
