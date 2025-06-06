@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -149,54 +149,13 @@ const DetalleDialog: React.FC<DetalleDialogProps> = ({ open, onClose }) => {
     valorDolar: number;
   } | null>(null);
 
-  // Cargar movimientos y pagos cuando el diálogo se abre
-  useEffect(() => {
-    if (open && cajaSeleccionada && cajaSeleccionada.id) {
-      // Reiniciar el estado de datos actualizados cuando se abre el diálogo
-      setDatosActualizados(false);
-      cargarDatosAdicionales();
-      cargarCotizacionApertura();
-      cargarRetiros();
-      
-      console.log('Iniciando carga de operaciones bancarias para caja:', cajaSeleccionada.id);
-      
-      // Cargar operaciones bancarias sin abrir el diálogo
-      const url = `/api/operaciones-bancarias/caja/${cajaSeleccionada.id}`; // URL Corregida con /api/
-      console.log('URL de carga de operaciones bancarias:', url);
-      
-      api.get(url) // Llamada corregida con instancia api
-        .then(response => {
-          console.log('Operaciones bancarias recibidas:', response.data);
-          setOperacionesBancarias(response.data);
-        })
-        .catch(error => {
-          console.error('Error al cargar operaciones bancarias para cálculo:', error);
-          // En caso de error, establecer un array vacío
-          setOperacionesBancarias([]);
-        });
-    }
-  }, [open, cajaSeleccionada, setOperacionesBancarias]);
-
-  // Reset del estado cuando se cierra el diálogo
-  useEffect(() => {
-    if (!open) {
-      // Limpiar los datos cuando se cierra el diálogo
-      setMovimientos({});
-      setTodosPagosServicios([]);
-      setRetiros([]);
-      setDatosActualizados(false);
-      setCotizacionApertura(null);
-    }
-  }, [open]);
-
   // Función para cargar los retiros de la caja
-  const cargarRetiros = async () => {
+  const cargarRetiros = useCallback(async () => {
     if (!cajaSeleccionada || !cajaSeleccionada.id) return;
     
     try {
       console.log(`Cargando retiros para caja ID: ${cajaSeleccionada.id}`);
-      // const resRetiros = await axios.get(`${process.env.REACT_APP_API_URL}/cajas/${cajaSeleccionada.id}/retiros`); // Antigua
-      const resRetiros = await api.get(`/api/cajas/${cajaSeleccionada.id}/retiros`); // Corregida
+      const resRetiros = await api.get(`/api/cajas/${cajaSeleccionada.id}/retiros`);
       
       if (resRetiros.data && Array.isArray(resRetiros.data)) {
         setRetiros(resRetiros.data);
@@ -209,10 +168,10 @@ const DetalleDialog: React.FC<DetalleDialogProps> = ({ open, onClose }) => {
       console.error('Error al cargar retiros:', error);
       setRetiros([]);
     }
-  };
+  }, [cajaSeleccionada]);
 
   // Función para cargar la cotización vigente en la fecha de apertura de la caja
-  const cargarCotizacionApertura = async () => {
+  const cargarCotizacionApertura = useCallback(async () => {
     if (!cajaSeleccionada || !cajaSeleccionada.fechaApertura) return;
     
     try {
@@ -241,10 +200,10 @@ const DetalleDialog: React.FC<DetalleDialogProps> = ({ open, onClose }) => {
         valorDolar: cotizacionVigente?.valorDolar || 7980
       });
     }
-  };
+  }, [cajaSeleccionada, cotizacionVigente]);
 
   // Función para cargar movimientos y pagos
-  const cargarDatosAdicionales = async () => {
+  const cargarDatosAdicionales = useCallback(async () => {
     if (!cajaSeleccionada || !cajaSeleccionada.id) return;
     
     setLoading(true);
@@ -255,12 +214,9 @@ const DetalleDialog: React.FC<DetalleDialogProps> = ({ open, onClose }) => {
       
       // Usamos Promise.all para cargar todo en paralelo
       const [resMovimientos, resPagosServicios, resPagosCaja] = await Promise.all([
-        // axios.get(`${process.env.REACT_APP_API_URL}/cajas/${cajaSeleccionada.id}/movimiento`), // Antigua
-        api.get(`/api/cajas/${cajaSeleccionada.id}/movimiento`), // Corregida
-        // axios.get(`${process.env.REACT_APP_API_URL}/pagos-servicios?cajaId=${cajaSeleccionada.id}`), // Antigua
-        api.get(`/api/pagos-servicios?cajaId=${cajaSeleccionada.id}`), // Corregida
-        // axios.get(`${process.env.REACT_APP_API_URL}/cajas/${cajaSeleccionada.id}/pagos`) // Antigua
-        api.get(`/api/cajas/${cajaSeleccionada.id}/pagos`) // Corregida
+        api.get(`/api/cajas/${cajaSeleccionada.id}/movimiento`),
+        api.get(`/api/pagos-servicios?cajaId=${cajaSeleccionada.id}`),
+        api.get(`/api/cajas/${cajaSeleccionada.id}/pagos`)
       ]);
       
       // Cargar movimientos
@@ -298,21 +254,64 @@ const DetalleDialog: React.FC<DetalleDialogProps> = ({ open, onClose }) => {
       setErrorMessage('Error al cargar datos de movimientos y pagos');
       setMovimientos({});
       setTodosPagosServicios([]);
-      setPagos([]); // Limpiar también pagos caja
+      setPagos([]);
       setDatosActualizados(false);
     } finally {
       setLoading(false);
     }
-  };
+  }, [cajaSeleccionada, setLoading, setErrorMessage]);
+
+  // Función para cargar operaciones bancarias
+  const cargarOperacionesBancarias = useCallback(async () => {
+    if (!cajaSeleccionada || !cajaSeleccionada.id) return;
+    
+    console.log('Iniciando carga de operaciones bancarias para caja:', cajaSeleccionada.id);
+    
+    const url = `/api/operaciones-bancarias/caja/${cajaSeleccionada.id}`;
+    console.log('URL de carga de operaciones bancarias:', url);
+    
+    try {
+      const response = await api.get(url);
+      console.log('Operaciones bancarias recibidas:', response.data);
+      setOperacionesBancarias(response.data);
+    } catch (error) {
+      console.error('Error al cargar operaciones bancarias para cálculo:', error);
+      setOperacionesBancarias([]);
+    }
+  }, [cajaSeleccionada, setOperacionesBancarias]);
+
+  // Cargar movimientos y pagos cuando el diálogo se abre
+  useEffect(() => {
+    if (open && cajaSeleccionada && cajaSeleccionada.id) {
+      // Reiniciar el estado de datos actualizados cuando se abre el diálogo
+      setDatosActualizados(false);
+      cargarDatosAdicionales();
+      cargarCotizacionApertura();
+      cargarRetiros();
+      cargarOperacionesBancarias();
+    }
+  }, [open, cajaSeleccionada?.id, cargarDatosAdicionales, cargarCotizacionApertura, cargarRetiros, cargarOperacionesBancarias]);
+
+  // Reset del estado cuando se cierra el diálogo
+  useEffect(() => {
+    if (!open) {
+      // Limpiar los datos cuando se cierra el diálogo
+      setMovimientos({});
+      setTodosPagosServicios([]);
+      setRetiros([]);
+      setDatosActualizados(false);
+      setCotizacionApertura(null);
+    }
+  }, [open]);
 
   // Recalcular la diferencia cuando cambian las operaciones bancarias
   useEffect(() => {
-    if (operacionesBancarias && operacionesBancarias.length > 0) {
+    if (operacionesBancarias && operacionesBancarias.length > 0 && datosActualizados) {
       console.log('Operaciones bancarias actualizadas, recalculando diferencia:', operacionesBancarias);
-      // Forzar una actualización para recalcular la diferencia
-      setDatosActualizados(true);
+      // Las operaciones bancarias ya están disponibles, no necesitamos hacer nada especial
+      // El cálculo se hace automáticamente en render
     }
-  }, [operacionesBancarias]);
+  }, [operacionesBancarias, datosActualizados]);
 
   if (!cajaSeleccionada) {
     return null;

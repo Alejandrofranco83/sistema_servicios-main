@@ -118,7 +118,7 @@ interface DashboardProps {
 }
 
 // Constante para la versión del sistema
-const SYSTEM_VERSION = 'v1.2.0';
+const SYSTEM_VERSION = 'v1.2.1';
 
 const drawerWidth = 240;
 

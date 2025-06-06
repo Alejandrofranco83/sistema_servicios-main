@@ -43,6 +43,7 @@ import {
   Payment as PaymentIcon,
   FilterAlt as FilterAltIcon
 } from '@mui/icons-material';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useCajas } from './CajasContext';
 import { formatearIdCaja, formatearMontoConSeparadores } from './helpers';
 import { useAuth } from '../../contexts/AuthContext';
@@ -59,6 +60,8 @@ import { VerMovimientosDialog, PagosDialog, ListaPagos } from './CajasMovimiento
 
 const Cajas: React.FC = () => {
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const isOperador = user && user.rol && user.rol.nombre.toUpperCase() === 'OPERADOR';
   const isAdmin = user && user.rol && user.rol.nombre.toUpperCase() === 'ADMINISTRADOR';
 
@@ -104,7 +107,8 @@ const Cajas: React.FC = () => {
     confirmarEliminarPagoId,
     setConfirmarEliminarPagoId,
     confirmarEliminacionPago,
-    cancelarEliminacionPago
+    cancelarEliminacionPago,
+    cajaSeleccionada
   } = useCajas();
 
   // Estado para el filtro de fechas
@@ -120,6 +124,51 @@ const Cajas: React.FC = () => {
   // Estados para la paginación
   const [page, setPage] = React.useState<number>(0);
   const [rowsPerPage, setRowsPerPage] = React.useState<number>(50);
+
+  // Ref para controlar si ya se procesó el parámetro openDetail
+  const openDetailProcessed = React.useRef<boolean>(false);
+
+  // Efecto para detectar parámetro openDetail en la URL
+  React.useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const openDetailParam = searchParams.get('openDetail');
+    
+    // Solo procesar si hay parámetro, no se ha procesado antes y hay cajas cargadas
+    if (openDetailParam && !openDetailProcessed.current && cajas.length > 0) {
+      const cajaId = parseInt(openDetailParam, 10);
+      const cajaEncontrada = cajas.find(caja => caja.cajaEnteroId === cajaId);
+      
+      if (cajaEncontrada) {
+        // Marcar como procesado antes de abrir el detalle
+        openDetailProcessed.current = true;
+        
+        // Abrir el detalle de la caja encontrada
+        handleVerDetalle(cajaEncontrada);
+        
+        // Limpiar el parámetro de la URL sin recargar la página
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+      } else {
+        // Si no se encuentra la caja, mostrar mensaje de error
+        setErrorMessage(`No se encontró la caja con ID ${cajaId}`);
+        openDetailProcessed.current = true;
+        
+        // Limpiar el parámetro de la URL
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+      }
+    }
+  }, [location.search, cajas.length]); // Solo depender de location.search y cajas.length
+
+  // Resetear el flag cuando cambia la URL sin parámetro openDetail
+  React.useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const openDetailParam = searchParams.get('openDetail');
+    
+    if (!openDetailParam) {
+      openDetailProcessed.current = false;
+    }
+  }, [location.search]);
 
   // Cargar sucursales al iniciar para el filtro
   React.useEffect(() => {

@@ -21,10 +21,15 @@ import {
   Chip,
   Collapse,
   TablePagination,
-  Tooltip
+  Tooltip,
+  IconButton
 } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import {
+  OpenInNew as OpenInNewIcon
+} from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import api from '../../../services/api';
 import { formatearMontoConSeparadores } from '../../Cajas/helpers';
 import { es } from 'date-fns/locale';
@@ -94,6 +99,7 @@ interface DiferenciaEnCajaListProps {
 }
 
 const DiferenciaEnCajaList: React.FC<DiferenciaEnCajaListProps> = ({ propGlobalCajaFilter }) => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [datosComparaciones, setDatosComparaciones] = useState<ComparacionEnCajaExtendidoTemp[]>([]);
@@ -121,6 +127,12 @@ const DiferenciaEnCajaList: React.FC<DiferenciaEnCajaListProps> = ({ propGlobalC
   // --- Estados de Paginación ---
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  // Función para navegar a la pantalla de cajas y abrir el detalle de una caja específica
+  const navegarACajaDetalle = (cajaId: number) => {
+    // Navegar a la ruta de cajas con el parámetro de la caja a abrir
+    navigate(`/cajas?openDetail=${cajaId}`);
+  };
 
   // --- Función para calcular diferencias automáticamente ---
   const calcularDiferenciasAutomaticamente = useCallback(async (comparaciones: ComparacionEnCajaExtendidoTemp[]) => {
@@ -560,7 +572,23 @@ const DiferenciaEnCajaList: React.FC<DiferenciaEnCajaListProps> = ({ propGlobalC
                                 : comp.maletinId || '-'
                               }
                             </TableCell>
-                            <TableCell align="right">{comp.cajaEnteroId}</TableCell>
+                            <TableCell align="right">
+                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
+                                {comp.cajaEnteroId}
+                                <Tooltip title="Ver detalle de esta caja">
+                                  <IconButton 
+                                    size="small" 
+                                    onClick={(e) => {
+                                      e.stopPropagation(); // Evitar que se active el click de la fila
+                                      navegarACajaDetalle(comp.cajaEnteroId);
+                                    }}
+                                    sx={{ ml: 0.5 }}
+                                  >
+                                    <OpenInNewIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              </Box>
+                            </TableCell>
                             <TableCell align="center">
                               <Chip label={chipLabel} color={chipColor} size="small" variant="outlined" sx={chipSx} />
                             </TableCell>

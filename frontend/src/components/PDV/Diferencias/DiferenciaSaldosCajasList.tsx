@@ -20,8 +20,14 @@ import {
   SelectChangeEvent,
   Chip,
   Collapse,
-  TablePagination
+  TablePagination,
+  IconButton,
+  Tooltip
 } from '@mui/material';
+import {
+  OpenInNew as OpenInNewIcon
+} from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import api from '../../../services/api';
 import { formatearMontoConSeparadores } from '../../Cajas/helpers';
 import { es } from 'date-fns/locale';
@@ -67,6 +73,7 @@ interface DiferenciaSaldosCajasListProps {
 }
 
 const DiferenciaSaldosCajasList: React.FC<DiferenciaSaldosCajasListProps> = ({ propGlobalCajaFilter }) => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [datosComparaciones, setDatosComparaciones] = useState<ComparacionSaldosServicios[]>([]);
@@ -84,6 +91,12 @@ const DiferenciaSaldosCajasList: React.FC<DiferenciaSaldosCajasListProps> = ({ p
   // --- Estados de Paginación ---
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  // Función para navegar a la pantalla de cajas y abrir el detalle de una caja específica
+  const navegarACajaDetalle = (cajaId: number) => {
+    // Navegar a la ruta de cajas con el parámetro de la caja a abrir
+    navigate(`/cajas?openDetail=${cajaId}`);
+  };
 
   // --- Fetching de Datos ---
   useEffect(() => {
@@ -331,8 +344,40 @@ const DiferenciaSaldosCajasList: React.FC<DiferenciaSaldosCajasListProps> = ({ p
                                 : '-'}
                             </TableCell>
                             <TableCell>{comp.cajaAnterior.sucursalNombre || '-'}</TableCell>
-                            <TableCell align="right">{comp.cajaAnterior.cajaEnteroId}</TableCell>
-                            <TableCell align="right">{comp.cajaSiguiente.cajaEnteroId}</TableCell>
+                            <TableCell align="right">
+                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
+                                {comp.cajaAnterior.cajaEnteroId}
+                                <Tooltip title="Ver detalle de esta caja">
+                                  <IconButton 
+                                    size="small" 
+                                    onClick={(e) => {
+                                      e.stopPropagation(); // Evitar que se active el click de la fila
+                                      navegarACajaDetalle(comp.cajaAnterior.cajaEnteroId);
+                                    }}
+                                    sx={{ ml: 0.5 }}
+                                  >
+                                    <OpenInNewIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              </Box>
+                            </TableCell>
+                            <TableCell align="right">
+                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
+                                {comp.cajaSiguiente.cajaEnteroId}
+                                <Tooltip title="Ver detalle de esta caja">
+                                  <IconButton 
+                                    size="small" 
+                                    onClick={(e) => {
+                                      e.stopPropagation(); // Evitar que se active el click de la fila
+                                      navegarACajaDetalle(comp.cajaSiguiente.cajaEnteroId);
+                                    }}
+                                    sx={{ ml: 0.5 }}
+                                  >
+                                    <OpenInNewIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              </Box>
+                            </TableCell>
                             <TableCell align="center">
                               {tieneDiferencia ? (
                                 <Chip label="Con Diferencia" color="error" size="small" variant="outlined" />
