@@ -100,6 +100,319 @@ export const getAllOperacionesBancarias = async (_req: Request, res: Response) =
 };
 
 /**
+ * Obtener operaciones bancarias para el control con filtros avanzados
+ */
+export const getOperacionesBancariasParaControl = async (req: Request, res: Response) => {
+  try {
+    const {
+      page = '0',
+      limit = '10',
+      fechaDesde,
+      fechaHasta,
+      sucursalId,
+      tipoOperacion,
+      verificado,
+      cuentaBancariaId,
+      cajaId,
+      usuarioCreacionId,
+      search
+    } = req.query;
+
+    console.log('=== DEBUG FECHAS EN BACKEND ===');
+    console.log('fechaDesde (query param):', fechaDesde);
+    console.log('fechaHasta (query param):', fechaHasta);
+    console.log('Tipo de fechaDesde:', typeof fechaDesde);
+    console.log('Tipo de fechaHasta:', typeof fechaHasta);
+
+    // Construir filtros dinámicamente
+    const where: any = {};
+
+    // Filtro por fechas
+    if (fechaDesde || fechaHasta) {
+      where.fecha = {};
+      if (fechaDesde) {
+        // Crear la fecha desde el inicio del día en UTC
+        const fechaDesdeDate = new Date(fechaDesde as string + 'T00:00:00.000Z');
+        console.log('fechaDesde convertida a Date:', fechaDesdeDate);
+        console.log('fechaDesde ISO string:', fechaDesdeDate.toISOString());
+        console.log('fechaDesde válida?:', !isNaN(fechaDesdeDate.getTime()));
+        where.fecha.gte = fechaDesdeDate;
+      }
+      if (fechaHasta) {
+        // Para incluir todo el día especificado, agregamos 1 día y restamos 1ms
+        // Esto asegura que incluimos todas las operaciones del día sin importar la zona horaria
+        const fechaBase = new Date(fechaHasta as string + 'T00:00:00.000Z');
+        const fechaHastaDate = new Date(fechaBase.getTime() + 24 * 60 * 60 * 1000 - 1); // +1 día -1ms
+        console.log('fechaHasta base:', fechaBase.toISOString());
+        console.log('fechaHasta final (incluye todo el día):', fechaHastaDate.toISOString());
+        console.log('fechaHasta válida?:', !isNaN(fechaHastaDate.getTime()));
+        where.fecha.lte = fechaHastaDate;
+      }
+      
+      console.log('Filtro de fecha final:', where.fecha);
+    } else {
+      console.log('No se aplicaron filtros de fecha');
+    }
+
+    // Filtro por sucursal
+    if (sucursalId) {
+      where.caja = {
+        sucursalId: parseInt(sucursalId as string)
+      };
+      console.log('Filtro por sucursal:', sucursalId);
+    }
+
+    // Filtro por tipo de operación
+    if (tipoOperacion) {
+      where.tipo = tipoOperacion as string;
+      console.log('Filtro por tipo operación:', tipoOperacion);
+    }
+
+    // Filtro por estado de verificación
+    if (verificado === 'true') {
+      where.usuarioId = 1; // Verificado = 1 (entero)
+      console.log('Filtro: solo verificados');
+    } else if (verificado === 'false') {
+      where.usuarioId = null; // Sin verificar = null
+      console.log('Filtro: solo sin verificar');
+    }
+
+    // Filtro por cuenta bancaria
+    if (cuentaBancariaId) {
+      where.cuentaBancariaId = parseInt(cuentaBancariaId as string);
+      console.log('Filtro por cuenta bancaria:', cuentaBancariaId);
+    }
+
+    // Filtro por caja
+    if (cajaId) {
+      where.cajaId = cajaId as string;
+      console.log('Filtro por caja:', cajaId);
+    }
+
+    // Filtro por usuario de creación
+    if (usuarioCreacionId) {
+      where.caja = {
+        ...where.caja,
+        usuarioId: parseInt(usuarioCreacionId as string)
+      };
+      console.log('Filtro por usuario creación:', usuarioCreacionId);
+    }
+
+    // Filtro por búsqueda en número de comprobante/referencia
+    if (search) {
+      where.OR = [
+        { numeroComprobante: { contains: search as string, mode: 'insensitive' } },
+        { posDescripcion: { contains: search as string, mode: 'insensitive' } },
+      ];
+      console.log('Filtro de búsqueda:', search);
+    }
+
+    console.log('WHERE clause completo:', JSON.stringify(where, null, 2));
+
+    // Calcular paginación
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const skip = pageNum * limitNum;
+
+    // Ejecutar consulta con conteo total
+    const [operaciones, total] = await Promise.all([
+      prisma.operacionBancaria.findMany({
+        where,
+        include: {
+          cuentaBancaria: {
+            select: {
+              id: true,
+              numeroCuenta: true,
+              banco: true,
+              tipo: true
+            }
+          },
+          caja: {
+            select: {
+              id: true,
+              cajaEnteroId: true,
+              estado: true,
+              usuario: {
+                select: {
+                  id: true,
+                  username: true,
+                  nombre: true
+                }
+              },
+              sucursal: {
+                select: {
+                  id: true,
+                  nombre: true,
+                  codigo: true
+                }
+              }
+            }
+          }
+        },
+        orderBy: [
+          { fecha: 'desc' },
+          { id: 'desc' }
+        ],
+        skip,
+        take: limitNum
+      }),
+      prisma.operacionBancaria.count({ where })
+    ]);
+
+    // Calcular el total de montos de operaciones sin verificar con los filtros aplicados
+    const whereOperacionesSinVerificar = {
+      ...where,
+      usuarioId: null // Solo operaciones sin verificar
+    };
+
+    const operacionesSinVerificar = await prisma.operacionBancaria.findMany({
+      where: whereOperacionesSinVerificar,
+      select: {
+        monto: true,
+        montoACobrar: true
+      }
+    });
+
+    // Calcular el total usando montoACobrar cuando esté disponible, sino monto
+    const totalMontoSinVerificar = operacionesSinVerificar.reduce((sum, op) => {
+      const montoAUsar = op.montoACobrar ?? op.monto;
+      return sum + Number(montoAUsar);
+    }, 0);
+
+    console.log('=== TOTAL OPERACIONES SIN VERIFICAR ===');
+    console.log('Cantidad sin verificar:', operacionesSinVerificar.length);
+    console.log('Total monto sin verificar:', totalMontoSinVerificar);
+
+    console.log('=== RESULTADOS DE LA CONSULTA ===');
+    console.log('Total de operaciones encontradas:', total);
+    console.log('Operaciones en esta página:', operaciones.length);
+    
+    if (operaciones.length > 0) {
+      console.log('Primera operación:');
+      console.log('- ID:', operaciones[0].id);
+      console.log('- Fecha:', operaciones[0].fecha);
+      console.log('- Fecha ISO:', operaciones[0].fecha.toISOString());
+      console.log('- Tipo:', operaciones[0].tipo);
+      console.log('- Caja ID:', operaciones[0].cajaId);
+      console.log('- Caja entero ID:', operaciones[0].caja?.cajaEnteroId);
+      
+      console.log('Última operación:');
+      const ultima = operaciones[operaciones.length - 1];
+      console.log('- ID:', ultima.id);
+      console.log('- Fecha:', ultima.fecha);
+      console.log('- Fecha ISO:', ultima.fecha.toISOString());
+      console.log('- Tipo:', ultima.tipo);
+      console.log('- Caja ID:', ultima.cajaId);
+      console.log('- Caja entero ID:', ultima.caja?.cajaEnteroId);
+    } else {
+      console.log('No se encontraron operaciones con los filtros aplicados');
+      
+      // Hacer una consulta sin filtros para ver si hay operaciones en general
+      const totalSinFiltros = await prisma.operacionBancaria.count();
+      console.log('Total de operaciones en la base de datos (sin filtros):', totalSinFiltros);
+      
+      if (totalSinFiltros > 0) {
+        // Obtener algunas operaciones para ver las fechas
+        const algunasOperaciones = await prisma.operacionBancaria.findMany({
+          take: 5,
+          orderBy: { fecha: 'desc' },
+          include: {
+            caja: {
+              select: {
+                cajaEnteroId: true
+              }
+            }
+          }
+        });
+        
+        console.log('Últimas 5 operaciones en la BD:');
+        algunasOperaciones.forEach((op, index) => {
+          console.log(`${index + 1}. ID: ${op.id}, Fecha: ${op.fecha.toISOString()}, Caja: ${op.caja?.cajaEnteroId}, Tipo: ${op.tipo}`);
+        });
+      }
+    }
+
+    // Obtener códigos de barras de POS únicos para buscar sus cuentas bancarias
+    const codigosBarrasPOS = operaciones
+      .filter(op => op.tipo === 'pos' && op.codigoBarrasPos && !op.cuentaBancaria)
+      .map(op => op.codigoBarrasPos!)
+      .filter((codigo, index, array) => array.indexOf(codigo) === index); // Únicos
+
+    // Buscar información de cuentas bancarias para todos los POS de una vez
+    const dispositivosPOS = codigosBarrasPOS.length > 0 ? await prisma.dispositivoPos.findMany({
+      where: {
+        codigoBarras: {
+          in: codigosBarrasPOS
+        }
+      },
+      include: {
+        cuentaBancaria: {
+          select: {
+            id: true,
+            numeroCuenta: true,
+            banco: true,
+            tipo: true
+          }
+        }
+      }
+    }) : [];
+
+    // Crear un mapa para acceso rápido
+    const mapaDispositivosPOS = new Map(
+      dispositivosPOS.map(dispositivo => [dispositivo.codigoBarras, dispositivo.cuentaBancaria])
+    );
+
+    // Mapear las operaciones para incluir datos del usuario de creación desde la caja
+    const operacionesConUsuario = operaciones.map((operacion) => {
+      let cuentaBancariaInfo = operacion.cuentaBancaria;
+      
+      // Si es una operación POS y no tiene cuenta bancaria directa, buscarla en el mapa
+      if (operacion.tipo === 'pos' && !cuentaBancariaInfo && operacion.codigoBarrasPos) {
+        cuentaBancariaInfo = mapaDispositivosPOS.get(operacion.codigoBarrasPos) || null;
+      }
+
+      // Usar montoACobrar como monto principal (es el que aparece en el ticket), 
+      // con monto como fallback si montoACobrar no está disponible
+      const montoAMostrar = operacion.montoACobrar ?? operacion.monto;
+
+      return {
+        ...operacion,
+        monto: Number(montoAMostrar), // Usar montoACobrar como monto principal
+        montoOriginal: Number(operacion.monto), // Mantener el monto original por si se necesita
+        montoACobrar: operacion.montoACobrar ? Number(operacion.montoACobrar) : null, // Convertir Decimal a number
+        fechaOperacion: operacion.fecha,
+        tipoOperacion: operacion.tipo?.toUpperCase(),
+        numeroReferencia: operacion.numeroComprobante,
+        usuarioCreacion: operacion.caja?.usuario || null,
+        sucursal: operacion.caja?.sucursal || null,
+        caja: operacion.caja ? {
+          id: operacion.caja.id,
+          numero: operacion.caja.cajaEnteroId?.toString(),
+          nombre: `Caja ${operacion.caja.cajaEnteroId}`
+        } : null,
+        cuentaBancaria: cuentaBancariaInfo, // Usar la cuenta bancaria encontrada (directa o del POS)
+        fechaCreacion: operacion.createdAt,
+        fechaActualizacion: operacion.updatedAt
+      };
+    });
+
+    return res.status(200).json({
+      operaciones: operacionesConUsuario,
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum),
+      totalMontoSinVerificar, // Total de montos de operaciones sin verificar
+      cantidadSinVerificar: operacionesSinVerificar.length // Cantidad de operaciones sin verificar
+    });
+
+  } catch (error) {
+    console.error('Error al obtener operaciones bancarias para control:', error);
+    return res.status(500).json({ error: 'Error al obtener operaciones bancarias' });
+  }
+};
+
+/**
  * Obtener operaciones bancarias por ID de caja
  */
 export const getOperacionesBancariasByCajaId = async (req: Request, res: Response) => {
@@ -789,5 +1102,258 @@ export const deleteOperacionBancaria = async (req: AuthRequest, res: Response) =
   } catch (error) {
     console.error(`Error al eliminar operación bancaria ${req.params.id}:`, error);
     return res.status(500).json({ error: 'Error al eliminar operación bancaria' });
+  }
+};
+
+/**
+ * Actualizar el estado de verificación de una operación bancaria
+ */
+export const updateVerificacionOperacionBancaria = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { usuarioId } = req.body;
+
+    console.log('=== DEBUG VERIFICACION OPERACION ===');
+    console.log('ID recibido:', id);
+    console.log('Usuario ID recibido:', usuarioId);
+    console.log('Tipo de ID:', typeof id);
+    console.log('Tipo de usuarioId:', typeof usuarioId);
+    console.log('Request params completos:', req.params);
+    console.log('Request body completo:', req.body);
+
+    if (!id) {
+      console.log('ERROR: ID de operación no proporcionado');
+      return res.status(400).json({ error: 'ID de operación requerido' });
+    }
+
+    console.log('Buscando operación con ID:', id);
+
+    // Verificar que la operación existe
+    const operacionExistente = await prisma.operacionBancaria.findUnique({
+      where: { id }
+    });
+
+    console.log('Operación encontrada:', operacionExistente ? 'SÍ' : 'NO');
+    if (operacionExistente) {
+      console.log('- ID:', operacionExistente.id);
+      console.log('- Tipo:', operacionExistente.tipo);
+      console.log('- Usuario ID actual:', operacionExistente.usuarioId);
+    }
+
+    if (!operacionExistente) {
+      console.log('ERROR: Operación bancaria no encontrada');
+      return res.status(404).json({ error: 'Operación bancaria no encontrada' });
+    }
+
+    // Convertir usuarioId a entero o null
+    let usuarioIdToSave: number | null = null;
+    if (usuarioId !== null && usuarioId !== undefined && usuarioId !== '') {
+      if (typeof usuarioId === 'string') {
+        usuarioIdToSave = parseInt(usuarioId);
+      } else if (typeof usuarioId === 'number') {
+        usuarioIdToSave = usuarioId;
+      }
+    }
+
+    console.log('Actualizando operación...');
+    console.log('Nuevo usuarioId (convertido):', usuarioIdToSave);
+    console.log('Tipo del nuevo usuarioId:', typeof usuarioIdToSave);
+
+    // Actualizar solo el campo usuarioId para la verificación
+    const operacionActualizada = await prisma.operacionBancaria.update({
+      where: { id },
+      data: {
+        usuarioId: usuarioIdToSave
+      },
+      include: {
+        cuentaBancaria: {
+          select: {
+            id: true,
+            numeroCuenta: true,
+            banco: true,
+            tipo: true
+          }
+        },
+        caja: {
+          select: {
+            id: true,
+            cajaEnteroId: true,
+            estado: true,
+            usuario: {
+              select: {
+                id: true,
+                username: true,
+                nombre: true
+              }
+            },
+            sucursal: {
+              select: {
+                id: true,
+                nombre: true,
+                codigo: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    console.log('Operación actualizada exitosamente');
+    console.log('- Nuevo usuarioId:', operacionActualizada.usuarioId);
+
+    // Buscar cuenta bancaria para operaciones POS si no está directamente asociada
+    let cuentaBancariaInfo = operacionActualizada.cuentaBancaria;
+    
+    if (operacionActualizada.tipo === 'pos' && !cuentaBancariaInfo && operacionActualizada.codigoBarrasPos) {
+      try {
+        const dispositivoPos = await prisma.dispositivoPos.findUnique({
+          where: { codigoBarras: operacionActualizada.codigoBarrasPos },
+          include: {
+            cuentaBancaria: {
+              select: {
+                id: true,
+                numeroCuenta: true,
+                banco: true,
+                tipo: true
+              }
+            }
+          }
+        });
+        
+        if (dispositivoPos?.cuentaBancaria) {
+          cuentaBancariaInfo = dispositivoPos.cuentaBancaria;
+        }
+      } catch (error) {
+        console.error('Error al buscar cuenta bancaria del POS:', error);
+      }
+    }
+
+    // Mapear la respuesta para que coincida con el formato esperado
+    const operacionFormateada = {
+      ...operacionActualizada,
+      monto: Number(operacionActualizada.montoACobrar ?? operacionActualizada.monto), // Usar montoACobrar como monto principal
+      montoOriginal: Number(operacionActualizada.monto), // Mantener el monto original por si se necesita
+      fechaOperacion: operacionActualizada.fecha,
+      tipoOperacion: operacionActualizada.tipo?.toUpperCase(),
+      numeroReferencia: operacionActualizada.numeroComprobante,
+      usuarioCreacion: operacionActualizada.caja?.usuario || null,
+      sucursal: operacionActualizada.caja?.sucursal || null,
+      caja: operacionActualizada.caja ? {
+        id: operacionActualizada.caja.id,
+        numero: operacionActualizada.caja.cajaEnteroId?.toString(),
+        nombre: `Caja ${operacionActualizada.caja.cajaEnteroId}`
+      } : null,
+      cuentaBancaria: cuentaBancariaInfo // Usar la cuenta bancaria encontrada (directa o del POS)
+    };
+
+    return res.status(200).json({
+      message: usuarioId ? 'Operación verificada correctamente' : 'Verificación removida correctamente',
+      operacion: operacionFormateada
+    });
+
+  } catch (error) {
+    console.error('Error al actualizar verificación de operación bancaria:', error);
+    return res.status(500).json({ error: 'Error al actualizar la verificación' });
+  }
+};
+
+/**
+ * Obtener sucursales para filtros
+ */
+export const getSucursales = async (_req: Request, res: Response) => {
+  try {
+    const sucursales = await prisma.sucursal.findMany({
+      select: {
+        id: true,
+        nombre: true,
+        codigo: true
+      },
+      orderBy: {
+        nombre: 'asc'
+      }
+    });
+
+    return res.status(200).json(sucursales);
+  } catch (error) {
+    console.error('Error al obtener sucursales:', error);
+    return res.status(500).json({ error: 'Error al obtener sucursales' });
+  }
+};
+
+/**
+ * Obtener cuentas bancarias para filtros
+ */
+export const getCuentasBancarias = async (_req: Request, res: Response) => {
+  try {
+    const cuentas = await prisma.cuentaBancaria.findMany({
+      select: {
+        id: true,
+        numeroCuenta: true,
+        banco: true,
+        tipo: true
+      },
+      orderBy: {
+        banco: 'asc'
+      }
+    });
+
+    return res.status(200).json(cuentas);
+  } catch (error) {
+    console.error('Error al obtener cuentas bancarias:', error);
+    return res.status(500).json({ error: 'Error al obtener cuentas bancarias' });
+  }
+};
+
+/**
+ * Obtener cajas para filtros
+ */
+export const getCajas = async (_req: Request, res: Response) => {
+  try {
+    const cajas = await prisma.caja.findMany({
+      select: {
+        id: true,
+        cajaEnteroId: true,
+        sucursal: {
+          select: {
+            id: true,
+            nombre: true
+          }
+        }
+      },
+      orderBy: [
+        { cajaEnteroId: 'asc' }
+      ]
+    });
+
+    return res.status(200).json(cajas);
+  } catch (error) {
+    console.error('Error al obtener cajas:', error);
+    return res.status(500).json({ error: 'Error al obtener cajas' });
+  }
+};
+
+/**
+ * Obtener usuarios para filtros
+ */
+export const getUsuarios = async (_req: Request, res: Response) => {
+  try {
+    const usuarios = await prisma.usuario.findMany({
+      select: {
+        id: true,
+        username: true,
+        nombre: true
+      },
+      where: {
+        activo: true
+      },
+      orderBy: {
+        username: 'asc'
+      }
+    });
+
+    return res.status(200).json(usuarios);
+  } catch (error) {
+    console.error('Error al obtener usuarios:', error);
+    return res.status(500).json({ error: 'Error al obtener usuarios' });
   }
 }; 

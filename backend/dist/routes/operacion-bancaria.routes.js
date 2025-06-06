@@ -26,17 +26,38 @@ const router = (0, express_1.Router)();
 router.get('/status', (_req, res) => {
     res.status(200).json({ message: 'API de operaciones bancarias funcionando correctamente' });
 });
-// Obtener todas las operaciones bancarias
-router.get('/', auth_middleware_1.isAuthenticated, operacion_bancaria_controller_1.getAllOperacionesBancarias);
+// ================================
+// RUTAS ESPECÍFICAS - DEBEN IR PRIMERO
+// ================================
+// Obtener operaciones bancarias para control con filtros avanzados
+router.get('/control', auth_middleware_1.isAuthenticated, operacion_bancaria_controller_1.getOperacionesBancariasParaControl);
+// Obtener sucursales para filtros
+router.get('/sucursales', auth_middleware_1.isAuthenticated, operacion_bancaria_controller_1.getSucursales);
+// Obtener cuentas bancarias para filtros
+router.get('/cuentas-bancarias', auth_middleware_1.isAuthenticated, operacion_bancaria_controller_1.getCuentasBancarias);
+// Obtener cajas para filtros
+router.get('/cajas', auth_middleware_1.isAuthenticated, operacion_bancaria_controller_1.getCajas);
+// Obtener usuarios para filtros
+router.get('/usuarios', auth_middleware_1.isAuthenticated, operacion_bancaria_controller_1.getUsuarios);
+// Obtener operaciones bancarias por caja (ruta específica)
+router.get('/caja/:cajaId', auth_middleware_1.isAuthenticated, operacion_bancaria_controller_1.getOperacionesBancariasByCajaId);
+// ================================
+// RUTAS CON PARÁMETROS
+// ================================
+// Actualizar verificación de operación bancaria
+router.patch('/:id/verificacion', auth_middleware_1.isAuthenticated, convertAuthRequest(operacion_bancaria_controller_1.updateVerificacionOperacionBancaria));
 // Obtener una operación bancaria por ID
 router.get('/:id', auth_middleware_1.isAuthenticated, operacion_bancaria_controller_1.getOperacionBancariaById);
-// Crear una nueva operación bancaria
-router.post('/', auth_middleware_1.isAuthenticated, upload.single('comprobante'), convertAuthRequest(operacion_bancaria_controller_1.createOperacionBancaria));
 // Actualizar una operación bancaria
 router.put('/:id', auth_middleware_1.isAuthenticated, upload.single('comprobante'), convertAuthRequest(operacion_bancaria_controller_1.updateOperacionBancaria));
 // Eliminar una operación bancaria
 router.delete('/:id', auth_middleware_1.isAuthenticated, convertAuthRequest(operacion_bancaria_controller_1.deleteOperacionBancaria));
-// Obtener operaciones bancarias por caja
-router.get('/caja/:cajaId', auth_middleware_1.isAuthenticated, operacion_bancaria_controller_1.getOperacionesBancariasByCajaId);
+// ================================
+// RUTAS GENERALES
+// ================================
+// Obtener todas las operaciones bancarias
+router.get('/', auth_middleware_1.isAuthenticated, operacion_bancaria_controller_1.getAllOperacionesBancarias);
+// Crear una nueva operación bancaria
+router.post('/', auth_middleware_1.isAuthenticated, upload.single('comprobante'), convertAuthRequest(operacion_bancaria_controller_1.createOperacionBancaria));
 exports.default = router;
 //# sourceMappingURL=operacion-bancaria.routes.js.map
