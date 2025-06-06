@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Typography,
@@ -36,13 +36,8 @@ const NotificacionesPage: React.FC = () => {
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
 
-  // Cargar las notificaciones cuando cambia la pestaña
-  useEffect(() => {
-    cargarNotificaciones();
-  }, [tabActual]);
-
   // Cargar notificaciones según la pestaña seleccionada
-  const cargarNotificaciones = async () => {
+  const cargarNotificaciones = useCallback(async () => {
     setCargando(true);
     try {
       let notificacionesData: Notificacion[] = [];
@@ -61,7 +56,12 @@ const NotificacionesPage: React.FC = () => {
     } finally {
       setCargando(false);
     }
-  };
+  }, [tabActual]);
+
+  // Cargar las notificaciones cuando cambia la pestaña
+  useEffect(() => {
+    cargarNotificaciones();
+  }, [cargarNotificaciones]);
 
   // Cambiar pestaña
   const cambiarTab = (_event: React.SyntheticEvent, nuevoValor: number) => {

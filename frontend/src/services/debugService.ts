@@ -52,7 +52,7 @@ export const logError = (message: string, error?: any): void => {
   console.error(`[Error] ${message}`, error || '');
 };
 
-export default {
+const debugService = {
   apiRequest,
   apiRequestError,
   apiResponse,
@@ -63,4 +63,6 @@ export default {
   logInfo,
   logWarning,
   logError
-}; 
+};
+
+export default debugService; 
