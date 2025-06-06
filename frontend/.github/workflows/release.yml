@@ -1,0 +1,75 @@
+name: Build Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name for the release'
+        required: true
+        default: 'v1.2.2'
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout código
+      uses: actions/checkout@v3
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+        
+    - name: Instalar dependencias
+      working-directory: frontend
+      run: npm install
+      
+    - name: Actualizar versión en package.json
+      working-directory: frontend
+      run: |
+        TAG_NAME="${{ github.event.inputs.tag_name || github.ref_name }}"
+        VERSION="${TAG_NAME#v}"
+        npm version $VERSION --no-git-tag-version
+        echo "Updated version to: $VERSION"
+      
+    - name: Construir para Linux
+      working-directory: frontend
+      env:
+        CI: false
+        ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
+      run: npm run electron-build-ci -- --linux
+      
+    - name: Listar archivos generados
+      working-directory: frontend
+      run: |
+        echo "Archivos generados para release:"
+        ls -la dist/
+        echo "Tamaños de archivos:"
+        du -h dist/*
+      
+    - name: Upload Release Assets
+      if: github.event_name == 'release'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          frontend/dist/*.rpm
+          frontend/dist/*.deb
+          frontend/dist/*.AppImage
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Upload Build Artifacts (manual dispatch)
+      if: github.event_name == 'workflow_dispatch'
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-build-${{ github.event.inputs.tag_name }}
+        path: |
+          frontend/dist/*.rpm
+          frontend/dist/*.deb
+          frontend/dist/*.AppImage
+        retention-days: 30  # Mantener releases por más tiempo 

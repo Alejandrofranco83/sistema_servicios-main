@@ -2,6 +2,12 @@ name: Build Linux App
 
 on:
   workflow_dispatch:  # Permite ejecutar manualmente
+    inputs:
+      upload_artifacts:
+        description: 'Subir artefactos (consume espacio de almacenamiento)'
+        required: false
+        default: false
+        type: boolean
   push:
     branches: [ main ]
 
@@ -31,11 +37,21 @@ jobs:
         ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
       run: npm run electron-build-ci -- --linux
       
-    - name: Subir artefactos Linux
-      uses: actions/upload-artifact@v3
+    - name: Listar archivos generados
+      working-directory: frontend
+      run: |
+        echo "Archivos generados:"
+        ls -la dist/
+        echo "Tamaños de archivos:"
+        du -h dist/*
+      
+    - name: Subir artefactos Linux (solo si se solicita)
+      if: ${{ github.event.inputs.upload_artifacts == 'true' || github.event_name == 'release' }}
+      uses: actions/upload-artifact@v4
       with:
-        name: linux-packages
+        name: linux-packages-${{ github.run_number }}
         path: |
           frontend/dist/*.rpm
           frontend/dist/*.deb
-          frontend/dist/*.AppImage 
+          frontend/dist/*.AppImage
+        retention-days: 7  # Solo mantener por 7 días para ahorrar espacio 
