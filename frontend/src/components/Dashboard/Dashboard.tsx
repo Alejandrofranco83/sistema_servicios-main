@@ -85,6 +85,7 @@ import CategoriasGastos from '../Configuracion/CategoriasGastos';
 import GestionGastos from '../Controles/GestionGastos';
 import LucroScreen from '../SaldosMonetarios/LucroScreen';
 import ActivoPasivo from '../Controles/ActivoPasivo';
+import ControlOperacionBancaria from '../Controles/ControlOperacionBancaria';
 import NotificacionesMenu from '../Notificaciones/NotificacionesMenu';
 import NotificacionesPage from '../../pages/Notificaciones/NotificacionesPage';
 import TestNotificaciones from '../../pages/Notificaciones/TestNotificaciones';
@@ -335,6 +336,13 @@ const Dashboard: React.FC<DashboardProps> = () => {
           text: 'Activo/Pasivo', 
           icon: <AccountBalanceIcon />,
           path: 'controles/activo-pasivo',
+          requiredModule: 'PDV',
+          requiredAction: 'CONTROL_CAJAS'
+        },
+        { 
+          text: 'Control Operación Bancaria', 
+          icon: <AccountBalanceIcon />,
+          path: 'controles/control-operacion-bancaria',
           requiredModule: 'PDV',
           requiredAction: 'CONTROL_CAJAS'
         }
@@ -852,6 +860,9 @@ const Dashboard: React.FC<DashboardProps> = () => {
           } />
           <Route path="controles/activo-pasivo" element={
             hasPermission('PDV', 'CONTROL_CAJAS') ? <ActivoPasivo /> : <Navigate to="acceso-denegado" />
+          } />
+          <Route path="controles/control-operacion-bancaria" element={
+            hasPermission('PDV', 'CONTROL_CAJAS') ? <ControlOperacionBancaria /> : <Navigate to="acceso-denegado" />
           } />
           <Route path="notificaciones" element={<NotificacionesPage />} />
           <Route path="notificaciones/test" element={<TestNotificaciones />} />

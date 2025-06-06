@@ -122,6 +122,48 @@ const DiferenciaEnCajaList: React.FC<DiferenciaEnCajaListProps> = ({ propGlobalC
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
+  // --- Función para calcular diferencias automáticamente ---
+  const calcularDiferenciasAutomaticamente = useCallback(async (comparaciones: ComparacionEnCajaExtendidoTemp[]) => {
+    console.log(`[AUTO-CALC] Iniciando cálculo para ${comparaciones.length} cajas`);
+    
+    // Procesar en lotes para evitar sobrecargar
+    const LOTE_SIZE = 5;
+    for (let i = 0; i < comparaciones.length; i += LOTE_SIZE) {
+      const lote = comparaciones.slice(i, i + LOTE_SIZE);
+      
+      // Procesar lote en paralelo
+      const promesas = lote.map(async (comp) => {
+        try {
+          const resultado = await calcularDetalleDiferencias(comp);
+          console.log(`[AUTO-CALC] Caja ${comp.cajaEnteroId}: ${resultado.diferenciaTotal} Gs`);
+          
+          setDetallesCalculados(prev => ({
+            ...prev,
+            [comp.id]: { cargando: false, error: null, detalle: resultado }
+          }));
+          
+          return { id: comp.id, diferencia: resultado.diferenciaTotal };
+        } catch (err: any) {
+          console.error(`[AUTO-CALC] Error Caja ${comp.cajaEnteroId}:`, err.message);
+          
+          setDetallesCalculados(prev => ({
+            ...prev,
+            [comp.id]: { cargando: false, error: err.message, detalle: null }
+          }));
+          
+          return { id: comp.id, diferencia: 0 }; // Valor por defecto en caso de error
+        }
+      });
+      
+      await Promise.all(promesas);
+      
+      // Pequeña pausa entre lotes para no sobrecargar
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    console.log('[AUTO-CALC] Cálculo automático completado');
+  }, []);
+
   // --- Fetching de Datos (Ajustado) ---
   useEffect(() => {
     const fetchDiferenciasEnCaja = async () => {
@@ -141,16 +183,21 @@ const DiferenciaEnCajaList: React.FC<DiferenciaEnCajaListProps> = ({ propGlobalC
 
         // Calcular diferenciaTotal inicial para el estado visual
         const comparacionesExtendidas: ComparacionEnCajaExtendidoTemp[] = comparacionesArray.map(comp => {
-          const difTotalInicial = (comp.comparacion.PYG?.diferencia ?? 0) + 
-                                  (comp.comparacion.ServiciosPYG?.diferencia ?? 0);
+          // Inicialmente ponemos 0 como placeholder, luego calcularemos todas automáticamente
+          const difTotalInicial = 0; // Placeholder temporal
+          
           return {
             ...comp,
-            initialDiferenciaTotal: difTotalInicial, // Guardar como initialDiferenciaTotal
+            initialDiferenciaTotal: difTotalInicial,
           };
         });
 
+        console.log(`[INICIAL] Total de comparaciones cargadas: ${comparacionesExtendidas.length}`);
         setDatosComparaciones(comparacionesExtendidas);
 
+        // Calcular diferencias reales para todas las cajas automáticamente
+        // Se ejecutará después de que se defina la función en useEffect
+        
       } catch (err) {
         console.error("Error fetching diferencias en caja:", err);
         if (err instanceof Error) {
@@ -166,6 +213,14 @@ const DiferenciaEnCajaList: React.FC<DiferenciaEnCajaListProps> = ({ propGlobalC
 
     fetchDiferenciasEnCaja();
   }, []);
+
+  // useEffect para calcular diferencias automáticamente cuando se cargan los datos
+  useEffect(() => {
+    if (datosComparaciones.length > 0) {
+      console.log('[INICIO] Calculando diferencias para todas las cajas...');
+      calcularDiferenciasAutomaticamente(datosComparaciones);
+    }
+  }, [datosComparaciones, calcularDiferenciasAutomaticamente]);
 
   // useEffect para reaccionar al filtro global
   useEffect(() => {
@@ -220,11 +275,14 @@ const DiferenciaEnCajaList: React.FC<DiferenciaEnCajaListProps> = ({ propGlobalC
       filtered = filtered.filter(comp => {
         const detalle = detallesCalculados[comp.id]?.detalle;
         const difAUsar = detalle ? detalle.diferenciaTotal : comp.initialDiferenciaTotal;
+        const absDif = Math.abs(difAUsar);
         
         if (esConDiferencia) {
-          return Math.abs(difAUsar) > 10000;
-        } else { // 'sin' incluye 0 y +-
-          return Math.abs(difAUsar) <= 10000;
+          // "Con diferencia" incluye desde 10,000 Gs en adelante
+          return absDif >= 10000;
+        } else { // 'sin' 
+          // "Sin diferencia" incluye de 0 a menos de 10,000 Gs
+          return absDif < 10000;
         }
       });
     }
@@ -276,7 +334,15 @@ const DiferenciaEnCajaList: React.FC<DiferenciaEnCajaListProps> = ({ propGlobalC
 
       try {
         const resultado = await calcularDetalleDiferencias(comp);
-        console.log(`Cálculo detallado completado para ${rowId}:`, resultado);
+        console.log(`[DETALLE] Caja ${comp.cajaEnteroId} - Comparación:`, {
+          rowId: rowId,
+          initialDiferenciaTotal: comp.initialDiferenciaTotal,
+          calculadoDiferenciaTotal: resultado.diferenciaTotal,
+          diferencia: resultado.diferenciaTotal - comp.initialDiferenciaTotal,
+          cotizacionUsada: resultado.cotizacionUsada,
+          diferenciasServicios: resultado.diferenciasServicios
+        });
+        
         setDetallesCalculados(prev => ({
           ...prev,
           [rowId]: { cargando: false, error: null, detalle: resultado }
@@ -403,33 +469,71 @@ const DiferenciaEnCajaList: React.FC<DiferenciaEnCajaListProps> = ({ propGlobalC
                       // Determinar qué diferencia usar para el estado visual
                       const difParaEstadoVisual = detalle ? detalle.diferenciaTotal : comp.initialDiferenciaTotal;
 
-                      // Lógica para determinar el estado y color del Chip
-                      let chipLabel: string;
-                      let chipColor: "success" | "warning" | "error";
-                      
-                      // Verificar si hay alguna diferencia en los servicios (solo si el detalle está cargado)
-                      const hayDifEnServicios = detalle?.diferenciasServicios?.some(s => s.diferencia !== 0) ?? false;
+                      // LOG: Comparar diferencias para este elemento
+                      console.log(`[CHIP] Caja ${comp.cajaEnteroId} (${rowId}):`, {
+                        initialDiferenciaTotal: comp.initialDiferenciaTotal,
+                        detalleDiferenciaTotal: detalle?.diferenciaTotal,
+                        difParaEstadoVisual: difParaEstadoVisual,
+                        tieneDetalle: !!detalle,
+                        estadoDetalle: estadoDetalle
+                      });
 
-                      if (difParaEstadoVisual === 0) {
-                        chipLabel = "Sin Diferencia";
-                        chipColor = "success";
-                      } else if (Math.abs(difParaEstadoVisual) > 10000) {
-                        chipLabel = "Con Diferencia";
-                        chipColor = "error";
-                      } else { // Caso: 0 < abs(dif) <= 10000
-                        if (detalle && hayDifEnServicios) {
-                           // Diferencia total pequeña, PERO hay diferencia en servicios
-                           chipLabel = "Con Diferencia"; 
-                           chipColor = "error"; 
+                      // Lógica para determinar el estado y color del Chip (basado solo en diferencia total)
+                      let chipLabel: string;
+                      let chipColor: "success" | "warning" | "error" | "info" | "default";
+                      let chipSx: any = {}; // Para colores personalizados
+                      
+                      // Si no hay detalle calculado, usar el valor inicial (0 = placeholder)
+                      if (!detalle && difParaEstadoVisual === 0) {
+                        chipLabel = "Calcular";
+                        chipColor = "info";
+                      } else {
+                        const absDif = Math.abs(difParaEstadoVisual);
+                        
+                        if (absDif === 0) {
+                          // 0 - sin diferencia (verde actual)
+                          chipLabel = "Sin Diferencia";
+                          chipColor = "success";
+                        } else if (absDif < 10000) {
+                          // <10.000 - poca diferencia (verde claro/mate)
+                          chipLabel = "Poca Diferencia";
+                          chipColor = "success";
+                          chipSx = {
+                            backgroundColor: '#c8e6c9', // Verde claro
+                            color: '#2e7d32', // Verde oscuro para el texto
+                            '&.MuiChip-outlined': {
+                              borderColor: '#81c784',
+                              backgroundColor: 'transparent'
+                            }
+                          };
+                        } else if (absDif < 20000) {
+                          // <20.000 - media diferencia (amarillo actual)
+                          chipLabel = "Media Diferencia";
+                          chipColor = "warning";
+                        } else if (absDif < 50000) {
+                          // <50.000 - con diferencia (rojo tirando hacia naranja)
+                          chipLabel = "Con Diferencia";
+                          chipColor = "error";
+                          chipSx = {
+                            backgroundColor: '#ffab91', // Rojo-naranja claro
+                            color: '#d84315', // Rojo-naranja oscuro para el texto
+                            '&.MuiChip-outlined': {
+                              borderColor: '#ff7043',
+                              backgroundColor: 'transparent'
+                            }
+                          };
                         } else {
-                           // Diferencia total pequeña y (no hay detalle aún O no hay diferencia en servicios)
-                           chipLabel = "+- Diferencia";
-                           chipColor = "warning";
+                          // >= 50.000 - mucha diferencia (rojo actual)
+                          chipLabel = "Mucha Diferencia";
+                          chipColor = "error";
                         }
                       }
                       
-                      // El fondo se mantiene igual: rojo si diferencia total no es cero
-                      const hayDifParaFondo = difParaEstadoVisual !== 0;
+                      // LOG: Estado final asignado
+                      console.log(`[CHIP-FINAL] Caja ${comp.cajaEnteroId}: ${chipLabel} (${chipColor}) - Dif: ${difParaEstadoVisual}`);
+                      
+                      // El fondo se mantiene rojo solo para diferencias >= 10,000 Gs
+                      const hayDifParaFondo = Math.abs(difParaEstadoVisual) >= 10000;
 
                       return (
                         <React.Fragment key={rowId}>
@@ -458,7 +562,7 @@ const DiferenciaEnCajaList: React.FC<DiferenciaEnCajaListProps> = ({ propGlobalC
                             </TableCell>
                             <TableCell align="right">{comp.cajaEnteroId}</TableCell>
                             <TableCell align="center">
-                              <Chip label={chipLabel} color={chipColor} size="small" variant="outlined" />
+                              <Chip label={chipLabel} color={chipColor} size="small" variant="outlined" sx={chipSx} />
                             </TableCell>
                           </TableRow>
                           <TableRow>
