@@ -106,11 +106,19 @@
       "buildResources": "public",
       "output": "dist"
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Alejandrofranco83",
+        "repo": "sistema_servicios-main"
+      }
+    ],
     "win": {
       "target": [
         "nsis"
       ],
-      "icon": "public/electron-icon.ico"
+      "icon": "public/electron-icon.ico",
+      "publish": ["github"]
     },
     "linux": {
       "target": [
@@ -137,6 +145,7 @@
       "icon": "public/electron-icon.png",
       "maintainer": "Alejandro Franco <alejandrofran@gmail.com>",
       "vendor": "Alejandro Franco",
+      "publish": ["github"],
       "executableArgs": [
         "--enable-gpu-rasterization",
         "--enable-zero-copy",

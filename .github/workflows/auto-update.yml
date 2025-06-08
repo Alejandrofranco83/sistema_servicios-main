@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version number (e.g., 1.0.1)'
+        description: 'Version number (e.g., 1.2.2)'
         required: true
         type: string
       release_notes:
@@ -45,7 +45,8 @@ jobs:
             
             ### 📦 Instalación:
             - **Windows**: Se actualizará automáticamente
-            - **Linux**: Se actualizará automáticamente
+            - **Linux (Fedora/CentOS)**: Se actualizará automáticamente (RPM)
+            - **Linux (Debian/Ubuntu)**: Se actualizará automáticamente (DEB)
             
             ### 🔄 Proceso de actualización:
             1. Recibirás una notificación en la aplicación
@@ -53,14 +54,9 @@ jobs:
             3. La actualización se descarga en segundo plano
             4. Instala cuando sea conveniente para ti
 
-  build:
+  build-windows:
     needs: create-release
-    runs-on: ${{ matrix.os }}
-    
-    strategy:
-      matrix:
-        os: [windows-latest, ubuntu-latest]
-        
+    runs-on: windows-latest
     steps:
     - name: Checkout código
       uses: actions/checkout@v4
@@ -74,9 +70,7 @@ jobs:
         
     - name: Instalar dependencias
       working-directory: frontend
-      run: |
-        npm ci
-        npm install electron-updater
+      run: npm ci
         
     - name: Actualizar versión
       working-directory: frontend
@@ -88,17 +82,58 @@ jobs:
         CI: false
       run: npm run build
       
-    - name: Build y Publish
+    - name: Build Windows
       working-directory: frontend
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: npm run release
+      run: npm run release -- --win
 
-  notify-completion:
-    needs: [create-release, build]
+  build-linux:
+    needs: create-release
     runs-on: ubuntu-latest
     steps:
-    - name: Notify Success
+    - name: Checkout código
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+        
+    - name: Instalar dependencias
+      working-directory: frontend
+      run: npm ci
+        
+    - name: Actualizar versión
+      working-directory: frontend
+      run: npm version ${{ github.event.inputs.version }} --no-git-tag-version
+        
+    - name: Build React
+      working-directory: frontend
+      env:
+        CI: false
+      run: npm run build
+      
+    - name: Build Linux (Fedora RPM + DEB + AppImage)
+      working-directory: frontend
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: npm run release -- --linux
+
+  notify-completion:
+    needs: [create-release, build-windows, build-linux]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+    - name: Notify Results
       run: |
-        echo "✅ Actualización v${{ github.event.inputs.version }} publicada exitosamente"
-        echo "🔄 Los usuarios recibirán la notificación automáticamente" 
+        if [[ "${{ needs.build-windows.result }}" == "success" && "${{ needs.build-linux.result }}" == "success" ]]; then
+          echo "✅ Actualización v${{ github.event.inputs.version }} publicada exitosamente"
+          echo "🔄 Los usuarios recibirán la notificación automáticamente"
+        else
+          echo "❌ Algunos builds fallaron:"
+          echo "Windows: ${{ needs.build-windows.result }}"
+          echo "Linux: ${{ needs.build-linux.result }}"
+        fi 
