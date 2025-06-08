@@ -10,6 +10,10 @@
   "main": "electron.js",
   "homepage": "./",
   "proxy": "http://localhost:3000",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Alejandrofranco83/sistema_servicios-main.git"
+  },
   "dependencies": {
     "@electron/remote": "^2.1.2",
     "@emotion/react": "^11.14.0",
