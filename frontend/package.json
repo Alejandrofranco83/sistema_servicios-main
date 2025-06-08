@@ -114,7 +114,8 @@
       {
         "provider": "github",
         "owner": "Alejandrofranco83",
-        "repo": "sistema_servicios-main"
+        "repo": "sistema_servicios-main",
+        "releaseType": "release"
       }
     ],
     "win": {
