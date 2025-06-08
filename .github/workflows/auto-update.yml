@@ -13,6 +13,10 @@ on:
         type: string
         default: 'Mejoras y correcciones de errores'
 
+permissions:
+  contents: write
+  actions: write
+
 jobs:
   create-release:
     runs-on: ubuntu-latest
@@ -20,16 +24,20 @@ jobs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
       release_id: ${{ steps.create_release.outputs.id }}
     steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+        
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: v${{ github.event.inputs.version }}
-          release_name: "Sistema Servicios v${{ github.event.inputs.version }}"
+          name: "Sistema Servicios v${{ github.event.inputs.version }}"
           draft: false
           prerelease: false
+          generate_release_notes: false
           body: |
             ## 🚀 Actualización Automática v${{ github.event.inputs.version }}
             
