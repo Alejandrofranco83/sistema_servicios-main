@@ -1,5 +1,14 @@
 # 🚀 Guía de Build y Workflows
 
+## ⚠️ **EMERGENCIA: Almacenamiento Lleno**
+
+Si ves el error: `"Artifact storage quota has been hit"`, sigue estos pasos **INMEDIATAMENTE**:
+
+1. **Ve a Actions** → **Emergency Artifact Cleanup**
+2. **Haz clic en "Run workflow"**
+3. **Espera a que termine** (liberará TODO el espacio)
+4. **Después puedes hacer builds normalmente**
+
 ## 📋 Workflows Disponibles
 
 ### 1. **Build Linux App** (`build-linux.yml`)
@@ -28,6 +37,14 @@
   - Elimina artefactos más antiguos de 7 días
   - Libera espacio de almacenamiento
   - Muestra estadísticas de limpieza
+
+### 4. **🚨 Emergency Artifact Cleanup** (`emergency-cleanup.yml`)
+- **Cuándo se ejecuta**:
+  - **SOLO MANUALMENTE** cuando el almacenamiento está lleno
+- **Qué hace**:
+  - **ELIMINA TODOS LOS ARTEFACTOS** inmediatamente
+  - Libera TODO el espacio de almacenamiento
+  - Para situaciones de emergencia
 
 ## 🎯 Cómo Usar
 
@@ -72,6 +89,11 @@ GitHub Actions tiene límites de almacenamiento para artefactos.
 ### Limpiar manualmente:
 1. Ve a **Actions** → **Cleanup Old Artifacts**
 2. Haz clic en **Run workflow**
+
+### Emergencia (almacenamiento lleno):
+1. Ve a **Actions** → **Emergency Artifact Cleanup**
+2. Haz clic en **Run workflow**
+3. **ELIMINA TODOS los artefactos** inmediatamente
 
 ## ⚙️ Archivos Generados
 

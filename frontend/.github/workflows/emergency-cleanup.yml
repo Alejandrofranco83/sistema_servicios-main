@@ -1,0 +1,75 @@
+name: Emergency Artifact Cleanup
+
+on:
+  workflow_dispatch:  # Solo ejecutar manualmente
+
+jobs:
+  emergency-cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    
+    steps:
+    - name: Emergency cleanup - Delete ALL artifacts
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const owner = context.repo.owner;
+          const repo = context.repo.repo;
+          
+          console.log('🚨 EMERGENCY CLEANUP - Deleting ALL artifacts');
+          
+          // Obtener todos los artefactos
+          const artifacts = await github.rest.actions.listArtifactsForRepo({
+            owner: owner,
+            repo: repo,
+            per_page: 100
+          });
+          
+          console.log(`Found ${artifacts.data.artifacts.length} artifacts`);
+          
+          let deletedCount = 0;
+          let freedSpace = 0;
+          let errors = 0;
+          
+          for (const artifact of artifacts.data.artifacts) {
+            console.log(`Deleting artifact: ${artifact.name} (${(artifact.size_in_bytes / (1024*1024)).toFixed(2)} MB, created: ${artifact.created_at})`);
+            
+            try {
+              await github.rest.actions.deleteArtifact({
+                owner: owner,
+                repo: repo,
+                artifact_id: artifact.id
+              });
+              deletedCount++;
+              freedSpace += artifact.size_in_bytes;
+              console.log(`✅ Deleted: ${artifact.name}`);
+            } catch (error) {
+              console.error(`❌ Failed to delete artifact ${artifact.name}:`, error.message);
+              errors++;
+            }
+          }
+          
+          const freedSpaceGB = (freedSpace / (1024 * 1024 * 1024)).toFixed(2);
+          const freedSpaceMB = (freedSpace / (1024 * 1024)).toFixed(2);
+          
+          console.log(`\n🎉 Emergency cleanup completed:`);
+          console.log(`- Total artifacts processed: ${artifacts.data.artifacts.length}`);
+          console.log(`- Successfully deleted: ${deletedCount}`);
+          console.log(`- Errors: ${errors}`);
+          console.log(`- Space freed: ${freedSpaceGB} GB (${freedSpaceMB} MB)`);
+          
+          // Crear un resumen
+          core.summary
+            .addHeading('🚨 Emergency Artifact Cleanup Results')
+            .addTable([
+              [{data: 'Metric', header: true}, {data: 'Value', header: true}],
+              ['Total artifacts found', artifacts.data.artifacts.length.toString()],
+              ['Successfully deleted', deletedCount.toString()],
+              ['Errors', errors.toString()],
+              ['Space freed (GB)', `${freedSpaceGB} GB`],
+              ['Space freed (MB)', `${freedSpaceMB} MB`],
+              ['Cleanup time', new Date().toISOString()]
+            ])
+            .write(); 

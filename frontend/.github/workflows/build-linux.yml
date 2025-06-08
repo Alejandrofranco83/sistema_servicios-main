@@ -46,7 +46,7 @@ jobs:
         du -h dist/*
       
     - name: Subir artefactos Linux (solo si se solicita)
-      if: ${{ github.event.inputs.upload_artifacts == 'true' || github.event_name == 'release' }}
+      if: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.upload_artifacts == 'true') || github.event_name == 'release' }}
       uses: actions/upload-artifact@v4
       with:
         name: linux-packages-${{ github.run_number }}
