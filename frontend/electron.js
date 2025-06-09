@@ -3,10 +3,60 @@ const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const url = require('url');
 const { initialize, enable } = require('@electron/remote/main');
+const fs = require('fs');
+
+// ===============================
+// LOGGING PARA DIAGNÓSTICO
+// ===============================
+const logFile = path.join(app.getPath('userData'), 'auto-updater.log');
+
+function logToFile(message) {
+  const timestamp = new Date().toISOString();
+  const logMessage = `[${timestamp}] ${message}\n`;
+  
+  console.log(message); // También mostrar en consola
+  
+  try {
+    fs.appendFileSync(logFile, logMessage);
+  } catch (error) {
+    console.error('Error escribiendo log:', error);
+  }
+}
+
+// Log información inicial
+logToFile(`=== INICIO AUTO-UPDATER LOG ===`);
+logToFile(`Versión actual: ${app.getVersion()}`);
+logToFile(`Plataforma: ${process.platform}`);
+logToFile(`App empaquetada: ${app.isPackaged}`);
+logToFile(`Archivo log: ${logFile}`);
 
 // Configurar auto-updater
 autoUpdater.autoDownload = false; // No descargar automáticamente
 autoUpdater.autoInstallOnAppQuit = false; // No instalar automáticamente al salir
+
+// Configurar logging del auto-updater
+autoUpdater.logger = {
+  info: (message) => logToFile(`INFO: ${message}`),
+  warn: (message) => logToFile(`WARN: ${message}`),
+  error: (message) => logToFile(`ERROR: ${message}`),
+  debug: (message) => logToFile(`DEBUG: ${message}`)
+};
+
+// =======================================
+// CONFIGURAR REPOSITORY PARA AUTO-UPDATER
+// =======================================
+if (app.isPackaged) {
+  logToFile('Configurando repository para auto-updater...');
+  autoUpdater.setFeedURL({
+    provider: 'github',
+    owner: 'Alejandrofranco83',
+    repo: 'sistema_servicios-main',
+    releaseType: 'release'
+  });
+  logToFile('Feed URL configurado correctamente');
+} else {
+  logToFile('Aplicación no empaquetada - auto-updater deshabilitado');
+}
 
 // Inicializar @electron/remote
 initialize();
@@ -91,33 +141,54 @@ let mainWindow;
 
 // Función para configurar el auto-updater
 function setupAutoUpdater() {
+  logToFile('=== CONFIGURANDO AUTO-UPDATER ===');
+  
+  // Solo funcionar si la app está empaquetada
+  if (!app.isPackaged) {
+    logToFile('App no empaquetada - saltando configuración auto-updater');
+    return;
+  }
+
   // Verificar actualizaciones cada 30 minutos (menos frecuente)
   setInterval(() => {
-    console.log('Verificando actualizaciones automáticamente...');
-    autoUpdater.checkForUpdates();
+    logToFile('Verificación automática programada iniciando...');
+    autoUpdater.checkForUpdates().catch(err => {
+      logToFile(`Error en verificación automática: ${err.message}`);
+    });
   }, 30 * 60 * 1000);
 
-  // También verificar al iniciar, pero después de 2 minutos
+  // También verificar al iniciar, pero después de 30 segundos para testing
   setTimeout(() => {
-    console.log('Verificación inicial de actualizaciones...');
-    autoUpdater.checkForUpdates();
-  }, 2 * 60 * 1000);
+    logToFile('=== VERIFICACIÓN INICIAL DE ACTUALIZACIONES ===');
+    logToFile(`Versión actual de la app: ${app.getVersion()}`);
+    autoUpdater.checkForUpdates().catch(err => {
+      logToFile(`Error en verificación inicial: ${err.message}`);
+    });
+  }, 30 * 1000); // 30 segundos para testing
 
-  // Eventos del auto-updater
+  // Eventos del auto-updater con logging detallado
   autoUpdater.on('checking-for-update', () => {
-    console.log('Verificando actualizaciones...');
+    logToFile('🔍 INICIANDO verificación de actualizaciones...');
   });
 
   autoUpdater.on('update-available', (info) => {
-    console.log('Actualización disponible:', info.version);
+    logToFile(`✅ ACTUALIZACIÓN DISPONIBLE:`);
+    logToFile(`  - Versión nueva: ${info.version}`);
+    logToFile(`  - Versión actual: ${app.getVersion()}`);
+    logToFile(`  - Fecha de release: ${info.releaseDate}`);
+    logToFile(`  - Archivos: ${JSON.stringify(info.files, null, 2)}`);
+    
     // Solo notificar si la ventana está enfocada o después de un delay
     if (mainWindow && mainWindow.isFocused()) {
+      logToFile('Enviando notificación de actualización (ventana enfocada)');
       mainWindow.webContents.send('update-available', info);
     } else if (mainWindow) {
+      logToFile('Ventana no enfocada - esperando focus para notificar');
       // Si la ventana no está enfocada, esperar a que lo esté
       mainWindow.once('focus', () => {
         setTimeout(() => {
           if (mainWindow) {
+            logToFile('Enviando notificación de actualización (después de focus)');
             mainWindow.webContents.send('update-available', info);
           }
         }, 1000); // Delay de 1 segundo para no ser intrusivo
@@ -126,27 +197,36 @@ function setupAutoUpdater() {
   });
 
   autoUpdater.on('update-not-available', (info) => {
-    console.log('No hay actualizaciones disponibles');
+    logToFile(`ℹ️ NO HAY ACTUALIZACIONES DISPONIBLES`);
+    logToFile(`  - Versión actual: ${app.getVersion()}`);
+    logToFile(`  - Última versión disponible: ${info?.version || 'No especificada'}`);
   });
 
   autoUpdater.on('error', (err) => {
-    console.error('Error en auto-updater:', err);
+    logToFile(`❌ ERROR EN AUTO-UPDATER:`);
+    logToFile(`  - Mensaje: ${err.message}`);
+    logToFile(`  - Stack: ${err.stack}`);
+    logToFile(`  - Código: ${err.code || 'No especificado'}`);
   });
 
   autoUpdater.on('download-progress', (progressObj) => {
-    const logMessage = `Velocidad de descarga: ${progressObj.bytesPerSecond} - Descargado ${progressObj.percent}% (${progressObj.transferred}/${progressObj.total})`;
-    console.log(logMessage);
+    const logMessage = `📥 PROGRESO DESCARGA: ${progressObj.percent.toFixed(2)}% (${progressObj.transferred}/${progressObj.total} bytes) - Velocidad: ${(progressObj.bytesPerSecond / 1024 / 1024).toFixed(2)} MB/s`;
+    logToFile(logMessage);
     if (mainWindow) {
       mainWindow.webContents.send('download-progress', progressObj);
     }
   });
 
   autoUpdater.on('update-downloaded', (info) => {
-    console.log('Actualización descargada, preparando para instalar...');
+    logToFile(`✅ ACTUALIZACIÓN DESCARGADA:`);
+    logToFile(`  - Versión: ${info.version}`);
+    logToFile(`  - Preparando para instalar...`);
     if (mainWindow) {
       mainWindow.webContents.send('update-downloaded', info);
     }
   });
+
+  logToFile('Auto-updater configurado completamente');
 }
 
 async function createWindow() {
