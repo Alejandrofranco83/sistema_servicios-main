@@ -96,7 +96,7 @@ jobs:
       working-directory: frontend
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: npm run release -- --win
+      run: npm run release -- --win --publish=onTagOrDraft
 
   build-linux:
     needs: create-release
@@ -140,7 +140,7 @@ jobs:
       working-directory: frontend
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: npm run release -- --linux
+      run: npm run release -- --linux --publish=onTagOrDraft
 
   notify-completion:
     needs: [create-release, build-windows, build-linux]

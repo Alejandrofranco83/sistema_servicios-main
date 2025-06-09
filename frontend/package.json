@@ -115,15 +115,26 @@
         "provider": "github",
         "owner": "Alejandrofranco83",
         "repo": "sistema_servicios-main",
-        "releaseType": "release"
+        "releaseType": "release",
+        "publishAutoUpdate": true
       }
     ],
     "win": {
       "target": [
-        "nsis"
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
       ],
       "icon": "public/electron-icon.ico",
-      "publish": ["github"]
+      "publish": [
+        {
+          "provider": "github",
+          "owner": "Alejandrofranco83",
+          "repo": "sistema_servicios-main",
+          "releaseType": "release"
+        }
+      ]
     },
     "linux": {
       "target": [
@@ -150,7 +161,14 @@
       "icon": "public/electron-icon.png",
       "maintainer": "Alejandro Franco <alejandrofran@gmail.com>",
       "vendor": "Alejandro Franco",
-      "publish": ["github"],
+      "publish": [
+        {
+          "provider": "github",
+          "owner": "Alejandrofranco83",
+          "repo": "sistema_servicios-main",
+          "releaseType": "release"
+        }
+      ],
       "executableArgs": [
         "--enable-gpu-rasterization",
         "--enable-zero-copy",
