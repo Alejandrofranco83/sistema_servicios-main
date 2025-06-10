@@ -85,7 +85,7 @@ if (app.isPackaged) {
     repo: 'sistema_servicios-main',
     releaseType: 'release'
   });
-  logToFile('Feed URL configurado correctamente');
+  logToFile('Feed URL configurado correctamente (repositorio público)');
 } else {
   logToFile('Aplicación no empaquetada - auto-updater deshabilitado');
 }
