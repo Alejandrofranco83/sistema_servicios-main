@@ -704,8 +704,6 @@ window.addEventListener('DOMContentLoaded', () => {
 })
 
 // APIs de actualización automática
-const { ipcRenderer } = require('electron');
-
 contextBridge.exposeInMainWorld('electronAPI', {
   // APIs de actualización
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
