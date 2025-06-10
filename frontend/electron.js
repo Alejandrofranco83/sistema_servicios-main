@@ -8,27 +8,59 @@ const fs = require('fs');
 // ===============================
 // LOGGING PARA DIAGNÓSTICO
 // ===============================
-const logFile = path.join(app.getPath('userData'), 'auto-updater.log');
+const userDataPath = app.getPath('userData');
+const logFile = path.join(userDataPath, 'auto-updater.log');
 
 function logToFile(message) {
   const timestamp = new Date().toISOString();
   const logMessage = `[${timestamp}] ${message}\n`;
   
-  console.log(message); // También mostrar en consola
+  console.log(`[AUTO-UPDATER] ${message}`); // También mostrar en consola con prefijo
   
   try {
+    // Asegurar que el directorio existe
+    if (!fs.existsSync(userDataPath)) {
+      fs.mkdirSync(userDataPath, { recursive: true });
+    }
     fs.appendFileSync(logFile, logMessage);
   } catch (error) {
     console.error('Error escribiendo log:', error);
+    // Intentar escribir en un archivo alternativo
+    try {
+      const alternateLogFile = path.join(process.cwd(), 'auto-updater-debug.log');
+      fs.appendFileSync(alternateLogFile, `[ERROR WRITING TO MAIN LOG] ${logMessage}`);
+      console.error(`Log escrito en archivo alternativo: ${alternateLogFile}`);
+    } catch (altError) {
+      console.error('Error también en archivo alternativo:', altError);
+    }
   }
 }
+
+// FORZAR LOGGING SIEMPRE (para debug)
+console.log('='.repeat(60));
+console.log('INICIANDO DIAGNÓSTICO AUTO-UPDATER');
+console.log('='.repeat(60));
 
 // Log información inicial
 logToFile(`=== INICIO AUTO-UPDATER LOG ===`);
 logToFile(`Versión actual: ${app.getVersion()}`);
 logToFile(`Plataforma: ${process.platform}`);
 logToFile(`App empaquetada: ${app.isPackaged}`);
+logToFile(`UserData path: ${userDataPath}`);
 logToFile(`Archivo log: ${logFile}`);
+logToFile(`Proceso CWD: ${process.cwd()}`);
+logToFile(`__dirname: ${__dirname}`);
+
+// Verificar si el archivo se creó
+try {
+  if (fs.existsSync(logFile)) {
+    logToFile(`✅ Archivo de log creado exitosamente`);
+  } else {
+    console.error(`❌ El archivo de log NO se creó en: ${logFile}`);
+  }
+} catch (error) {
+  console.error('Error verificando archivo de log:', error);
+}
 
 // Configurar auto-updater
 autoUpdater.autoDownload = false; // No descargar automáticamente
@@ -230,6 +262,9 @@ function setupAutoUpdater() {
 }
 
 async function createWindow() {
+  console.log('='.repeat(60));
+  console.log('🚀 INICIANDO SISTEMA SERVICIOS');
+  console.log('='.repeat(60));
   console.log('Creando ventana de Electron...');
   
   // Inicializar store
