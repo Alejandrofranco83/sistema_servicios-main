@@ -275,6 +275,13 @@ const LucroScreen: React.FC = () => {
     setMovimientosBase([]); // Limpiar datos anteriores
     setLucrosCalculados([]);
 
+    // LOG: Fechas seleccionadas por el usuario
+    console.log('🔍 LUCRO LOGS - Fechas seleccionadas:');
+    console.log('📅 Fecha Desde:', fechaDesde);
+    console.log('📅 Fecha Hasta:', fechaHasta);
+    console.log('📅 Fecha Desde (ISO):', fechaDesde.toISOString().split('T')[0]);
+    console.log('📅 Fecha Hasta (ISO):', fechaHasta.toISOString().split('T')[0]);
+
     try {
       const response = await api.get(`/api/movimientos-caja/all-movimientos`, {
         params: {
@@ -284,6 +291,64 @@ const LucroScreen: React.FC = () => {
       });
       
       const data = response.data.data || response.data || [];
+      
+      // LOG: Datos recibidos del backend
+      console.log('📥 LUCRO LOGS - Datos recibidos del backend:');
+      console.log('📊 Total movimientos recibidos:', data.length);
+      
+      if (data.length > 0) {
+        // Analizar fechas de los primeros y últimos movimientos
+        const fechasMovimientos = data.map((mov: any) => ({
+          id: mov.id,
+          fecha: mov.createdAt,
+          fechaFormat: new Date(mov.createdAt).toLocaleDateString('es-ES')
+        }));
+        
+        // Ordenar por fecha para ver el rango
+        fechasMovimientos.sort((a: any, b: any) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
+        
+        console.log('📅 Primer movimiento (más antiguo):', fechasMovimientos[0]);
+        console.log('📅 Último movimiento (más reciente):', fechasMovimientos[fechasMovimientos.length - 1]);
+        
+        // Verificar si hay movimientos fuera del rango usando SOLO LA FECHA (sin hora)
+        // Crear fechas usando solo la parte de la fecha (sin hora) para evitar problemas de zona horaria
+        const fechaDesdeSoloFecha = new Date(fechaDesde!.getFullYear(), fechaDesde!.getMonth(), fechaDesde!.getDate()).getTime();
+        const fechaHastaSoloFecha = new Date(fechaHasta!.getFullYear(), fechaHasta!.getMonth(), fechaHasta!.getDate()).getTime() + (24 * 60 * 60 * 1000) - 1;
+        
+        console.log('✅ LUCRO LOGS - Validación de fechas (método corregido):');
+        console.log('📅 Rango desde:', new Date(fechaDesdeSoloFecha).toISOString());
+        console.log('📅 Rango hasta:', new Date(fechaHastaSoloFecha).toISOString());
+        
+        if (fechasMovimientos.length > 0) {
+          const primerMov = new Date(fechasMovimientos[0].fecha);
+          const ultimoMov = new Date(fechasMovimientos[fechasMovimientos.length - 1].fecha);
+          console.log('🎯 Primer movimiento:', primerMov.toISOString(), '| Local:', primerMov.toLocaleString('es-ES'));
+          console.log('🎯 Último movimiento:', ultimoMov.toISOString(), '| Local:', ultimoMov.toLocaleString('es-ES'));
+        }
+        
+        // Verificar movimientos fuera del rango usando comparación correcta
+        const movimientosFueraRango = fechasMovimientos.filter((mov: any) => {
+          const movTime = new Date(mov.fecha).getTime();
+          return movTime < fechaDesdeSoloFecha || movTime > fechaHastaSoloFecha;
+        });
+        
+        if (movimientosFueraRango.length > 0) {
+          console.warn('⚠️ LUCRO LOGS - Movimientos FUERA del rango seleccionado:');
+          console.warn('🔢 Cantidad fuera de rango:', movimientosFueraRango.length);
+          console.warn('📋 Primeros 5 fuera de rango:', movimientosFueraRango.slice(0, 5));
+        } else {
+          console.log('✅ LUCRO LOGS - Todos los movimientos están DENTRO del rango seleccionado');
+        }
+        
+        // Mostrar algunos ejemplos de fechas
+        console.log('📋 Ejemplo de 5 fechas de movimientos:');
+        fechasMovimientos.slice(0, 5).forEach((mov: any, index: number) => {
+          console.log(`${index + 1}. ID: ${mov.id}, Fecha: ${mov.fechaFormat}, ISO: ${mov.fecha}`);
+        });
+      } else {
+        console.log('❌ LUCRO LOGS - No se recibieron movimientos del backend');
+      }
+      
       const movimientosConNombres: MovimientoCajaAPI[] = data.map((mov: any) => ({
         ...mov,
         monto: parseFloat(mov.monto) || 0, 
@@ -304,11 +369,19 @@ const LucroScreen: React.FC = () => {
 
   useEffect(() => {
     if (movimientosBase.length > 0) {
+      // LOG: Procesamiento de movimientos con filtros
+      console.log('🔄 LUCRO LOGS - Procesando movimientos con filtros:');
+      console.log('👤 Usuario filtro:', usuarioFiltro || 'Todos');
+      console.log('🏢 Sucursal filtro:', sucursalFiltro || 'Todas');
+      console.log('📊 Movimientos base antes de filtrar:', movimientosBase.length);
+      
       const movimientosFiltrados = movimientosBase.filter(mov => {
         const pasaFiltroUsuario = !usuarioFiltro || mov.nombreUsuario === usuarioFiltro;
         const pasaFiltroSucursal = !sucursalFiltro || mov.nombreSucursal === sucursalFiltro;
         return pasaFiltroUsuario && pasaFiltroSucursal;
       });
+      
+      console.log('📊 Movimientos después de filtrar:', movimientosFiltrados.length);
 
       const calculados: LucroCalculado[] = movimientosFiltrados.map(mov => {
         const operadoraKey = mov.operadora.toLowerCase().replace(/\s+/g, '');
