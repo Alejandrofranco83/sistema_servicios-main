@@ -115,21 +115,32 @@ const formatMonto = (amount: number, moneda: string): string => {
     return '0';
   }
   
-  // Redondear para evitar problemas de precisión
-  const roundedAmount = Math.round(amount);
-  
   switch (moneda) {
     case 'GS':
-      return formatGuaranies(roundedAmount);
-    case 'USD':
+    case 'PYG':
+      // Guaraníes: sin decimales, punto como separador de miles
+      return Math.round(amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     case 'BRL':
-      // Usar 2 decimales para monedas extranjeras
-      return new Intl.NumberFormat('es-PY', { 
+      // Reales brasileños: formato brasileño (punto para miles, coma para decimales)
+      return new Intl.NumberFormat('pt-BR', { 
+        style: 'decimal',
         minimumFractionDigits: 2, 
         maximumFractionDigits: 2 
-      }).format(roundedAmount);
+      }).format(amount);
+    case 'USD':
+      // Dólares americanos: formato estadounidense (coma para miles, punto para decimales)
+      return new Intl.NumberFormat('en-US', { 
+        style: 'decimal',
+        minimumFractionDigits: 2, 
+        maximumFractionDigits: 2 
+      }).format(amount);
     default:
-      return formatGuaranies(roundedAmount);
+      // Por defecto usar formato paraguayo
+      return new Intl.NumberFormat('es-PY', { 
+        style: 'decimal',
+        minimumFractionDigits: 2, 
+        maximumFractionDigits: 2 
+      }).format(amount);
   }
 };
 
