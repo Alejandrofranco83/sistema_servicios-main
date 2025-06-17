@@ -626,31 +626,42 @@ const BalanceAquipago: React.FC = () => {
                                 {movimiento.montosRetiro > 0 ? formatCurrency.guaranies(movimiento.montosRetiro) : '-'}
                               </TableCell>
                               <TableCell align="center">
-                                {movimiento.comprobantes.length > 0 ? (
-                                  <Button
-                                    size="small"
-                                    variant="outlined"
-                                    color="primary"
-                                    onClick={() => verComprobante(movimiento.comprobantes[0])}
-                                    startIcon={<VisibilityIcon />}
-                                    sx={{ 
-                                      fontSize: '0.75rem', 
-                                      py: 0.5,
-                                      borderColor: 'rgba(255, 255, 255, 0.3)',
-                                      color: 'white',
-                                      '&:hover': {
-                                        borderColor: '#1976D2',
-                                        bgcolor: 'rgba(25, 118, 210, 0.1)'
-                                      }
-                                    }}
-                                  >
-                                    Ver
-                                  </Button>
-                                ) : (
-                                  <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                                    -
-                                  </Typography>
-                                )}
+                                {(() => {
+                                  // Verificar si hay comprobante válido (no vacío y no .txt)
+                                  const tieneComprobanteValido = movimiento.comprobantes.length > 0 && 
+                                    !movimiento.comprobantes[0].toLowerCase().endsWith('.txt');
+                                  
+                                  return (
+                                    <Button
+                                      size="small"
+                                      variant="outlined"
+                                      color="primary"
+                                      disabled={!tieneComprobanteValido}
+                                      onClick={() => tieneComprobanteValido && verComprobante(movimiento.comprobantes[0])}
+                                      startIcon={<VisibilityIcon />}
+                                      sx={{ 
+                                        fontSize: '0.75rem', 
+                                        py: 0.5,
+                                        borderColor: tieneComprobanteValido 
+                                          ? 'rgba(255, 255, 255, 0.3)' 
+                                          : 'rgba(255, 255, 255, 0.12)',
+                                        color: tieneComprobanteValido 
+                                          ? 'white' 
+                                          : 'rgba(255, 255, 255, 0.3)',
+                                        '&:hover': tieneComprobanteValido ? {
+                                          borderColor: '#1976D2',
+                                          bgcolor: 'rgba(25, 118, 210, 0.1)'
+                                        } : {},
+                                        '&.Mui-disabled': {
+                                          borderColor: 'rgba(255, 255, 255, 0.12)',
+                                          color: 'rgba(255, 255, 255, 0.3)'
+                                        }
+                                      }}
+                                    >
+                                      Ver
+                                    </Button>
+                                  );
+                                })()}
                               </TableCell>
                             </TableRow>
                           ))
