@@ -158,7 +158,13 @@ export const AquipagoController = {
     try {
       const { fechaInicio, fechaFin } = req.query;
 
+      console.log('=== DIAGNÓSTICO BACKEND - FILTRO FECHAS AQUIPAGO ===');
+      console.log('Parámetros recibidos:');
+      console.log('  - fechaInicio (query):', fechaInicio, typeof fechaInicio);
+      console.log('  - fechaFin (query):', fechaFin, typeof fechaFin);
+
       if (!fechaInicio || !fechaFin) {
+        console.log('❌ Faltan parámetros de fecha');
         return res.status(400).json({ error: 'Las fechas de inicio y fin son requeridas' });
       }
 
@@ -166,8 +172,13 @@ export const AquipagoController = {
       const [startYear, startMonth, startDay] = (fechaInicio as string).split('-').map(Number);
       const [endYear, endMonth, endDay] = (fechaFin as string).split('-').map(Number);
 
+      console.log('Parsing de fechas:');
+      console.log('  - startYear, startMonth, startDay:', startYear, startMonth, startDay);
+      console.log('  - endYear, endMonth, endDay:', endYear, endMonth, endDay);
+
       // Validar parseo básico
       if (!startYear || !startMonth || !startDay || !endYear || !endMonth || !endDay) {
+        console.log('❌ Error en parseo de fechas');
         return res.status(400).json({ error: 'Formato de fecha inválido (YYYY-MM-DD esperado)' });
       }
 
@@ -179,8 +190,14 @@ export const AquipagoController = {
       const fechaFinSiguienteUTC = new Date(fechaFinOriginalUTC);
       fechaFinSiguienteUTC.setUTCDate(fechaFinOriginalUTC.getUTCDate() + 1); // Usar setUTCDate
 
+      console.log('Fechas UTC construidas:');
+      console.log('  - fechaInicioUTC:', fechaInicioUTC.toISOString());
+      console.log('  - fechaFinOriginalUTC:', fechaFinOriginalUTC.toISOString());
+      console.log('  - fechaFinSiguienteUTC (para filtro):', fechaFinSiguienteUTC.toISOString());
+
       // Validar que las fechas construidas sean válidas (opcional pero bueno)
       if (isNaN(fechaInicioUTC.getTime()) || isNaN(fechaFinSiguienteUTC.getTime())) {
+        console.log('❌ Fechas UTC inválidas');
         return res.status(400).json({ error: 'Fechas inválidas resultantes' });
       }
       
@@ -188,6 +205,7 @@ export const AquipagoController = {
       console.log(`[DEBUG] Prisma Query - Fechas UTC: gte ${fechaInicioUTC.toISOString()} , lt ${fechaFinSiguienteUTC.toISOString()}`);
 
       // 1. Obtener la configuración actual de Aquipago para conocer la cuenta bancaria
+      console.log('Buscando configuración de Aquipago...');
       const aquipagoConfig = await prisma.aquipagoConfig.findFirst({
         orderBy: {
           fechaCreacion: 'desc'
@@ -200,6 +218,13 @@ export const AquipagoController = {
         // ---> [NUEVO] Log para cuenta bancaria ID usada
         console.log(`[DEBUG] Usando cuentaBancariaId: ${aquipagoConfig.cuentaBancariaId} para buscar depósitos.`);
       }
+
+      console.log('Ejecutando query Prisma para movimientos...');
+      console.log('Filtros de Prisma:');
+      console.log('  - fecha.gte:', fechaInicioUTC.toISOString());
+      console.log('  - fecha.lt:', fechaFinSiguienteUTC.toISOString());
+      console.log('  - operadora: aquiPago (insensitive)');
+      console.log('  - servicio.in: [pagos, retiros] (insensitive)');
 
       // 2. Obtener movimientos relacionados con Aqui Pago usando los campos correctos y fechas UTC
       const movimientos = await prisma.movimientoCaja.findMany({
@@ -235,6 +260,13 @@ export const AquipagoController = {
       // ---> [NUEVO] Log para cantidad de movimientos encontrados
       console.log(`[DEBUG] Encontrados ${movimientos.length} movimientos de caja para Aquipago`);
 
+      if (movimientos.length > 0) {
+        console.log('Primeros 5 movimientos encontrados:');
+        movimientos.slice(0, 5).forEach((mov, index) => {
+          console.log(`  [${index}] ID: ${mov.id}, Fecha: ${mov.fecha.toISOString()}, Servicio: ${mov.servicio}, Monto: ${mov.monto}, Operadora: ${mov.operadora}`);
+        });
+      }
+
       // ----> [INICIO] Añadir mapeo explícito para movimientos
       const movimientosFormateados = movimientos.map(mov => ({
         id: mov.id,
@@ -253,6 +285,7 @@ export const AquipagoController = {
       }));
       // <---- [FIN] Añadir mapeo explícito para movimientos
 
+      console.log('Ejecutando query Prisma para depósitos...');
       // 3. Obtener depósitos bancarios (usando fechas UTC y filtro OR para observacion)
       const depositos = aquipagoConfig?.cuentaBancariaId ? await prisma.depositoBancario.findMany({
         where: {
@@ -284,6 +317,13 @@ export const AquipagoController = {
 
       console.log(`[DEBUG] Encontrados ${depositos.length} depósitos bancarios para Aquipago`);
       
+      if (depositos.length > 0) {
+        console.log('Primeros 3 depósitos encontrados:');
+        depositos.slice(0, 3).forEach((dep, index) => {
+          console.log(`  [${index}] ID: ${dep.id}, Fecha: ${dep.fecha.toISOString()}, Monto: ${dep.monto}, Observación: ${dep.observacion}`);
+        });
+      }
+      
       // Formatear los depósitos para el frontend
       const depositosFormateados = depositos.map(deposito => {
         // Extraer el nombre del comprobante para mostrar
@@ -311,6 +351,7 @@ export const AquipagoController = {
         };
       });
 
+      console.log('Calculando totales del rango de fechas...');
       // Calcular totales del RANGO DE FECHAS
       let totalPagosEnRango = 0;
       let totalRetirosEnRango = 0;
@@ -326,6 +367,12 @@ export const AquipagoController = {
 
       const totalDepositosEnRango = depositos.reduce((sum, d) => sum + d.monto.toNumber(), 0);
 
+      console.log('Totales calculados del rango:');
+      console.log('  - totalPagosEnRango:', totalPagosEnRango);
+      console.log('  - totalRetirosEnRango:', totalRetirosEnRango);
+      console.log('  - totalDepositosEnRango:', totalDepositosEnRango);
+
+      console.log('Calculando totales globales (históricos)...');
       // ---> [INICIO] Calcular Balance GLOBAL (Total a Depositar Histórico)
       const sumaPagosGlobal = await prisma.movimientoCaja.aggregate({
         _sum: {
@@ -384,11 +431,16 @@ export const AquipagoController = {
       const totalADepositarGlobal = 
         (sumaPagosGlobal._sum.monto?.toNumber() || 0) - 
         (sumaRetirosGlobal._sum.monto?.toNumber() || 0) - 
-        (sumaDepositosGlobal._sum.monto?.toNumber() || 0); // Restar depósitos globales
+        (sumaDepositosGlobal._sum.monto?.toNumber() || 0);
       // <--- [FIN] Calcular Balance GLOBAL
 
-      // Enviar la respuesta
-      res.status(200).json({
+      console.log('Totales globales calculados:');
+      console.log('  - sumaPagosGlobal:', sumaPagosGlobal._sum.monto?.toNumber() || 0);
+      console.log('  - sumaRetirosGlobal:', sumaRetirosGlobal._sum.monto?.toNumber() || 0);
+      console.log('  - sumaDepositosGlobal:', sumaDepositosGlobal._sum.monto?.toNumber() || 0);
+      console.log('  - totalADepositarGlobal:', totalADepositarGlobal);
+
+      const respuesta = {
         movimientos: movimientosFormateados,
         depositos: depositosFormateados,
         // Totales del rango de fechas
@@ -397,10 +449,23 @@ export const AquipagoController = {
         totalDepositos: totalDepositosEnRango,
         // Total a depositar GLOBAL (Histórico)
         totalADepositar: totalADepositarGlobal, 
-      });
+      };
+
+      console.log('Respuesta final:');
+      console.log('  - movimientos.length:', respuesta.movimientos.length);
+      console.log('  - depositos.length:', respuesta.depositos.length);
+      console.log('  - totalPagos:', respuesta.totalPagos);
+      console.log('  - totalRetiros:', respuesta.totalRetiros);
+      console.log('  - totalDepositos:', respuesta.totalDepositos);
+      console.log('  - totalADepositar:', respuesta.totalADepositar);
+      console.log('=== FIN DIAGNÓSTICO BACKEND AQUIPAGO ===');
+
+      // Enviar la respuesta
+      res.status(200).json(respuesta);
 
     } catch (error) {
-      console.error('Error al obtener movimientos de Aqui Pago:', error);
+      console.error('❌ Error al obtener movimientos de Aqui Pago:', error);
+      console.error('Stack trace:', (error as Error)?.stack);
       return res.status(500).json({ error: 'Error interno del servidor' });
     }
   },

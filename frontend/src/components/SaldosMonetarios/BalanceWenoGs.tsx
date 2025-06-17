@@ -142,9 +142,25 @@ const BalanceWenoGs: React.FC = () => {
     setError(null);
     
     try {
-      // Formatear fechas para la API
-      const inicio = fechaInicio.toISOString().split('T')[0];
-      const fin = fechaFin.toISOString().split('T')[0];
+      // Formatear fechas para la API usando fecha local (no UTC)
+      const formatearFechaLocal = (fecha: Date) => {
+        const year = fecha.getFullYear();
+        const month = String(fecha.getMonth() + 1).padStart(2, '0');
+        const day = String(fecha.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+      
+      const inicio = formatearFechaLocal(fechaInicio);
+      const fin = formatearFechaLocal(fechaFin);
+      
+      console.log('=== DIAGNÓSTICO FILTRO FECHAS WEPA GS ===');
+      console.log('Fechas del componente:');
+      console.log('  - fechaInicio (objeto Date):', fechaInicio);
+      console.log('  - fechaFin (objeto Date):', fechaFin);
+      console.log('Comparación de métodos de formato:');
+      console.log('  - Método anterior (UTC):', fechaInicio.toISOString().split('T')[0], 'y', fechaFin.toISOString().split('T')[0]);
+      console.log('  - Método nuevo (LOCAL):', inicio, 'y', fin);
+      console.log('  - URL completa:', `/api/weno-gs/movimientos?fechaInicio=${inicio}&fechaFin=${fin}`);
       
       // Usar la nueva API específica para Wepa Gs
       const response = await api.get<ApiResponse>(`/api/weno-gs/movimientos?fechaInicio=${inicio}&fechaFin=${fin}`);

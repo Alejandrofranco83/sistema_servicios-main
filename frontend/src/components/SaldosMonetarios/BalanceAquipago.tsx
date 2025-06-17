@@ -110,22 +110,69 @@ const BalanceAquipago: React.FC = () => {
     setError(null);
     
     try {
-      // Formatear fechas para la API
-      const inicio = fechaInicio.toISOString().split('T')[0];
-      const fin = fechaFin.toISOString().split('T')[0];
+      // Formatear fechas para la API usando fecha local (no UTC)
+      const formatearFechaLocal = (fecha: Date) => {
+        const year = fecha.getFullYear();
+        const month = String(fecha.getMonth() + 1).padStart(2, '0');
+        const day = String(fecha.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+      
+      const inicio = formatearFechaLocal(fechaInicio);
+      const fin = formatearFechaLocal(fechaFin);
+      
+      console.log('=== DIAGNÓSTICO FILTRO FECHAS ===');
+      console.log('Fechas del componente:');
+      console.log('  - fechaInicio (objeto Date):', fechaInicio);
+      console.log('  - fechaFin (objeto Date):', fechaFin);
+      console.log('Comparación de métodos de formato:');
+      console.log('  - Método anterior (UTC):', fechaInicio.toISOString().split('T')[0], 'y', fechaFin.toISOString().split('T')[0]);
+      console.log('  - Método nuevo (LOCAL):', inicio, 'y', fin);
+      console.log('  - URL completa:', `/api/aquipago/movimientos?fechaInicio=${inicio}&fechaFin=${fin}`);
       
       // Usar la nueva API específica para Aqui Pago
       const response = await api.get<ApiResponse>(`/api/aquipago/movimientos?fechaInicio=${inicio}&fechaFin=${fin}`);
       
+      console.log('Respuesta de la API:');
+      console.log('  - response.data completo:', response.data);
+      
       // Procesar la respuesta de la API
       if (response.data) {
+        console.log('Datos recibidos de la API:');
+        console.log('  - Cantidad de movimientos:', response.data.movimientos?.length || 0);
+        console.log('  - Cantidad de depósitos:', response.data.depositos?.length || 0);
+        
+        // Log detallado de las fechas de los movimientos
+        if (response.data.movimientos && response.data.movimientos.length > 0) {
+          console.log('Fechas de movimientos recibidos:');
+          response.data.movimientos.forEach((mov, index) => {
+            console.log(`  [${index}] ID: ${mov.id}, Fecha original: "${mov.fecha}", Fecha parseada: ${new Date(mov.fecha)}, Servicio: ${mov.servicio}`);
+          });
+        }
+        
+        // Log detallado de las fechas de los depósitos
+        if (response.data.depositos && response.data.depositos.length > 0) {
+          console.log('Fechas de depósitos recibidos:');
+          response.data.depositos.forEach((dep, index) => {
+            console.log(`  [${index}] ID: ${dep.id}, Fecha original: "${dep.fecha}", Fecha parseada: ${new Date(dep.fecha)}`);
+          });
+        }
+        
         setMovimientos(response.data.movimientos);
         setDepositos(response.data.depositos || []);
         setTotalPagos(response.data.totalPagos);
         setTotalRetiros(response.data.totalRetiros);
         setTotalDepositos(response.data.totalDepositos || 0);
         setTotalADepositar(response.data.totalADepositar);
+        
+        console.log('Totales calculados por la API:');
+        console.log('  - totalPagos:', response.data.totalPagos);
+        console.log('  - totalRetiros:', response.data.totalRetiros);
+        console.log('  - totalDepositos:', response.data.totalDepositos || 0);
+        console.log('  - totalADepositar:', response.data.totalADepositar);
+        
       } else {
+        console.log('⚠️ No hay datos en response.data');
         // Si no hay datos, inicializar con valores vacíos
         setMovimientos([]);
         setDepositos([]);
@@ -136,7 +183,12 @@ const BalanceAquipago: React.FC = () => {
       }
       
     } catch (err: any) {
-      console.error('Error al cargar datos:', err);
+      console.error('❌ Error al cargar datos:', err);
+      console.error('Detalles del error:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status
+      });
       setError(err.response?.data?.message || err.response?.data?.error || 'Error al cargar los datos de Aquipago');
       
       // Si hay un error, mostrar datos vacíos
@@ -147,6 +199,7 @@ const BalanceAquipago: React.FC = () => {
       setTotalDepositos(0);
       setTotalADepositar(0);
     } finally {
+      console.log('=== FIN DIAGNÓSTICO CARGA DATOS ===');
       setLoading(false);
     }
   };
@@ -253,21 +306,32 @@ const BalanceAquipago: React.FC = () => {
       numeroComprobante?: string;
       comprobantes: string[];
     }> = {};
-    console.log('--- Recalculando movimientosAgrupados ---'); // Log inicio
-    console.log('Datos brutos - movimientos:', movimientos); // Log datos brutos
-    console.log('Datos brutos - depositos:', depositos);
-    console.log('Movimientos Filtrados (entrada al useMemo):', movimientosFiltrados); // Log array filtrado
+    
+    console.log('=== DIAGNÓSTICO AGRUPACIÓN DE MOVIMIENTOS ===');
+    console.log('Entrada al useMemo:');
+    console.log('  - movimientos.length:', movimientos.length);
+    console.log('  - movimientosFiltrados.length:', movimientosFiltrados.length);
+    console.log('  - filtroEstado actual:', filtroEstado);
+    console.log('  - busqueda actual:', busqueda);
 
     // Primer paso: agrupar movimientos de caja por fecha y caja
     movimientosFiltrados.forEach((m, index) => {
-      // Log detallado de cada movimiento antes de procesar
-      console.log(`Procesando mov ${index}:`, { id: m.id, servicio: m.servicio, monto: m.monto }); 
-
+      console.log(`--- Procesando movimiento ${index + 1} de ${movimientosFiltrados.length} ---`);
+      console.log('Movimiento completo:', m);
+      
       // ---> [MODIFICACIÓN] Usar solo la fecha (YYYY-MM-DD) para la clave de agrupación
       const fechaParte = m.fecha.split('T')[0]; // Extraer solo YYYY-MM-DD
       const clave = `C_${fechaParte}_${m.cajaId}`;
       
+      console.log('Procesamiento de fecha:');
+      console.log(`  - Fecha original: "${m.fecha}"`);
+      console.log(`  - Fecha parte (solo YYYY-MM-DD): "${fechaParte}"`);
+      console.log(`  - Clave generada: "${clave}"`);
+      console.log(`  - Servicio: "${m.servicio}"`);
+      console.log(`  - Monto: ${m.monto}`);
+      
       if (!agrupado[clave]) {
+        console.log(`  ✅ Creando nueva entrada para clave: ${clave}`);
         agrupado[clave] = {
           fecha: m.fecha,
           cajaId: m.cajaId,
@@ -276,34 +340,53 @@ const BalanceAquipago: React.FC = () => {
           usuario: m.usuario || '',
           montosPago: 0,
           montosRetiro: 0,
-          tipo: 'CAJA', // Recordar que definimos 'tipo' aquí para la visualización
+          tipo: 'CAJA',
           comprobantes: []
         };
+      } else {
+        console.log(`  ♻️ Entrada existente para clave: ${clave}`);
       }
       
       // Acumular montos según SERVICIO
       if (m.servicio === 'pagos') { 
-        console.log(`  -> Acumulando PAGO: ${m.monto} (actual: ${agrupado[clave].montosPago})`);
+        const montoAnterior = agrupado[clave].montosPago;
         agrupado[clave].montosPago += m.monto;
+        console.log(`  💰 PAGO - Anterior: ${montoAnterior}, Nuevo: ${agrupado[clave].montosPago} (+${m.monto})`);
       } else if (m.servicio === 'retiros') { 
-        console.log(`  -> Acumulando RETIRO: ${m.monto} (actual: ${agrupado[clave].montosRetiro})`);
+        const montoAnterior = agrupado[clave].montosRetiro;
         agrupado[clave].montosRetiro += m.monto;
+        console.log(`  💸 RETIRO - Anterior: ${montoAnterior}, Nuevo: ${agrupado[clave].montosRetiro} (+${m.monto})`);
       } else {
-        console.warn(`  -> SERVICIO NO RECONOCIDO para mov ${m.id}: ${m.servicio}`); // Advertencia si no coincide
+        console.warn(`  ⚠️ SERVICIO NO RECONOCIDO: "${m.servicio}" para mov ID ${m.id}`);
       }
       
       // Guardar comprobante si existe (usar rutaComprobante)
       if (m.rutaComprobante && !agrupado[clave].comprobantes.includes(m.rutaComprobante)) {
         agrupado[clave].comprobantes.push(m.rutaComprobante);
+        console.log(`  📄 Comprobante agregado: ${m.rutaComprobante}`);
       }
     });
 
+    console.log('=== PROCESANDO DEPÓSITOS ===');
+    console.log('  - depositos.length:', depositos.length);
+    console.log('  - depositosFiltrados.length:', depositosFiltrados.length);
+    
     // Segundo paso: agregar los depósitos bancarios
-    depositosFiltrados.forEach(d => {
+    depositosFiltrados.forEach((d, index) => {
+      console.log(`--- Procesando depósito ${index + 1} de ${depositosFiltrados.length} ---`);
+      console.log('Depósito completo:', d);
+      
       const clave = `D_${d.fecha}_${d.id}`;
       
       // Determinar el número a mostrar: primero numeroComprobante, luego numeroDeposito, finalmente ID
       const numeroAMostrar = d.numeroComprobante || d.numeroDeposito || `${d.id}`;
+      
+      console.log('Procesamiento de depósito:');
+      console.log(`  - Fecha: "${d.fecha}"`);
+      console.log(`  - ID: ${d.id}`);
+      console.log(`  - Número a mostrar: "${numeroAMostrar}"`);
+      console.log(`  - Monto: ${d.monto}`);
+      console.log(`  - Clave generada: "${clave}"`);
       
       agrupado[clave] = {
         fecha: d.fecha,
@@ -315,18 +398,30 @@ const BalanceAquipago: React.FC = () => {
         montosRetiro: d.monto, // El monto del depósito va como retiro (representa salida de dinero)
         tipo: 'DEPOSITO',
         numeroDeposito: d.numeroDeposito,
-        numeroComprobante: d.numeroComprobante, // Guardar también el número de comprobante
+        numeroComprobante: d.numeroComprobante,
         comprobantes: d.rutaComprobante ? [d.rutaComprobante] : []
       };
+      
+      console.log(`  ✅ Depósito procesado como retiro de ${d.monto}`);
     });
     
     const resultadoAgrupado = Object.values(agrupado).sort((a, b) => 
       new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
     );
     
-    // Quitar el log anterior, ya tenemos los detallados
-    // console.log('Movimientos Agrupados Calculados:', resultadoAgrupado);
-    console.log('--- Fin Recalculo movimientosAgrupados ---');
+    console.log('=== RESULTADO FINAL DE AGRUPACIÓN ===');
+    console.log(`Total de entradas agrupadas: ${resultadoAgrupado.length}`);
+    console.log('Resumen por tipo:');
+    const cajas = resultadoAgrupado.filter(r => r.tipo === 'CAJA');
+    const depositosAgrupados = resultadoAgrupado.filter(r => r.tipo === 'DEPOSITO');
+    console.log(`  - Cajas agrupadas: ${cajas.length}`);
+    console.log(`  - Depósitos: ${depositosAgrupados.length}`);
+    
+    resultadoAgrupado.forEach((item, index) => {
+      console.log(`[${index}] ${item.tipo} - Fecha: ${item.fecha}, Caja: ${item.cajaId}, Pagos: ${item.montosPago}, Retiros: ${item.montosRetiro}`);
+    });
+    
+    console.log('=== FIN DIAGNÓSTICO AGRUPACIÓN ===');
     
     return resultadoAgrupado;
   }, [movimientos, depositos, movimientosFiltrados, depositosFiltrados]); // Asegurar dependencias correctas
