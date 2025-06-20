@@ -1,10 +1,19 @@
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { useMediaQuery } from '@mui/material';
 import CssBaseline from '@mui/material/CssBaseline';
+
+// Desktop components (EXISTENTES - NO TOCAR)
 import Dashboard from './components/Dashboard/Dashboard';
 import Login from './components/Login';
 import UpdateNotification from './components/UpdateNotification';
+
+// Mobile components (NUEVOS)
+import MobileApp from './mobile/pages/MobileApp';
+import MobileLogin from './mobile/components/Auth/MobileLogin';
+import DevControls from './mobile/components/Common/DevControls';
+
 import api from './services/api'; // Usar instancia api global
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CotizacionProvider } from './contexts/CotizacionContext';
@@ -47,11 +56,59 @@ api.interceptors.response.use(
   }
 );
 
+// Hook para detectar si debe usarse la versión móvil
+const useDeviceDetection = () => {
+  const theme = createTheme(); // tema temporal para detección
+  const isMobileScreen = useMediaQuery(theme.breakpoints.down('md'));
+  const forceMobile = localStorage.getItem('force_mobile') === 'true';
+  
+  // 🚧 CONTROL DE DESARROLLO - Solo usar móvil si está explícitamente habilitado
+  const MOBILE_DEVELOPMENT = true; // ← Cambiar a false para deshabilitar móvil completamente
+  
+  // Solo mostrar móvil si:
+  // 1. Está en modo desarrollo móvil
+  // 2. Y (es pantalla móvil O está forzado)
+  const shouldUseMobile = MOBILE_DEVELOPMENT && (isMobileScreen || forceMobile);
+  
+  console.log(`📱 Detección: Screen=${isMobileScreen}, Force=${forceMobile}, Dev=${MOBILE_DEVELOPMENT}, Result=${shouldUseMobile}`);
+  
+  return shouldUseMobile;
+};
+
 const ProtectedRoute: React.FC = () => {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
   return <Outlet />;
+};
+
+// Componente de ruteo condicional
+const ConditionalRouter: React.FC = () => {
+  const shouldUseMobile = useDeviceDetection();
+
+  if (shouldUseMobile) {
+    // 📱 VERSIÓN MÓVIL - Completamente separada
+    console.log('🔄 Renderizando versión MÓVIL');
+    return (
+      <Routes>
+        <Route path="/login" element={<MobileLogin />} />
+        <Route element={<ProtectedRoute />}>
+          <Route path="/*" element={<MobileApp />} />
+        </Route>
+      </Routes>
+    );
+  }
+
+  // 🖥️ VERSIÓN DESKTOP - Exactamente como estaba antes
+  console.log('🔄 Renderizando versión DESKTOP');
+  return (
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route element={<ProtectedRoute />}>
+        <Route path="/*" element={<Dashboard />} />
+      </Route>
+    </Routes>
+  );
 };
 
 const App: React.FC = () => {
@@ -78,12 +135,10 @@ const App: React.FC = () => {
             <SucursalProvider>
               <ServerStatusProvider>
                 <UpdateNotification />
-                <Routes>
-                  <Route path="/login" element={<Login />} />
-                  <Route element={<ProtectedRoute />}>
-                    <Route path="/*" element={<Dashboard />} />
-                  </Route>
-                </Routes>
+                <ConditionalRouter />
+                
+                {/* Controles de desarrollo - Solo en desarrollo */}
+                {process.env.NODE_ENV === 'development' && <DevControls />}
               </ServerStatusProvider>
             </SucursalProvider>
           </CotizacionProvider>
