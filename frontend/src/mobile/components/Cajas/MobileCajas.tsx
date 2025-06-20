@@ -27,11 +27,7 @@ import {
   Divider,
   useTheme,
   Collapse,
-  Avatar,
-  SpeedDial,
-  SpeedDialAction,
-  SpeedDialIcon,
-  Tooltip
+  Avatar
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -48,12 +44,13 @@ import {
   MonetizationOn as MonetizationOnIcon,
   Assignment as AssignmentIcon,
   Payment as PaymentIcon,
-  Edit as EditIcon,
-  MoreVert as MoreVertIcon
+  Edit as EditIcon
 } from '@mui/icons-material';
 import { useMobileSucursal } from '../../contexts/MobileSucursalContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import api from '../../../services/api';
+import VerDetalleCaja from './VerDetalleCaja';
+import FormAperturaMobile from './FormAperturaMobile';
 
 interface Caja {
   id: number;
@@ -86,12 +83,11 @@ const MobileCajas: React.FC = () => {
   // Estados de dialogs
   const [nuevaCajaOpen, setNuevaCajaOpen] = useState(false);
   const [filtrosOpen, setFiltrosOpen] = useState(false);
-  const [accionesOpen, setAccionesOpen] = useState<number | null>(null);
+  const [verDetalleOpen, setVerDetalleOpen] = useState(false);
+  const [cajaSeleccionada, setCajaSeleccionada] = useState<Caja | null>(null);
   
-  // Estados del formulario nueva caja
-  const [montoApertura, setMontoApertura] = useState<string>('');
-  const [comentario, setComentario] = useState<string>('');
-  const [creandoCaja, setCreandoCaja] = useState(false);
+  // Estados del formulario nueva caja ya no necesarios
+  // Se manejará en FormAperturaMobile
   
   // Estados de filtros
   const [filtroEstado, setFiltroEstado] = useState<string>('todas');
@@ -157,53 +153,17 @@ const MobileCajas: React.FC = () => {
     }
   };
 
-  // Función para crear nueva caja
-  const crearNuevaCaja = async () => {
-    if (!montoApertura.trim()) {
-      setError('El monto de apertura es obligatorio');
-      return;
-    }
-
-    const monto = parseFloat(montoApertura.replace(/[,.]/g, ''));
-    if (isNaN(monto) || monto <= 0) {
-      setError('El monto debe ser un número válido mayor a 0');
-      return;
-    }
-
-    try {
-      setCreandoCaja(true);
-      setError(null);
-
-      const nuevaCaja = {
-        montoApertura: monto,
-        comentario: comentario.trim(),
-        sucursalId: sucursalMovil?.id
-      };
-
-      await api.post('/api/cajas', nuevaCaja);
-      
-      // Recargar cajas
-      await cargarCajas();
-      
-      // Limpiar formulario y cerrar dialog
-      setMontoApertura('');
-      setComentario('');
-      setNuevaCajaOpen(false);
-      
-      console.log('✅ Nueva caja creada exitosamente');
-      
-    } catch (err: any) {
-      console.error('Error al crear caja:', err);
-      setError(err.response?.data?.message || 'Error al crear la caja');
-    } finally {
-      setCreandoCaja(false);
-    }
+  // Función para manejar el éxito de creación de caja
+  const handleNuevaCajaExito = async () => {
+    await cargarCajas();
+    console.log('✅ Nueva caja creada exitosamente');
   };
 
-  // Funciones de acciones (placeholders por ahora)
+  // Funciones de acciones
   const handleVerDetalle = (caja: Caja) => {
-    console.log('Ver detalle de caja:', caja.cajaEnteroId);
-    // TODO: Implementar ver detalle
+    console.log('📱 Ver detalle de caja:', caja.cajaEnteroId);
+    setCajaSeleccionada(caja);
+    setVerDetalleOpen(true);
   };
 
   const handleVerApertura = (caja: Caja) => {
@@ -502,39 +462,9 @@ const MobileCajas: React.FC = () => {
                       />
                     </Box>
 
-                    {/* Información financiera */}
-                    <Box sx={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      bgcolor: 'background.default',
-                      borderRadius: 2,
-                      p: 2,
-                      mb: 2
-                    }}>
-                      <Box sx={{ textAlign: 'center' }}>
-                        <Typography variant="caption" color="text.secondary">
-                          Apertura
-                        </Typography>
-                        <Typography variant="h6" color="primary">
-                          {formatearMoneda(caja.montoApertura)}
-                        </Typography>
-                      </Box>
-                      
-                      {caja.estado === 'cerrada' && caja.montoCierre && (
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="caption" color="text.secondary">
-                            Cierre
-                          </Typography>
-                          <Typography variant="h6" color="secondary">
-                            {formatearMoneda(caja.montoCierre)}
-                          </Typography>
-                        </Box>
-                      )}
-                    </Box>
-
-                    {/* Acciones en Grid */}
+                    {/* Acciones en Grid - Todas visibles */}
                     <Grid container spacing={1}>
-                      {getAccionesCaja(caja).slice(0, 4).map((accion, idx) => (
+                      {getAccionesCaja(caja).map((accion, idx) => (
                         <Grid item xs={6} key={idx}>
                           <Button
                             variant="outlined"
@@ -543,47 +473,12 @@ const MobileCajas: React.FC = () => {
                             onClick={accion.onClick}
                             color={accion.color}
                             fullWidth
-                            sx={{ borderRadius: 2, py: 1 }}
+                            sx={{ borderRadius: 2, py: 1.25 }}
                           >
                             {accion.nombre}
                           </Button>
                         </Grid>
                       ))}
-                      
-                      {getAccionesCaja(caja).length > 4 && (
-                        <Grid item xs={12}>
-                          <Button
-                            variant="text"
-                            size="small"
-                            startIcon={<MoreVertIcon />}
-                            onClick={() => setAccionesOpen(accionesOpen === caja.id ? null : caja.id)}
-                            fullWidth
-                            sx={{ borderRadius: 2 }}
-                          >
-                            {accionesOpen === caja.id ? 'Menos acciones' : 'Más acciones'}
-                          </Button>
-                          
-                          <Collapse in={accionesOpen === caja.id}>
-                            <Grid container spacing={1} sx={{ mt: 1 }}>
-                              {getAccionesCaja(caja).slice(4).map((accion, idx) => (
-                                <Grid item xs={6} key={idx + 4}>
-                                  <Button
-                                    variant="outlined"
-                                    size="small"
-                                    startIcon={accion.icon}
-                                    onClick={accion.onClick}
-                                    color={accion.color}
-                                    fullWidth
-                                    sx={{ borderRadius: 2, py: 1 }}
-                                  >
-                                    {accion.nombre}
-                                  </Button>
-                                </Grid>
-                              ))}
-                            </Grid>
-                          </Collapse>
-                        </Grid>
-                      )}
                     </Grid>
                   </ListItem>
                 </Card>
@@ -609,67 +504,18 @@ const MobileCajas: React.FC = () => {
       </Fab>
 
       {/* Dialog Nueva Caja */}
-      <Dialog
+      <FormAperturaMobile
         open={nuevaCajaOpen}
         onClose={() => setNuevaCajaOpen(false)}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{ sx: { borderRadius: 3, m: 2 } }}
-      >
-        <DialogTitle>
-          <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-            Nueva Caja
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {sucursalMovil?.nombre}
-          </Typography>
-        </DialogTitle>
-        
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Monto de Apertura"
-            fullWidth
-            variant="outlined"
-            value={montoApertura}
-            onChange={(e) => setMontoApertura(e.target.value)}
-            placeholder="Ej: 500000"
-            type="number"
-            sx={{ mb: 2 }}
-          />
-          
-          <TextField
-            margin="dense"
-            label="Comentario (Opcional)"
-            fullWidth
-            variant="outlined"
-            multiline
-            rows={3}
-            value={comentario}
-            onChange={(e) => setComentario(e.target.value)}
-            placeholder="Observaciones sobre la apertura..."
-          />
-        </DialogContent>
-        
-        <DialogActions sx={{ p: 3 }}>
-          <Button
-            onClick={() => setNuevaCajaOpen(false)}
-            disabled={creandoCaja}
-            sx={{ borderRadius: 2 }}
-          >
-            Cancelar
-          </Button>
-          <Button
-            onClick={crearNuevaCaja}
-            variant="contained"
-            disabled={creandoCaja || !montoApertura.trim()}
-            sx={{ borderRadius: 2 }}
-          >
-            {creandoCaja ? <CircularProgress size={20} /> : 'Crear Caja'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        onSuccess={handleNuevaCajaExito}
+      />
+
+      {/* Dialog Ver Detalle */}
+      <VerDetalleCaja
+        open={verDetalleOpen}
+        onClose={() => setVerDetalleOpen(false)}
+        caja={cajaSeleccionada}
+      />
     </Box>
   );
 };
