@@ -419,12 +419,12 @@ const VerDetalleCaja: React.FC<Props> = ({ open, onClose, caja, onSuccess }) => 
             </Button>
 
             <Collapse in={expandedSections.guaranies}>
-              <Table size="small">
+              <Table size="small" sx={{ width: '100%', tableLayout: 'fixed' }}>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Denominación</TableCell>
-                    <TableCell width="80px">Cantidad</TableCell>
-                    <TableCell>Subtotal</TableCell>
+                    <TableCell sx={{ width: '32%', maxWidth: '90px', padding: '8px 4px' }}>Denominación</TableCell>
+                    <TableCell sx={{ width: '35%', maxWidth: '85px', padding: '8px 4px', textAlign: 'center' }}>Cantidad</TableCell>
+                    <TableCell sx={{ width: '33%', padding: '8px 4px' }}>Subtotal</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -433,8 +433,8 @@ const VerDetalleCaja: React.FC<Props> = ({ open, onClose, caja, onSuccess }) => 
                       const originalIndex = datosEditados.saldoInicial.denominaciones.indexOf(denom);
                       return (
                         <TableRow key={`PYG-${denom.valor}`}>
-                          <TableCell>{formatearMoneda(denom.valor, 'PYG')}</TableCell>
-                          <TableCell>
+                          <TableCell sx={{ padding: '8px 4px' }}>{formatearMoneda(denom.valor, 'PYG')}</TableCell>
+                          <TableCell sx={{ padding: '8px 4px' }}>
                             {modo === 'visualizacion' ? (
                               denom.cantidad
                             ) : (
@@ -448,7 +448,7 @@ const VerDetalleCaja: React.FC<Props> = ({ open, onClose, caja, onSuccess }) => 
                               />
                             )}
                           </TableCell>
-                          <TableCell>
+                          <TableCell sx={{ padding: '8px 4px' }}>
                             {formatearMoneda(denom.valor * denom.cantidad, 'PYG')}
                           </TableCell>
                         </TableRow>
@@ -476,12 +476,12 @@ const VerDetalleCaja: React.FC<Props> = ({ open, onClose, caja, onSuccess }) => 
             </Button>
 
             <Collapse in={expandedSections.reales}>
-              <Table size="small">
+              <Table size="small" sx={{ width: '100%', tableLayout: 'fixed' }}>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Denominación</TableCell>
-                    <TableCell width="80px">Cantidad</TableCell>
-                    <TableCell>Subtotal</TableCell>
+                    <TableCell sx={{ width: '32%', maxWidth: '90px', padding: '8px 4px' }}>Denominación</TableCell>
+                    <TableCell sx={{ width: '35%', maxWidth: '85px', padding: '8px 4px', textAlign: 'center' }}>Cantidad</TableCell>
+                    <TableCell sx={{ width: '33%', padding: '8px 4px' }}>Subtotal</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -490,8 +490,8 @@ const VerDetalleCaja: React.FC<Props> = ({ open, onClose, caja, onSuccess }) => 
                       const originalIndex = datosEditados.saldoInicial.denominaciones.indexOf(denom);
                       return (
                         <TableRow key={`BRL-${denom.valor}`}>
-                          <TableCell>{formatearMoneda(denom.valor, 'BRL')}</TableCell>
-                          <TableCell>
+                          <TableCell sx={{ padding: '8px 4px' }}>{formatearMoneda(denom.valor, 'BRL')}</TableCell>
+                          <TableCell sx={{ padding: '8px 4px' }}>
                             {modo === 'visualizacion' ? (
                               denom.cantidad
                             ) : (
@@ -505,7 +505,7 @@ const VerDetalleCaja: React.FC<Props> = ({ open, onClose, caja, onSuccess }) => 
                               />
                             )}
                           </TableCell>
-                          <TableCell>
+                          <TableCell sx={{ padding: '8px 4px' }}>
                             {formatearMoneda(denom.valor * denom.cantidad, 'BRL')}
                           </TableCell>
                         </TableRow>
@@ -533,12 +533,12 @@ const VerDetalleCaja: React.FC<Props> = ({ open, onClose, caja, onSuccess }) => 
             </Button>
 
             <Collapse in={expandedSections.dolares}>
-              <Table size="small">
+              <Table size="small" sx={{ width: '100%', tableLayout: 'fixed' }}>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Denominación</TableCell>
-                    <TableCell width="80px">Cantidad</TableCell>
-                    <TableCell>Subtotal</TableCell>
+                    <TableCell sx={{ width: '32%', maxWidth: '90px', padding: '8px 4px' }}>Denominación</TableCell>
+                    <TableCell sx={{ width: '35%', maxWidth: '85px', padding: '8px 4px', textAlign: 'center' }}>Cantidad</TableCell>
+                    <TableCell sx={{ width: '33%', padding: '8px 4px' }}>Subtotal</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -547,8 +547,8 @@ const VerDetalleCaja: React.FC<Props> = ({ open, onClose, caja, onSuccess }) => 
                       const originalIndex = datosEditados.saldoInicial.denominaciones.indexOf(denom);
                       return (
                         <TableRow key={`USD-${denom.valor}`}>
-                          <TableCell>{formatearMoneda(denom.valor, 'USD')}</TableCell>
-                          <TableCell>
+                          <TableCell sx={{ padding: '8px 4px' }}>{formatearMoneda(denom.valor, 'USD')}</TableCell>
+                          <TableCell sx={{ padding: '8px 4px' }}>
                             {modo === 'visualizacion' ? (
                               denom.cantidad
                             ) : (
@@ -562,7 +562,7 @@ const VerDetalleCaja: React.FC<Props> = ({ open, onClose, caja, onSuccess }) => 
                               />
                             )}
                           </TableCell>
-                          <TableCell>
+                          <TableCell sx={{ padding: '8px 4px' }}>
                             {formatearMoneda(denom.valor * denom.cantidad, 'USD')}
                           </TableCell>
                         </TableRow>

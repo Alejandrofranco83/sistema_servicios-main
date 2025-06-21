@@ -18,6 +18,7 @@ import {
 // Mobile components
 import MobileQRScanner from '../components/QR/MobileQRScanner';
 import MobileCajas from '../components/Cajas/MobileCajas';
+import { MobileAppBar, MobileSidebar } from '../components/Layout';
 import { MobileSucursalProvider, useMobileSucursal } from '../contexts/MobileSucursalContext';
 
 // Placeholder components (TODO: Create these)
@@ -84,6 +85,19 @@ const MobileHome: React.FC = () => {
 const MobileAppContent: React.FC = () => {
   const theme = useTheme();
   const [tabActual, setTabActual] = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const handleMenuToggle = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
+
+  const handleSidebarClose = () => {
+    setSidebarOpen(false);
+  };
+
+  const handleTabChange = (newTab: number) => {
+    setTabActual(newTab);
+  };
 
   const renderContent = () => {
     switch (tabActual) {
@@ -107,26 +121,19 @@ const MobileAppContent: React.FC = () => {
       flexDirection: 'column',
       bgcolor: 'background.default'
     }}>
-      {/* Alert de desarrollo */}
-      <Alert 
-        severity="info" 
-        sx={{ 
-          borderRadius: 0,
-          '& .MuiAlert-message': { width: '100%' }
-        }}
-      >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="body2">
-            📱 <strong>Versión Móvil en Desarrollo</strong>
-          </Typography>
-          <Typography variant="caption">
-            v1.0.0-beta
-          </Typography>
-        </Box>
-      </Alert>
+      {/* AppBar */}
+      <MobileAppBar onMenuToggle={handleMenuToggle} />
+
+      {/* Sidebar */}
+      <MobileSidebar
+        open={sidebarOpen}
+        onClose={handleSidebarClose}
+        currentTab={tabActual}
+        onTabChange={handleTabChange}
+      />
 
       {/* Contenido principal */}
-      <Box sx={{ flex: 1, overflow: 'auto' }}>
+      <Box sx={{ flex: 1, overflow: 'auto', marginTop: '64px' }}>
         {renderContent()}
       </Box>
 

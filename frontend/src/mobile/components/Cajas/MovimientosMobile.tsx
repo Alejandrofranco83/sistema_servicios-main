@@ -18,14 +18,22 @@ import {
   IconButton,
   Alert,
   Collapse,
-  Divider
+  Divider,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   AttachFile as AttachFileIcon,
   Visibility as VisibilityIcon,
-  Close as CloseIcon
+  Close as CloseIcon,
+  CameraAlt as CameraIcon,
+  Folder as FolderIcon,
+  Delete as DeleteIcon,
+  MoreVert as MoreVertIcon
 } from '@mui/icons-material';
 import api from '../../../services/api';
 import { API_BASE_URL } from '../../../config';
@@ -93,6 +101,10 @@ const MovimientosMobile: React.FC<Props> = ({ open, onClose, caja, onSuccess }) 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Estados para menús de comprobantes
+  const [menuAnchors, setMenuAnchors] = useState<Record<string, HTMLElement | null>>({});
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
 
   // Estilos comunes para campos de entrada
   const inputStyles = {
@@ -381,6 +393,178 @@ const MovimientosMobile: React.FC<Props> = ({ open, onClose, caja, onSuccess }) 
     }
   }, [open, caja]);
 
+  // Función para abrir menú de comprobante
+  const handleOpenComprobanteMenu = (event: React.MouseEvent<HTMLElement>, comprobanteId: string) => {
+    setMenuAnchors(prev => ({
+      ...prev,
+      [comprobanteId]: event.currentTarget
+    }));
+    setOpenMenus(prev => ({
+      ...prev,
+      [comprobanteId]: true
+    }));
+  };
+
+  // Función para cerrar menú de comprobante
+  const handleCloseComprobanteMenu = (comprobanteId: string) => {
+    setMenuAnchors(prev => ({
+      ...prev,
+      [comprobanteId]: null
+    }));
+    setOpenMenus(prev => ({
+      ...prev,
+      [comprobanteId]: false
+    }));
+  };
+
+  // Función para manejar selección de archivo
+  const handleFileSelect = (comprobanteId: string, file: File) => {
+    setComprobantes(prev => ({
+      ...prev,
+      [comprobanteId]: file
+    }));
+    
+    const serviceName = getServiceNameFromId(comprobanteId);
+    setSuccessMessage(`Comprobante seleccionado para ${serviceName}`);
+    handleCloseComprobanteMenu(comprobanteId);
+  };
+
+  // Función para quitar comprobante
+  const handleRemoveComprobante = (comprobanteId: string) => {
+    setComprobantes(prev => ({
+      ...prev,
+      [comprobanteId]: null
+    }));
+    
+    const serviceName = getServiceNameFromId(comprobanteId);
+    setSuccessMessage(`Comprobante eliminado de ${serviceName}`);
+    handleCloseComprobanteMenu(comprobanteId);
+  };
+
+  // Función para obtener nombre del servicio desde el ID
+  const getServiceNameFromId = (comprobanteId: string): string => {
+    const serviceNames: Record<string, string> = {
+      'tigo_miniCarga': 'Mini Carga TIGO',
+      'tigo_girosEnviados': 'Giros Enviados TIGO',
+      'tigo_retiros': 'Retiros TIGO',
+      'tigo_cargaBilleteras': 'Carga de Billeteras TIGO',
+      'personal_maxiCarga': 'Maxi Carga PERSONAL',
+      'personal_girosEnviados': 'Giros Enviados PERSONAL',
+      'personal_retiros': 'Retiros PERSONAL',
+      'personal_cargaBilleteras': 'Carga de Billeteras PERSONAL',
+      'claro_recargaClaro': 'Recarga Claro',
+      'claro_girosEnviados': 'Giros Enviados CLARO',
+      'claro_retiros': 'Retiros CLARO',
+      'claro_cargaBilleteras': 'Carga de Billeteras CLARO',
+      'aquiPago': 'AQUÍ PAGO',
+      'wepaGuaranies': 'WEPA GUARANÍES',
+      'wepaDolares': 'WEPA DÓLARES'
+    };
+    return serviceNames[comprobanteId] || 'Servicio';
+  };
+
+  // Componente para botón de comprobante mejorado
+  const ComprobanteButton: React.FC<{ comprobanteId: string }> = ({ comprobanteId }) => {
+    const hasComprobante = !!comprobantes[comprobanteId];
+    
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
+        <IconButton 
+          size="small" 
+          color={hasComprobante ? "success" : "primary"}
+          title="Opciones de comprobante"
+          onClick={(e) => handleOpenComprobanteMenu(e, comprobanteId)}
+        >
+          <MoreVertIcon fontSize="small" />
+        </IconButton>
+        
+        <IconButton 
+          size="small" 
+          color="info"
+          disabled={!hasComprobante}
+          title="Ver comprobante"
+          onClick={() => {
+            if (comprobantes[comprobanteId]) {
+              window.open(URL.createObjectURL(comprobantes[comprobanteId]!), '_blank');
+            }
+          }}
+        >
+          <VisibilityIcon fontSize="small" />
+        </IconButton>
+
+        <Menu
+          anchorEl={null}
+          open={openMenus[comprobanteId] || false}
+          onClose={() => handleCloseComprobanteMenu(comprobanteId)}
+          anchorOrigin={{ vertical: 'center', horizontal: 'center' }}
+          transformOrigin={{ vertical: 'center', horizontal: 'center' }}
+          sx={{
+            '& .MuiPaper-root': {
+              position: 'fixed',
+              top: '50% !important',
+              left: '50% !important',
+              transform: 'translate(-50%, -50%) !important',
+              minWidth: 200,
+              borderRadius: 2,
+              boxShadow: 3
+            }
+          }}
+        >
+          <MenuItem component="label">
+            <ListItemIcon>
+              <CameraIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>
+              Tomar foto
+              {!navigator.mediaDevices && (
+                <Typography variant="caption" color="text.secondary" display="block">
+                  (Abrirá galería en desarrollo)
+                </Typography>
+              )}
+            </ListItemText>
+            <input
+              type="file"
+              hidden
+              accept="image/*"
+              capture="environment"
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  handleFileSelect(comprobanteId, e.target.files[0]);
+                }
+              }}
+            />
+          </MenuItem>
+          
+          <MenuItem component="label">
+            <ListItemIcon>
+              <FolderIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Seleccionar de galería</ListItemText>
+            <input
+              type="file"
+              hidden
+              accept="image/*"
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  handleFileSelect(comprobanteId, e.target.files[0]);
+                }
+              }}
+            />
+          </MenuItem>
+          
+          {hasComprobante && (
+            <MenuItem onClick={() => handleRemoveComprobante(comprobanteId)}>
+              <ListItemIcon>
+                <DeleteIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Quitar comprobante</ListItemText>
+            </MenuItem>
+          )}
+        </Menu>
+      </Box>
+    );
+  };
+
   if (!caja) {
     return null;
   }
@@ -476,43 +660,7 @@ const MovimientosMobile: React.FC<Props> = ({ open, onClose, caja, onSuccess }) 
                       />
                     </TableCell>
                     <TableCell align="center">
-                      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
-                        <IconButton 
-                          size="small" 
-                          component="label" 
-                          color="primary"
-                          title="Subir comprobante"
-                        >
-                          <AttachFileIcon fontSize="small" />
-                          <input
-                            type="file"
-                            hidden
-                            accept="image/*"
-                            onChange={(e) => {
-                              if (e.target.files && e.target.files[0]) {
-                                setComprobantes(prev => ({
-                                  ...prev,
-                                  tigo_miniCarga: e.target.files![0]
-                                }));
-                                setSuccessMessage('Comprobante seleccionado para Mini Carga TIGO');
-                              }
-                            }}
-                          />
-                        </IconButton>
-                        <IconButton 
-                          size="small" 
-                          color="info"
-                          disabled={!comprobantes.tigo_miniCarga}
-                          title="Ver comprobante"
-                          onClick={() => {
-                            if (comprobantes.tigo_miniCarga) {
-                              window.open(URL.createObjectURL(comprobantes.tigo_miniCarga), '_blank');
-                            }
-                          }}
-                        >
-                          <VisibilityIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
+                      <ComprobanteButton comprobanteId="tigo_miniCarga" />
                     </TableCell>
                   </TableRow>
                   <TableRow>
@@ -534,43 +682,7 @@ const MovimientosMobile: React.FC<Props> = ({ open, onClose, caja, onSuccess }) 
                       />
                     </TableCell>
                     <TableCell align="center">
-                      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
-                        <IconButton 
-                          size="small" 
-                          component="label" 
-                          color="primary"
-                          title="Subir comprobante"
-                        >
-                          <AttachFileIcon fontSize="small" />
-                          <input
-                            type="file"
-                            hidden
-                            accept="image/*"
-                            onChange={(e) => {
-                              if (e.target.files && e.target.files[0]) {
-                                setComprobantes(prev => ({
-                                  ...prev,
-                                  tigo_girosEnviados: e.target.files![0]
-                                }));
-                                setSuccessMessage('Comprobante seleccionado para Giros Enviados TIGO');
-                              }
-                            }}
-                          />
-                        </IconButton>
-                        <IconButton 
-                          size="small" 
-                          color="info"
-                          disabled={!comprobantes.tigo_girosEnviados}
-                          title="Ver comprobante"
-                          onClick={() => {
-                            if (comprobantes.tigo_girosEnviados) {
-                              window.open(URL.createObjectURL(comprobantes.tigo_girosEnviados), '_blank');
-                            }
-                          }}
-                        >
-                          <VisibilityIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
+                      <ComprobanteButton comprobanteId="tigo_girosEnviados" />
                     </TableCell>
                   </TableRow>
                   <TableRow>
@@ -592,43 +704,7 @@ const MovimientosMobile: React.FC<Props> = ({ open, onClose, caja, onSuccess }) 
                       />
                     </TableCell>
                     <TableCell align="center">
-                      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
-                        <IconButton 
-                          size="small" 
-                          component="label" 
-                          color="primary"
-                          title="Subir comprobante"
-                        >
-                          <AttachFileIcon fontSize="small" />
-                          <input
-                            type="file"
-                            hidden
-                            accept="image/*"
-                            onChange={(e) => {
-                              if (e.target.files && e.target.files[0]) {
-                                setComprobantes(prev => ({
-                                  ...prev,
-                                  tigo_retiros: e.target.files![0]
-                                }));
-                                setSuccessMessage('Comprobante seleccionado para Retiros TIGO');
-                              }
-                            }}
-                          />
-                        </IconButton>
-                        <IconButton 
-                          size="small" 
-                          color="info"
-                          disabled={!comprobantes.tigo_retiros}
-                          title="Ver comprobante"
-                          onClick={() => {
-                            if (comprobantes.tigo_retiros) {
-                              window.open(URL.createObjectURL(comprobantes.tigo_retiros), '_blank');
-                            }
-                          }}
-                        >
-                          <VisibilityIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
+                      <ComprobanteButton comprobanteId="tigo_retiros" />
                     </TableCell>
                   </TableRow>
                   <TableRow>
@@ -650,43 +726,7 @@ const MovimientosMobile: React.FC<Props> = ({ open, onClose, caja, onSuccess }) 
                       />
                     </TableCell>
                     <TableCell align="center">
-                      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
-                        <IconButton 
-                          size="small" 
-                          component="label" 
-                          color="primary"
-                          title="Subir comprobante"
-                        >
-                          <AttachFileIcon fontSize="small" />
-                          <input
-                            type="file"
-                            hidden
-                            accept="image/*"
-                            onChange={(e) => {
-                              if (e.target.files && e.target.files[0]) {
-                                setComprobantes(prev => ({
-                                  ...prev,
-                                  tigo_cargaBilleteras: e.target.files![0]
-                                }));
-                                setSuccessMessage('Comprobante seleccionado para Carga de Billeteras TIGO');
-                              }
-                            }}
-                          />
-                        </IconButton>
-                        <IconButton 
-                          size="small" 
-                          color="info"
-                          disabled={!comprobantes.tigo_cargaBilleteras}
-                          title="Ver comprobante"
-                          onClick={() => {
-                            if (comprobantes.tigo_cargaBilleteras) {
-                              window.open(URL.createObjectURL(comprobantes.tigo_cargaBilleteras), '_blank');
-                            }
-                          }}
-                        >
-                          <VisibilityIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
+                      <ComprobanteButton comprobanteId="tigo_cargaBilleteras" />
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -739,43 +779,7 @@ const MovimientosMobile: React.FC<Props> = ({ open, onClose, caja, onSuccess }) 
                       />
                     </TableCell>
                     <TableCell align="center">
-                      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
-                        <IconButton 
-                          size="small" 
-                          component="label" 
-                          color="primary"
-                          title="Subir comprobante"
-                        >
-                          <AttachFileIcon fontSize="small" />
-                          <input
-                            type="file"
-                            hidden
-                            accept="image/*"
-                            onChange={(e) => {
-                              if (e.target.files && e.target.files[0]) {
-                                setComprobantes(prev => ({
-                                  ...prev,
-                                  personal_maxiCarga: e.target.files![0]
-                                }));
-                                setSuccessMessage('Comprobante seleccionado para Maxi Carga PERSONAL');
-                              }
-                            }}
-                          />
-                        </IconButton>
-                        <IconButton 
-                          size="small" 
-                          color="info"
-                          disabled={!comprobantes.personal_maxiCarga}
-                          title="Ver comprobante"
-                          onClick={() => {
-                            if (comprobantes.personal_maxiCarga) {
-                              window.open(URL.createObjectURL(comprobantes.personal_maxiCarga), '_blank');
-                            }
-                          }}
-                        >
-                          <VisibilityIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
+                      <ComprobanteButton comprobanteId="personal_maxiCarga" />
                     </TableCell>
                   </TableRow>
                   <TableRow>
@@ -797,43 +801,7 @@ const MovimientosMobile: React.FC<Props> = ({ open, onClose, caja, onSuccess }) 
                       />
                     </TableCell>
                     <TableCell align="center">
-                      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
-                        <IconButton 
-                          size="small" 
-                          component="label" 
-                          color="primary"
-                          title="Subir comprobante"
-                        >
-                          <AttachFileIcon fontSize="small" />
-                          <input
-                            type="file"
-                            hidden
-                            accept="image/*"
-                            onChange={(e) => {
-                              if (e.target.files && e.target.files[0]) {
-                                setComprobantes(prev => ({
-                                  ...prev,
-                                  personal_girosEnviados: e.target.files![0]
-                                }));
-                                setSuccessMessage('Comprobante seleccionado para Giros Enviados PERSONAL');
-                              }
-                            }}
-                          />
-                        </IconButton>
-                        <IconButton 
-                          size="small" 
-                          color="info"
-                          disabled={!comprobantes.personal_girosEnviados}
-                          title="Ver comprobante"
-                          onClick={() => {
-                            if (comprobantes.personal_girosEnviados) {
-                              window.open(URL.createObjectURL(comprobantes.personal_girosEnviados), '_blank');
-                            }
-                          }}
-                        >
-                          <VisibilityIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
+                      <ComprobanteButton comprobanteId="personal_girosEnviados" />
                     </TableCell>
                   </TableRow>
                   <TableRow>
@@ -855,43 +823,7 @@ const MovimientosMobile: React.FC<Props> = ({ open, onClose, caja, onSuccess }) 
                       />
                     </TableCell>
                     <TableCell align="center">
-                      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
-                        <IconButton 
-                          size="small" 
-                          component="label" 
-                          color="primary"
-                          title="Subir comprobante"
-                        >
-                          <AttachFileIcon fontSize="small" />
-                          <input
-                            type="file"
-                            hidden
-                            accept="image/*"
-                            onChange={(e) => {
-                              if (e.target.files && e.target.files[0]) {
-                                setComprobantes(prev => ({
-                                  ...prev,
-                                  personal_retiros: e.target.files![0]
-                                }));
-                                setSuccessMessage('Comprobante seleccionado para Retiros PERSONAL');
-                              }
-                            }}
-                          />
-                        </IconButton>
-                        <IconButton 
-                          size="small" 
-                          color="info"
-                          disabled={!comprobantes.personal_retiros}
-                          title="Ver comprobante"
-                          onClick={() => {
-                            if (comprobantes.personal_retiros) {
-                              window.open(URL.createObjectURL(comprobantes.personal_retiros), '_blank');
-                            }
-                          }}
-                        >
-                          <VisibilityIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
+                      <ComprobanteButton comprobanteId="personal_retiros" />
                     </TableCell>
                   </TableRow>
                   <TableRow>
@@ -913,43 +845,7 @@ const MovimientosMobile: React.FC<Props> = ({ open, onClose, caja, onSuccess }) 
                       />
                     </TableCell>
                     <TableCell align="center">
-                      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
-                        <IconButton 
-                          size="small" 
-                          component="label" 
-                          color="primary"
-                          title="Subir comprobante"
-                        >
-                          <AttachFileIcon fontSize="small" />
-                          <input
-                            type="file"
-                            hidden
-                            accept="image/*"
-                            onChange={(e) => {
-                              if (e.target.files && e.target.files[0]) {
-                                setComprobantes(prev => ({
-                                  ...prev,
-                                  personal_cargaBilleteras: e.target.files![0]
-                                }));
-                                setSuccessMessage('Comprobante seleccionado para Carga de Billeteras PERSONAL');
-                              }
-                            }}
-                          />
-                        </IconButton>
-                        <IconButton 
-                          size="small" 
-                          color="info"
-                          disabled={!comprobantes.personal_cargaBilleteras}
-                          title="Ver comprobante"
-                          onClick={() => {
-                            if (comprobantes.personal_cargaBilleteras) {
-                              window.open(URL.createObjectURL(comprobantes.personal_cargaBilleteras), '_blank');
-                            }
-                          }}
-                        >
-                          <VisibilityIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
+                      <ComprobanteButton comprobanteId="personal_cargaBilleteras" />
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -1002,43 +898,7 @@ const MovimientosMobile: React.FC<Props> = ({ open, onClose, caja, onSuccess }) 
                       />
                     </TableCell>
                     <TableCell align="center">
-                      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
-                        <IconButton 
-                          size="small" 
-                          component="label" 
-                          color="primary"
-                          title="Subir comprobante"
-                        >
-                          <AttachFileIcon fontSize="small" />
-                          <input
-                            type="file"
-                            hidden
-                            accept="image/*"
-                            onChange={(e) => {
-                              if (e.target.files && e.target.files[0]) {
-                                setComprobantes(prev => ({
-                                  ...prev,
-                                  claro_recargaClaro: e.target.files![0]
-                                }));
-                                setSuccessMessage('Comprobante seleccionado para Recarga Claro');
-                              }
-                            }}
-                          />
-                        </IconButton>
-                        <IconButton 
-                          size="small" 
-                          color="info"
-                          disabled={!comprobantes.claro_recargaClaro}
-                          title="Ver comprobante"
-                          onClick={() => {
-                            if (comprobantes.claro_recargaClaro) {
-                              window.open(URL.createObjectURL(comprobantes.claro_recargaClaro), '_blank');
-                            }
-                          }}
-                        >
-                          <VisibilityIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
+                      <ComprobanteButton comprobanteId="claro_recargaClaro" />
                     </TableCell>
                   </TableRow>
                   <TableRow>
@@ -1060,43 +920,7 @@ const MovimientosMobile: React.FC<Props> = ({ open, onClose, caja, onSuccess }) 
                       />
                     </TableCell>
                     <TableCell align="center">
-                      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
-                        <IconButton 
-                          size="small" 
-                          component="label" 
-                          color="primary"
-                          title="Subir comprobante"
-                        >
-                          <AttachFileIcon fontSize="small" />
-                          <input
-                            type="file"
-                            hidden
-                            accept="image/*"
-                            onChange={(e) => {
-                              if (e.target.files && e.target.files[0]) {
-                                setComprobantes(prev => ({
-                                  ...prev,
-                                  claro_girosEnviados: e.target.files![0]
-                                }));
-                                setSuccessMessage('Comprobante seleccionado para Giros Enviados CLARO');
-                              }
-                            }}
-                          />
-                        </IconButton>
-                        <IconButton 
-                          size="small" 
-                          color="info"
-                          disabled={!comprobantes.claro_girosEnviados}
-                          title="Ver comprobante"
-                          onClick={() => {
-                            if (comprobantes.claro_girosEnviados) {
-                              window.open(URL.createObjectURL(comprobantes.claro_girosEnviados), '_blank');
-                            }
-                          }}
-                        >
-                          <VisibilityIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
+                      <ComprobanteButton comprobanteId="claro_girosEnviados" />
                     </TableCell>
                   </TableRow>
                   <TableRow>
@@ -1118,43 +942,7 @@ const MovimientosMobile: React.FC<Props> = ({ open, onClose, caja, onSuccess }) 
                       />
                     </TableCell>
                     <TableCell align="center">
-                      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
-                        <IconButton 
-                          size="small" 
-                          component="label" 
-                          color="primary"
-                          title="Subir comprobante"
-                        >
-                          <AttachFileIcon fontSize="small" />
-                          <input
-                            type="file"
-                            hidden
-                            accept="image/*"
-                            onChange={(e) => {
-                              if (e.target.files && e.target.files[0]) {
-                                setComprobantes(prev => ({
-                                  ...prev,
-                                  claro_retiros: e.target.files![0]
-                                }));
-                                setSuccessMessage('Comprobante seleccionado para Retiros CLARO');
-                              }
-                            }}
-                          />
-                        </IconButton>
-                        <IconButton 
-                          size="small" 
-                          color="info"
-                          disabled={!comprobantes.claro_retiros}
-                          title="Ver comprobante"
-                          onClick={() => {
-                            if (comprobantes.claro_retiros) {
-                              window.open(URL.createObjectURL(comprobantes.claro_retiros), '_blank');
-                            }
-                          }}
-                        >
-                          <VisibilityIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
+                      <ComprobanteButton comprobanteId="claro_retiros" />
                     </TableCell>
                   </TableRow>
                   <TableRow>
@@ -1176,43 +964,7 @@ const MovimientosMobile: React.FC<Props> = ({ open, onClose, caja, onSuccess }) 
                       />
                     </TableCell>
                     <TableCell align="center">
-                      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
-                        <IconButton 
-                          size="small" 
-                          component="label" 
-                          color="primary"
-                          title="Subir comprobante"
-                        >
-                          <AttachFileIcon fontSize="small" />
-                          <input
-                            type="file"
-                            hidden
-                            accept="image/*"
-                            onChange={(e) => {
-                              if (e.target.files && e.target.files[0]) {
-                                setComprobantes(prev => ({
-                                  ...prev,
-                                  claro_cargaBilleteras: e.target.files![0]
-                                }));
-                                setSuccessMessage('Comprobante seleccionado para Carga de Billeteras CLARO');
-                              }
-                            }}
-                          />
-                        </IconButton>
-                        <IconButton 
-                          size="small" 
-                          color="info"
-                          disabled={!comprobantes.claro_cargaBilleteras}
-                          title="Ver comprobante"
-                          onClick={() => {
-                            if (comprobantes.claro_cargaBilleteras) {
-                              window.open(URL.createObjectURL(comprobantes.claro_cargaBilleteras), '_blank');
-                            }
-                          }}
-                        >
-                          <VisibilityIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
+                      <ComprobanteButton comprobanteId="claro_cargaBilleteras" />
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -1236,41 +988,7 @@ const MovimientosMobile: React.FC<Props> = ({ open, onClose, caja, onSuccess }) 
                 </Typography>
               </Button>
               <Box sx={{ display: 'flex', gap: 0.5 }}>
-                <IconButton 
-                  size="small" 
-                  component="label" 
-                  color="primary"
-                  title="Subir comprobante general"
-                >
-                  <AttachFileIcon fontSize="small" />
-                  <input
-                    type="file"
-                    hidden
-                    accept="image/*"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        setComprobantes(prev => ({
-                          ...prev,
-                          aquiPago: e.target.files![0]
-                        }));
-                        setSuccessMessage('Comprobante seleccionado para AQUÍ PAGO');
-                      }
-                    }}
-                  />
-                </IconButton>
-                <IconButton 
-                  size="small" 
-                  color="info"
-                  disabled={!comprobantes.aquiPago}
-                  title="Ver comprobante"
-                  onClick={() => {
-                    if (comprobantes.aquiPago) {
-                      window.open(URL.createObjectURL(comprobantes.aquiPago), '_blank');
-                    }
-                  }}
-                >
-                  <VisibilityIcon fontSize="small" />
-                </IconButton>
+                <ComprobanteButton comprobanteId="aquiPago" />
               </Box>
             </Box>
 
@@ -1342,41 +1060,7 @@ const MovimientosMobile: React.FC<Props> = ({ open, onClose, caja, onSuccess }) 
                 </Typography>
               </Button>
               <Box sx={{ display: 'flex', gap: 0.5 }}>
-                <IconButton 
-                  size="small" 
-                  component="label" 
-                  color="primary"
-                  title="Subir comprobante general"
-                >
-                  <AttachFileIcon fontSize="small" />
-                  <input
-                    type="file"
-                    hidden
-                    accept="image/*"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        setComprobantes(prev => ({
-                          ...prev,
-                          wepaGuaranies: e.target.files![0]
-                        }));
-                        setSuccessMessage('Comprobante seleccionado para WEPA GUARANÍES');
-                      }
-                    }}
-                  />
-                </IconButton>
-                <IconButton 
-                  size="small" 
-                  color="info"
-                  disabled={!comprobantes.wepaGuaranies}
-                  title="Ver comprobante"
-                  onClick={() => {
-                    if (comprobantes.wepaGuaranies) {
-                      window.open(URL.createObjectURL(comprobantes.wepaGuaranies), '_blank');
-                    }
-                  }}
-                >
-                  <VisibilityIcon fontSize="small" />
-                </IconButton>
+                <ComprobanteButton comprobanteId="wepaGuaranies" />
               </Box>
             </Box>
 
@@ -1448,41 +1132,7 @@ const MovimientosMobile: React.FC<Props> = ({ open, onClose, caja, onSuccess }) 
                 </Typography>
               </Button>
               <Box sx={{ display: 'flex', gap: 0.5 }}>
-                <IconButton 
-                  size="small" 
-                  component="label" 
-                  color="primary"
-                  title="Subir comprobante general"
-                >
-                  <AttachFileIcon fontSize="small" />
-                  <input
-                    type="file"
-                    hidden
-                    accept="image/*"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        setComprobantes(prev => ({
-                          ...prev,
-                          wepaDolares: e.target.files![0]
-                        }));
-                        setSuccessMessage('Comprobante seleccionado para WEPA DÓLARES');
-                      }
-                    }}
-                  />
-                </IconButton>
-                <IconButton 
-                  size="small" 
-                  color="info"
-                  disabled={!comprobantes.wepaDolares}
-                  title="Ver comprobante"
-                  onClick={() => {
-                    if (comprobantes.wepaDolares) {
-                      window.open(URL.createObjectURL(comprobantes.wepaDolares), '_blank');
-                    }
-                  }}
-                >
-                  <VisibilityIcon fontSize="small" />
-                </IconButton>
+                <ComprobanteButton comprobanteId="wepaDolares" />
               </Box>
             </Box>
 

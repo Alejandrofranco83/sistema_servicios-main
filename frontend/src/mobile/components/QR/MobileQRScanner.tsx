@@ -12,7 +12,6 @@ import {
   DialogContent,
   DialogActions,
   CircularProgress,
-  Divider,
   Chip,
   IconButton,
   useTheme
@@ -114,12 +113,7 @@ const MobileQRScanner: React.FC = () => {
     console.log('Flash toggle no disponible');
   };
 
-  // Códigos QR de prueba para desarrollo
-  const codigosPrueba = [
-    { nombre: 'Sucursal Central', codigo: 'SUC001' },
-    { nombre: 'Sucursal Itaipu', codigo: 'SUC002' },
-    { nombre: 'Sucursal Calle 10', codigo: 'SUC003' }
-  ];
+
 
   if (qrEscaneado && sucursalMovil) {
     return (
@@ -320,32 +314,9 @@ const MobileQRScanner: React.FC = () => {
                 variant="outlined"
                 value={codigoManual}
                 onChange={(e) => setCodigoManual(e.target.value)}
-                placeholder="Ej: SUC001, SUC002, etc."
+                placeholder="Ej: 001, 002, etc."
                 sx={{ mb: 3 }}
               />
-              
-              {/* Códigos de prueba para desarrollo */}
-              {process.env.NODE_ENV === 'development' && (
-                <>
-                  <Divider sx={{ my: 2 }} />
-                  <Typography variant="subtitle2" gutterBottom>
-                    🛠️ Códigos de Prueba (Solo Desarrollo):
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                    {codigosPrueba.map((codigo) => (
-                      <Chip
-                        key={codigo.codigo}
-                        label={`${codigo.nombre} (${codigo.codigo})`}
-                        onClick={() => setCodigoManual(codigo.codigo)}
-                        clickable
-                        size="small"
-                        color="primary"
-                        variant="outlined"
-                      />
-                    ))}
-                  </Box>
-                </>
-              )}
             </DialogContent>
             <DialogActions>
               <Button onClick={() => setManualInput(false)}>

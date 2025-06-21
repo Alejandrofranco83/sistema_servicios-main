@@ -12,7 +12,6 @@ import UpdateNotification from './components/UpdateNotification';
 // Mobile components (NUEVOS)
 import MobileApp from './mobile/pages/MobileApp';
 import MobileLogin from './mobile/components/Auth/MobileLogin';
-import DevControls from './mobile/components/Common/DevControls';
 
 import api from './services/api'; // Usar instancia api global
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -136,9 +135,6 @@ const App: React.FC = () => {
               <ServerStatusProvider>
                 <UpdateNotification />
                 <ConditionalRouter />
-                
-                {/* Controles de desarrollo - Solo en desarrollo */}
-                {process.env.NODE_ENV === 'development' && <DevControls />}
               </ServerStatusProvider>
             </SucursalProvider>
           </CotizacionProvider>

@@ -318,7 +318,7 @@ const FormCierreMobile: React.FC<Props> = ({ open, onClose, caja, onSuccess }) =
     <Dialog
       open={open}
       onClose={onClose}
-      maxWidth="md"
+      maxWidth="sm"
       fullWidth
       PaperProps={{ 
         sx: { 
@@ -421,12 +421,12 @@ const FormCierreMobile: React.FC<Props> = ({ open, onClose, caja, onSuccess }) =
 
             <Collapse in={expandedSections.guaranies}>
               <TableContainer>
-                <Table size="small">
+                <Table size="small" sx={{ width: '100%', tableLayout: 'fixed' }}>
                   <TableHead>
                     <TableRow>
-                      <TableCell><strong>Denominación</strong></TableCell>
-                      <TableCell align="center"><strong>Cantidad</strong></TableCell>
-                      <TableCell align="right"><strong>Subtotal</strong></TableCell>
+                      <TableCell sx={{ width: '32%', maxWidth: '90px', padding: '8px 4px' }}><strong>Denominación</strong></TableCell>
+                      <TableCell sx={{ width: '35%', maxWidth: '85px', padding: '8px 4px', textAlign: 'center' }}><strong>Cantidad</strong></TableCell>
+                      <TableCell sx={{ width: '33%', padding: '8px 4px' }}><strong>Subtotal</strong></TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -436,10 +436,10 @@ const FormCierreMobile: React.FC<Props> = ({ open, onClose, caja, onSuccess }) =
                         const originalIndex = formCierre.saldoFinal.denominaciones.indexOf(denom);
                         return (
                           <TableRow key={`PYG-${denom.valor}`}>
-                            <TableCell>
+                            <TableCell sx={{ padding: '8px 4px' }}>
                               {formatearMontoConSeparadores(denom.valor)} Gs
                             </TableCell>
-                            <TableCell align="center">
+                            <TableCell sx={{ padding: '8px 4px' }}>
                               <TextField
                                 size="small"
                                 type="number"
@@ -453,7 +453,7 @@ const FormCierreMobile: React.FC<Props> = ({ open, onClose, caja, onSuccess }) =
                                 sx={{ width: 80 }}
                               />
                             </TableCell>
-                            <TableCell align="right">
+                            <TableCell sx={{ padding: '8px 4px' }}>
                               {formatearMontoConSeparadores(denom.valor * denom.cantidad)} Gs
                             </TableCell>
                           </TableRow>
@@ -483,12 +483,12 @@ const FormCierreMobile: React.FC<Props> = ({ open, onClose, caja, onSuccess }) =
 
             <Collapse in={expandedSections.reales}>
               <TableContainer>
-                <Table size="small">
+                <Table size="small" sx={{ width: '100%', tableLayout: 'fixed' }}>
                   <TableHead>
                     <TableRow>
-                      <TableCell><strong>Denominación</strong></TableCell>
-                      <TableCell align="center"><strong>Cantidad</strong></TableCell>
-                      <TableCell align="right"><strong>Subtotal</strong></TableCell>
+                      <TableCell sx={{ width: '32%', maxWidth: '90px', padding: '8px 4px' }}><strong>Denominación</strong></TableCell>
+                      <TableCell sx={{ width: '35%', maxWidth: '85px', padding: '8px 4px', textAlign: 'center' }}><strong>Cantidad</strong></TableCell>
+                      <TableCell sx={{ width: '33%', padding: '8px 4px' }}><strong>Subtotal</strong></TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -498,10 +498,10 @@ const FormCierreMobile: React.FC<Props> = ({ open, onClose, caja, onSuccess }) =
                         const originalIndex = formCierre.saldoFinal.denominaciones.indexOf(denom);
                         return (
                           <TableRow key={`BRL-${denom.valor}`}>
-                            <TableCell>
+                            <TableCell sx={{ padding: '8px 4px' }}>
                               R$ {new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(denom.valor)}
                             </TableCell>
-                            <TableCell align="center">
+                            <TableCell sx={{ padding: '8px 4px' }}>
                               <TextField
                                 size="small"
                                 type="number"
@@ -515,7 +515,7 @@ const FormCierreMobile: React.FC<Props> = ({ open, onClose, caja, onSuccess }) =
                                 sx={{ width: 80 }}
                               />
                             </TableCell>
-                            <TableCell align="right">
+                            <TableCell sx={{ padding: '8px 4px' }}>
                               R$ {new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(denom.valor * denom.cantidad)}
                             </TableCell>
                           </TableRow>
@@ -545,12 +545,12 @@ const FormCierreMobile: React.FC<Props> = ({ open, onClose, caja, onSuccess }) =
 
             <Collapse in={expandedSections.dolares}>
               <TableContainer>
-                <Table size="small">
+                <Table size="small" sx={{ width: '100%', tableLayout: 'fixed' }}>
                   <TableHead>
                     <TableRow>
-                      <TableCell><strong>Denominación</strong></TableCell>
-                      <TableCell align="center"><strong>Cantidad</strong></TableCell>
-                      <TableCell align="right"><strong>Subtotal</strong></TableCell>
+                      <TableCell sx={{ width: '32%', maxWidth: '90px', padding: '8px 4px' }}><strong>Denominación</strong></TableCell>
+                      <TableCell sx={{ width: '35%', maxWidth: '85px', padding: '8px 4px', textAlign: 'center' }}><strong>Cantidad</strong></TableCell>
+                      <TableCell sx={{ width: '33%', padding: '8px 4px' }}><strong>Subtotal</strong></TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -560,10 +560,10 @@ const FormCierreMobile: React.FC<Props> = ({ open, onClose, caja, onSuccess }) =
                         const originalIndex = formCierre.saldoFinal.denominaciones.indexOf(denom);
                         return (
                           <TableRow key={`USD-${denom.valor}`}>
-                            <TableCell>
+                            <TableCell sx={{ padding: '8px 4px' }}>
                               $ {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(denom.valor)}
                             </TableCell>
-                            <TableCell align="center">
+                            <TableCell sx={{ padding: '8px 4px' }}>
                               <TextField
                                 size="small"
                                 type="number"
@@ -577,7 +577,7 @@ const FormCierreMobile: React.FC<Props> = ({ open, onClose, caja, onSuccess }) =
                                 sx={{ width: 80 }}
                               />
                             </TableCell>
-                            <TableCell align="right">
+                            <TableCell sx={{ padding: '8px 4px' }}>
                               $ {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(denom.valor * denom.cantidad)}
                             </TableCell>
                           </TableRow>
