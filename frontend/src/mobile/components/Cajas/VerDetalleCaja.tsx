@@ -6,188 +6,302 @@ import {
   DialogActions,
   Button,
   Typography,
-  Grid,
-  Box,
-  Chip,
   Card,
   CardContent,
   Table,
+  TableHead,
   TableBody,
   TableRow,
   TableCell,
+  Box,
+  TextField,
+  CircularProgress,
   IconButton,
   Collapse,
+  Chip,
   Alert
 } from '@mui/material';
 import {
-  Close as CloseIcon,
-  CheckCircle as CheckCircleIcon,
-  RadioButtonUnchecked as OpenIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
-  AccountBalance as CajaIcon,
-  Person as PersonIcon,
-  Schedule as ScheduleIcon,
-  Business as BusinessIcon
+  Close as CloseIcon,
+  Edit as EditIcon,
+  Save as SaveIcon,
+  Cancel as CancelIcon,
+  Visibility as VisibilityIcon
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { 
+  denominacionesGuaranies, 
+  denominacionesReales, 
+  denominacionesDolares,
+  serviciosIniciales as serviciosDefault 
+} from '../../../components/Cajas/constants';
+import { formatearMontoServicio } from '../../../components/Cajas/helpers';
+import { Denominacion } from '../../../components/Cajas/interfaces';
 import api from '../../../services/api';
 
-interface Caja {
-  id: number;
-  cajaEnteroId: number;
-  usuarioId: string;
-  usuario: {
-    username: string;
-  };
-  fechaApertura: string;
-  fechaCierre?: string;
-  estado: 'abierta' | 'cerrada';
-  montoApertura: number;
-  montoCierre?: number;
+export interface Caja {
+  id: string;
+  cajaEnteroId?: number;
   sucursalId: string;
   sucursal?: {
+    id: string;
     nombre: string;
+    codigo: string;
   };
+  usuarioId: string;
+  usuario: string;
+  maletinId: string;
   maletin?: {
+    id: string;
     codigo: string;
     sucursal?: {
       nombre: string;
     };
   };
-  maletinId?: string;
-  saldoInicial?: {
+  fechaApertura: string;
+  fechaCierre?: string;
+  estado: 'abierta' | 'cerrada';
+  saldoInicial: {
+    denominaciones: Denominacion[];
     total: {
       PYG: number;
       BRL: number;
       USD: number;
     };
-    denominaciones: any[];
   };
-  saldoFinal?: {
-    total: {
-      PYG: number;
-      BRL: number;
-      USD: number;
-    };
-    denominaciones: any[];
-  };
-  saldosServiciosInicial?: any[];
-  saldosServiciosFinal?: any[];
+  saldosServiciosInicial: Array<{
+    servicio: string;
+    monto: number;
+  }>;
 }
 
 interface Props {
   open: boolean;
   onClose: () => void;
   caja: Caja | null;
+  onSuccess?: () => void;
 }
 
-const VerDetalleCaja: React.FC<Props> = ({ open, onClose, caja }) => {
+const VerDetalleCaja: React.FC<Props> = ({ open, onClose, caja, onSuccess }) => {
+  const [modo, setModo] = useState<'visualizacion' | 'edicion'>('visualizacion');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [cajaCompleta, setCajaCompleta] = useState<Caja | null>(null);
-  const [mostrarSaldos, setMostrarSaldos] = useState(false);
-  const [mostrarServicios, setMostrarServicios] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  
+  // Estados de expansión para móvil
+  const [expandedSections, setExpandedSections] = useState({
+    guaranies: true,
+    reales: false,
+    dolares: false,
+    servicios: false
+  });
 
-  // Cargar datos completos de la caja al abrir el diálogo
+  // Estado para los datos editados
+  const [datosEditados, setDatosEditados] = useState(() => ({
+    saldoInicial: caja?.saldoInicial || { denominaciones: [], total: { PYG: 0, BRL: 0, USD: 0 } },
+    saldosServiciosInicial: caja?.saldosServiciosInicial || []
+  }));
+
+  // Efecto para inicializar los datos cuando cambia la caja
   useEffect(() => {
-    if (open && caja) {
-      cargarDatosCompletos();
+    if (caja) {
+      const saldoValido = caja.saldoInicial && 
+                          caja.saldoInicial.total &&
+                          typeof caja.saldoInicial.total === 'object';
+                           
+      // Clonar las denominaciones actuales
+      const denominacionesActuales = saldoValido 
+        ? [...caja.saldoInicial.denominaciones] 
+        : [];
+      
+      // Función para verificar si una denominación ya existe
+      const existeDenominacion = (valor: number, moneda: 'PYG' | 'BRL' | 'USD') => {
+        return denominacionesActuales.some(d => d.valor === valor && d.moneda === moneda);
+      };
+      
+      // Agregar denominaciones faltantes
+      const todasDenominaciones = [...denominacionesActuales];
+      
+      // Agregar denominaciones faltantes de cada moneda
+      denominacionesGuaranies.forEach(denom => {
+        if (!existeDenominacion(denom.valor, 'PYG')) {
+          todasDenominaciones.push({...denom, cantidad: 0});
+        }
+      });
+      
+      denominacionesReales.forEach(denom => {
+        if (!existeDenominacion(denom.valor, 'BRL')) {
+          todasDenominaciones.push({...denom, cantidad: 0});
+        }
+      });
+      
+      denominacionesDolares.forEach(denom => {
+        if (!existeDenominacion(denom.valor, 'USD')) {
+          todasDenominaciones.push({...denom, cantidad: 0});
+        }
+      });
+
+      // Verificar servicios iniciales
+      let serviciosIniciales = [];
+      if (caja.saldosServiciosInicial && Array.isArray(caja.saldosServiciosInicial)) {
+        serviciosIniciales = [...caja.saldosServiciosInicial];
+      } else {
+        serviciosIniciales = serviciosDefault.map(s => ({...s, monto: 0}));
+      }
+      
+      // Actualizar el estado
+      setDatosEditados({
+        saldoInicial: {
+          denominaciones: todasDenominaciones,
+          total: saldoValido 
+            ? { ...caja.saldoInicial.total }
+            : { PYG: 0, BRL: 0, USD: 0 }
+        },
+        saldosServiciosInicial: serviciosIniciales
+      });
     }
-  }, [open, caja]);
+  }, [caja, open]);
 
-  const cargarDatosCompletos = async () => {
-    if (!caja) return;
+  // Resetear estados al abrir/cerrar
+  useEffect(() => {
+    if (open) {
+      setModo('visualizacion');
+      setError(null);
+      setSuccessMessage(null);
+    }
+  }, [open]);
 
+  if (!caja) {
+    return null;
+  }
+
+  // Función para ordenar denominaciones de mayor a menor
+  const ordenarDenominaciones = (denominaciones: Denominacion[], moneda: 'PYG' | 'BRL' | 'USD'): Denominacion[] => {
+    return [...denominaciones]
+      .filter(d => d.moneda === moneda)
+      .sort((a, b) => b.valor - a.valor);
+  };
+
+  // Función para formatear moneda
+  const formatearMoneda = (monto: number, moneda: string): string => {
+    switch (moneda) {
+      case 'PYG':
+        return new Intl.NumberFormat('es-PY').format(monto) + ' Gs';
+      case 'BRL':
+        return 'R$ ' + new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(monto);
+      case 'USD':
+        return '$ ' + new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(monto);
+      default:
+        return monto.toString();
+    }
+  };
+
+  // Función para seleccionar todo el texto en el input
+  const handleInputClick = (event: React.MouseEvent<HTMLInputElement>) => {
+    const input = event.target as HTMLInputElement;
+    setTimeout(() => {
+      input.select();
+    }, 0);
+  };
+
+  // Toggle de secciones
+  const toggleSection = (section: keyof typeof expandedSections) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  // Cambiar a modo edición
+  const habilitarEdicion = () => {
+    setModo('edicion');
+    setError(null);
+    setSuccessMessage(null);
+  };
+
+  // Cancelar edición
+  const cancelarEdicion = () => {
+    setModo('visualizacion');
+    setError(null);
+    // Reinicializar datos
+    if (caja) {
+      const saldoValido = caja.saldoInicial && caja.saldoInicial.total;
+      setDatosEditados({
+        saldoInicial: saldoValido ? { ...caja.saldoInicial } : { denominaciones: [], total: { PYG: 0, BRL: 0, USD: 0 } },
+        saldosServiciosInicial: caja.saldosServiciosInicial ? [...caja.saldosServiciosInicial] : []
+      });
+    }
+  };
+
+  // Guardar cambios
+  const guardarCambios = async () => {
     setLoading(true);
     setError(null);
-
+    
     try {
-      // Si la caja está cerrada pero no tiene saldos finales, cargarlos
-      if (caja.estado === 'cerrada' && (!caja.saldoFinal || !caja.saldoFinal.total)) {
-        console.log('📱 Cargando datos de cierre para caja:', caja.cajaEnteroId);
-        const response = await api.get(`/api/cajas/${caja.id}/datos-cierre`);
-        
-        const cajaConDatos = {
-          ...caja,
-          saldoFinal: response.data.saldoFinal || { 
-            denominaciones: [],
-            total: { PYG: 0, BRL: 0, USD: 0 }
-          },
-          saldosServiciosFinal: response.data.saldosServiciosFinal || []
-        };
-        
-        setCajaCompleta(cajaConDatos);
-      } else {
-        // Datos ya completos o caja abierta
-        const cajaConValoresDefault = {
-          ...caja,
-          saldosServiciosInicial: Array.isArray(caja.saldosServiciosInicial) 
-            ? caja.saldosServiciosInicial 
-            : [],
-          saldoFinal: caja.estado === 'cerrada' && !caja.saldoFinal 
-            ? { denominaciones: [], total: { PYG: 0, BRL: 0, USD: 0 } } 
-            : caja.saldoFinal,
-          saldosServiciosFinal: Array.isArray(caja.saldosServiciosFinal) 
-            ? caja.saldosServiciosFinal 
-            : []
-        };
-        
-        setCajaCompleta(cajaConValoresDefault);
-      }
-    } catch (err: any) {
-      console.error('Error al cargar datos de cierre:', err);
-      setError('Error al cargar los datos completos de la caja');
+      await api.put(
+        `/api/cajas/${caja.id}/datos-apertura`, 
+        datosEditados
+      );
       
-      // Aún con error, usar valores por defecto
-      setCajaCompleta({
-        ...caja,
-        saldosServiciosInicial: [],
-        saldoFinal: { denominaciones: [], total: { PYG: 0, BRL: 0, USD: 0 } },
-        saldosServiciosFinal: []
-      });
+      setSuccessMessage('Datos de apertura actualizados correctamente');
+      setModo('visualizacion');
+      
+      if (onSuccess) {
+        onSuccess();
+      }
+    } catch (error: any) {
+      console.error('Error al actualizar datos:', error);
+      setError(error.response?.data?.error || 'Error al actualizar los datos de apertura');
     } finally {
       setLoading(false);
     }
   };
 
-  const formatearMoneda = (monto: number | undefined | null): string => {
-    if (monto === undefined || monto === null || isNaN(monto)) {
-      return 'Gs. 0';
-    }
+  // Función para manejar cambios en denominaciones
+  const handleDenominacionChange = (index: number, cantidad: number) => {
+    const nuevasDenominaciones = [...datosEditados.saldoInicial.denominaciones];
+    nuevasDenominaciones[index].cantidad = cantidad;
+
+    // Recalcular totales
+    const totalPYG = nuevasDenominaciones
+      .filter(d => d.moneda === 'PYG')
+      .reduce((sum, d) => sum + (d.valor * d.cantidad), 0);
     
-    return new Intl.NumberFormat('es-PY', {
-      style: 'currency',
-      currency: 'PYG',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(monto);
+    const totalBRL = nuevasDenominaciones
+      .filter(d => d.moneda === 'BRL')
+      .reduce((sum, d) => sum + (d.valor * d.cantidad), 0);
+    
+    const totalUSD = nuevasDenominaciones
+      .filter(d => d.moneda === 'USD')
+      .reduce((sum, d) => sum + (d.valor * d.cantidad), 0);
+
+    setDatosEditados(prev => ({
+      ...prev,
+      saldoInicial: {
+        ...prev.saldoInicial,
+        denominaciones: nuevasDenominaciones,
+        total: { PYG: totalPYG, BRL: totalBRL, USD: totalUSD }
+      }
+    }));
   };
 
-  const formatearFecha = (fecha: string): string => {
-    return format(new Date(fecha), 'dd/MM/yyyy HH:mm', { locale: es });
+  // Función para manejar cambios en servicios
+  const handleServicioChange = (index: number, monto: number) => {
+    const nuevosServicios = [...datosEditados.saldosServiciosInicial];
+    nuevosServicios[index].monto = monto;
+    setDatosEditados(prev => ({
+      ...prev,
+      saldosServiciosInicial: nuevosServicios
+    }));
   };
 
-  const calcularDiferencia = (inicial: number, final: number): number => {
-    return final - inicial;
+  const formatearIdCaja = (id: string): string => {
+    return `Caja #${id}`;
   };
-
-  const obtenerColorDiferencia = (diferencia: number): string => {
-    if (diferencia === 0) {
-      return 'success.main'; // Verde - Sin diferencia
-    } else {
-      return 'error.main';   // Rojo - Cualquier diferencia (sobrante o faltante)
-    }
-  };
-
-  if (!cajaCompleta) {
-    return null;
-  }
-
-  const estaAbierta = cajaCompleta.estado === 'abierta';
-  const saldoInicialValido = cajaCompleta.saldoInicial?.total;
-  const saldoFinalValido = cajaCompleta.saldoFinal?.total;
 
   return (
     <Dialog
@@ -199,18 +313,19 @@ const VerDetalleCaja: React.FC<Props> = ({ open, onClose, caja }) => {
         sx: { 
           borderRadius: 3,
           m: 2,
-          maxHeight: '90vh'
+          maxHeight: '95vh'
         } 
       }}
     >
       <DialogTitle sx={{ pb: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box>
-            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-              Detalle de Caja #{cajaCompleta.cajaEnteroId}
+            <Typography variant="h6" sx={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 1 }}>
+              {modo === 'visualizacion' ? <VisibilityIcon /> : <EditIcon />}
+              {modo === 'visualizacion' ? 'Datos de Apertura' : 'Editar Apertura'}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              ID: {cajaCompleta.id}
+              {formatearIdCaja(caja.id)} • {caja.sucursal?.nombre}
             </Typography>
           </Box>
           <IconButton onClick={onClose} size="small">
@@ -226,398 +341,344 @@ const VerDetalleCaja: React.FC<Props> = ({ open, onClose, caja }) => {
           </Alert>
         )}
 
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-            <Typography>Cargando datos...</Typography>
-          </Box>
-        ) : (
-          <Grid container spacing={2}>
-            {/* Información general */}
-            <Grid item xs={12}>
-              <Card sx={{ borderRadius: 2 }}>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-                    <CajaIcon sx={{ mr: 1 }} />
-                    Información General
-                  </Typography>
-                  
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6}>
-                      <Box sx={{ mb: 2 }}>
-                        <Typography variant="caption" color="text.secondary">
-                          Estado
-                        </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-                          {estaAbierta ? <OpenIcon color="success" /> : <CheckCircleIcon color="disabled" />}
-                          <Chip
-                            label={estaAbierta ? 'ABIERTA' : 'CERRADA'}
-                            color={estaAbierta ? 'success' : 'default'}
-                            size="small"
-                            sx={{ ml: 1 }}
-                          />
-                        </Box>
-                      </Box>
+        {successMessage && (
+          <Alert severity="success" sx={{ mb: 2 }}>
+            {successMessage}
+          </Alert>
+        )}
 
-                      <Box sx={{ mb: 2 }}>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
-                          <PersonIcon sx={{ fontSize: 16, mr: 0.5 }} />
-                          Usuario
-                        </Typography>
-                        <Typography variant="body1">
-                          {cajaCompleta.usuario.username}
-                        </Typography>
-                      </Box>
+        {/* Información General */}
+        <Card sx={{ mb: 2, borderRadius: 2 }}>
+          <CardContent sx={{ pb: 1 }}>
+            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              ℹ️ Información General
+            </Typography>
+            
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mt: 2 }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Fecha de Apertura
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                  {format(new Date(caja.fechaApertura), 'dd/MM/yyyy HH:mm', { locale: es })}
+                </Typography>
+              </Box>
+              
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Estado
+                </Typography>
+                <Box sx={{ mt: 0.5 }}>
+                  <Chip 
+                    label={caja.estado === 'abierta' ? 'ABIERTA' : 'CERRADA'}
+                    color={caja.estado === 'abierta' ? 'success' : 'default'}
+                    size="small"
+                  />
+                </Box>
+              </Box>
+              
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Usuario
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                  {caja.usuario}
+                </Typography>
+              </Box>
+              
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Maletín
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                  {caja.maletin?.codigo || caja.maletinId}
+                </Typography>
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
 
-                      <Box sx={{ mb: 2 }}>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
-                          <BusinessIcon sx={{ fontSize: 16, mr: 0.5 }} />
-                          Sucursal
-                        </Typography>
-                        <Typography variant="body1">
-                          {cajaCompleta.sucursal?.nombre || 'N/A'}
-                        </Typography>
-                      </Box>
-                    </Grid>
+        {/* Denominaciones de Efectivo */}
+        <Typography variant="h6" gutterBottom sx={{ mt: 2, mb: 1 }}>
+          💰 Saldos Iniciales de Efectivo
+        </Typography>
 
-                    <Grid item xs={12} sm={6}>
-                      <Box sx={{ mb: 2 }}>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
-                          <ScheduleIcon sx={{ fontSize: 16, mr: 0.5 }} />
-                          Fecha Apertura
-                        </Typography>
-                        <Typography variant="body1">
-                          {formatearFecha(cajaCompleta.fechaApertura)}
-                        </Typography>
-                      </Box>
+        {/* Guaraníes */}
+        <Card sx={{ mb: 2, borderRadius: 2 }}>
+          <CardContent sx={{ pb: 1 }}>
+            <Button
+              fullWidth
+              variant="text"
+              onClick={() => toggleSection('guaranies')}
+              endIcon={expandedSections.guaranies ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              sx={{ justifyContent: 'space-between', mb: 1 }}
+            >
+              <Typography variant="subtitle1">
+                💰 Guaraníes: {formatearMoneda(datosEditados.saldoInicial.total.PYG, 'PYG')}
+              </Typography>
+            </Button>
 
-                      {cajaCompleta.fechaCierre && (
-                        <Box sx={{ mb: 2 }}>
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
-                            <ScheduleIcon sx={{ fontSize: 16, mr: 0.5 }} />
-                            Fecha Cierre
-                          </Typography>
-                          <Typography variant="body1">
-                            {formatearFecha(cajaCompleta.fechaCierre)}
-                          </Typography>
-                        </Box>
-                      )}
-
-                      <Box sx={{ mb: 2 }}>
-                        <Typography variant="caption" color="text.secondary">
-                          Maletín
-                        </Typography>
-                        <Typography variant="body1">
-                          {cajaCompleta.maletin 
-                            ? `${cajaCompleta.maletin.codigo}${cajaCompleta.maletin.sucursal ? ` (${cajaCompleta.maletin.sucursal.nombre})` : ''}`
-                            : cajaCompleta.maletinId || 'N/A'}
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  </Grid>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            {/* Saldos Iniciales */}
-            <Grid item xs={12}>
-              <Card sx={{ borderRadius: 2 }}>
-                <CardContent>
-                  <Button
-                    fullWidth
-                    variant="text"
-                    onClick={() => setMostrarSaldos(!mostrarSaldos)}
-                    endIcon={mostrarSaldos ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                    sx={{ justifyContent: 'space-between', mb: 1 }}
-                  >
-                    <Typography variant="h6">
-                      💰 Saldos Iniciales
-                    </Typography>
-                  </Button>
-
-                  <Collapse in={mostrarSaldos}>
-                    <Table size="small">
-                      <TableBody>
-                        <TableRow>
-                          <TableCell><strong>Moneda</strong></TableCell>
-                          <TableCell align="right"><strong>Monto</strong></TableCell>
-                        </TableRow>
-                        
-                        <TableRow>
-                          <TableCell>Guaraníes</TableCell>
-                          <TableCell align="right">
-                            {saldoInicialValido 
-                              ? formatearMoneda(saldoInicialValido.PYG || 0)
-                              : 'Gs. 0'}
+            <Collapse in={expandedSections.guaranies}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Denominación</TableCell>
+                    <TableCell width="80px">Cantidad</TableCell>
+                    <TableCell>Subtotal</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {ordenarDenominaciones(datosEditados.saldoInicial.denominaciones, 'PYG')
+                    .map((denom, index) => {
+                      const originalIndex = datosEditados.saldoInicial.denominaciones.indexOf(denom);
+                      return (
+                        <TableRow key={`PYG-${denom.valor}`}>
+                          <TableCell>{formatearMoneda(denom.valor, 'PYG')}</TableCell>
+                          <TableCell>
+                            {modo === 'visualizacion' ? (
+                              denom.cantidad
+                            ) : (
+                              <TextField
+                                size="small"
+                                type="number"
+                                value={denom.cantidad}
+                                onChange={(e) => handleDenominacionChange(originalIndex, parseInt(e.target.value) || 0)}
+                                inputProps={{ min: 0, style: { textAlign: 'center' } }}
+                                onClick={handleInputClick}
+                              />
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {formatearMoneda(denom.valor * denom.cantidad, 'PYG')}
                           </TableCell>
                         </TableRow>
+                      );
+                    })}
+                </TableBody>
+              </Table>
+            </Collapse>
+          </CardContent>
+        </Card>
 
-                        {/* Mostrar otras monedas si tienen valores */}
-                        {saldoInicialValido?.BRL && saldoInicialValido.BRL > 0 && (
-                          <TableRow>
-                            <TableCell>Reales</TableCell>
-                            <TableCell align="right">R$ {saldoInicialValido.BRL.toLocaleString()}</TableCell>
-                          </TableRow>
-                        )}
+        {/* Reales */}
+        <Card sx={{ mb: 2, borderRadius: 2 }}>
+          <CardContent sx={{ pb: 1 }}>
+            <Button
+              fullWidth
+              variant="text"
+              onClick={() => toggleSection('reales')}
+              endIcon={expandedSections.reales ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              sx={{ justifyContent: 'space-between', mb: 1 }}
+            >
+              <Typography variant="subtitle1">
+                💵 Reales: {formatearMoneda(datosEditados.saldoInicial.total.BRL, 'BRL')}
+              </Typography>
+            </Button>
 
-                        {saldoInicialValido?.USD && saldoInicialValido.USD > 0 && (
-                          <TableRow>
-                            <TableCell>Dólares</TableCell>
-                            <TableCell align="right">$ {saldoInicialValido.USD.toLocaleString()}</TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </Collapse>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            {/* Saldos Finales - Solo si la caja está cerrada */}
-            {!estaAbierta && (
-              <Grid item xs={12}>
-                <Card sx={{ borderRadius: 2 }}>
-                  <CardContent>
-                    <Typography variant="h6" sx={{ mb: 2 }}>
-                      🏁 Saldos Finales
-                    </Typography>
-
-                    <Table size="small">
-                      <TableBody>
-                        <TableRow>
-                          <TableCell><strong>Moneda</strong></TableCell>
-                          <TableCell align="right"><strong>Monto</strong></TableCell>
-                        </TableRow>
-                        
-                        <TableRow>
-                          <TableCell>Guaraníes</TableCell>
-                          <TableCell align="right">
-                            {saldoFinalValido 
-                              ? formatearMoneda(saldoFinalValido.PYG || 0)
-                              : 'Gs. 0'}
+            <Collapse in={expandedSections.reales}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Denominación</TableCell>
+                    <TableCell width="80px">Cantidad</TableCell>
+                    <TableCell>Subtotal</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {ordenarDenominaciones(datosEditados.saldoInicial.denominaciones, 'BRL')
+                    .map((denom, index) => {
+                      const originalIndex = datosEditados.saldoInicial.denominaciones.indexOf(denom);
+                      return (
+                        <TableRow key={`BRL-${denom.valor}`}>
+                          <TableCell>{formatearMoneda(denom.valor, 'BRL')}</TableCell>
+                          <TableCell>
+                            {modo === 'visualizacion' ? (
+                              denom.cantidad
+                            ) : (
+                              <TextField
+                                size="small"
+                                type="number"
+                                value={denom.cantidad}
+                                onChange={(e) => handleDenominacionChange(originalIndex, parseInt(e.target.value) || 0)}
+                                inputProps={{ min: 0, style: { textAlign: 'center' } }}
+                                onClick={handleInputClick}
+                              />
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {formatearMoneda(denom.valor * denom.cantidad, 'BRL')}
                           </TableCell>
                         </TableRow>
+                      );
+                    })}
+                </TableBody>
+              </Table>
+            </Collapse>
+          </CardContent>
+        </Card>
 
-                        {saldoFinalValido?.BRL && saldoFinalValido.BRL > 0 && (
-                          <TableRow>
-                            <TableCell>Reales</TableCell>
-                            <TableCell align="right">R$ {saldoFinalValido.BRL.toLocaleString()}</TableCell>
-                          </TableRow>
-                        )}
+        {/* Dólares */}
+        <Card sx={{ mb: 2, borderRadius: 2 }}>
+          <CardContent sx={{ pb: 1 }}>
+            <Button
+              fullWidth
+              variant="text"
+              onClick={() => toggleSection('dolares')}
+              endIcon={expandedSections.dolares ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              sx={{ justifyContent: 'space-between', mb: 1 }}
+            >
+              <Typography variant="subtitle1">
+                💶 Dólares: {formatearMoneda(datosEditados.saldoInicial.total.USD, 'USD')}
+              </Typography>
+            </Button>
 
-                        {saldoFinalValido?.USD && saldoFinalValido.USD > 0 && (
-                          <TableRow>
-                            <TableCell>Dólares</TableCell>
-                            <TableCell align="right">$ {saldoFinalValido.USD.toLocaleString()}</TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              </Grid>
-            )}
-
-            {/* Diferencias - Solo si la caja está cerrada */}
-            {!estaAbierta && saldoInicialValido && saldoFinalValido && (
-              <Grid item xs={12}>
-                <Card sx={{ borderRadius: 2, bgcolor: 'background.default' }}>
-                  <CardContent>
-                    <Typography variant="h6" sx={{ mb: 2 }}>
-                      📊 Diferencias de Efectivo
-                    </Typography>
-
-                    <Table size="small">
-                      <TableBody>
-                        <TableRow>
-                          <TableCell><strong>Moneda</strong></TableCell>
-                          <TableCell align="right"><strong>Diferencia</strong></TableCell>
-                        </TableRow>
-                        
-                        <TableRow>
-                          <TableCell>Guaraníes</TableCell>
-                          <TableCell align="right">
-                            {(() => {
-                              const diff = calcularDiferencia(saldoInicialValido.PYG || 0, saldoFinalValido.PYG || 0);
-                              return (
-                                <Typography 
-                                  color={obtenerColorDiferencia(diff)}
-                                  sx={{ fontWeight: 'bold' }}
-                                >
-                                  {formatearMoneda(diff)}
-                                </Typography>
-                              );
-                            })()}
+            <Collapse in={expandedSections.dolares}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Denominación</TableCell>
+                    <TableCell width="80px">Cantidad</TableCell>
+                    <TableCell>Subtotal</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {ordenarDenominaciones(datosEditados.saldoInicial.denominaciones, 'USD')
+                    .map((denom, index) => {
+                      const originalIndex = datosEditados.saldoInicial.denominaciones.indexOf(denom);
+                      return (
+                        <TableRow key={`USD-${denom.valor}`}>
+                          <TableCell>{formatearMoneda(denom.valor, 'USD')}</TableCell>
+                          <TableCell>
+                            {modo === 'visualizacion' ? (
+                              denom.cantidad
+                            ) : (
+                              <TextField
+                                size="small"
+                                type="number"
+                                value={denom.cantidad}
+                                onChange={(e) => handleDenominacionChange(originalIndex, parseInt(e.target.value) || 0)}
+                                inputProps={{ min: 0, style: { textAlign: 'center' } }}
+                                onClick={handleInputClick}
+                              />
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {formatearMoneda(denom.valor * denom.cantidad, 'USD')}
                           </TableCell>
                         </TableRow>
+                      );
+                    })}
+                </TableBody>
+              </Table>
+            </Collapse>
+          </CardContent>
+        </Card>
 
-                        {(saldoInicialValido?.BRL || saldoFinalValido?.BRL) && (
-                          <TableRow>
-                            <TableCell>Reales</TableCell>
-                            <TableCell align="right">
-                              {(() => {
-                                const diff = calcularDiferencia(saldoInicialValido?.BRL || 0, saldoFinalValido?.BRL || 0);
-                                return (
-                                  <Typography 
-                                    color={obtenerColorDiferencia(diff)}
-                                    sx={{ fontWeight: 'bold' }}
-                                  >
-                                    R$ {diff.toLocaleString()}
-                                  </Typography>
-                                );
-                              })()}
-                            </TableCell>
-                          </TableRow>
-                        )}
+        {/* Servicios Iniciales */}
+        {datosEditados.saldosServiciosInicial.length > 0 && (
+          <Card sx={{ mb: 2, borderRadius: 2 }}>
+            <CardContent sx={{ pb: 1 }}>
+              <Button
+                fullWidth
+                variant="text"
+                onClick={() => toggleSection('servicios')}
+                endIcon={expandedSections.servicios ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                sx={{ justifyContent: 'space-between', mb: 1 }}
+              >
+                <Typography variant="subtitle1">
+                  🏪 Saldos de Servicios ({datosEditados.saldosServiciosInicial.length})
+                </Typography>
+              </Button>
 
-                        {(saldoInicialValido?.USD || saldoFinalValido?.USD) && (
-                          <TableRow>
-                            <TableCell>Dólares</TableCell>
-                            <TableCell align="right">
-                              {(() => {
-                                const diff = calcularDiferencia(saldoInicialValido?.USD || 0, saldoFinalValido?.USD || 0);
-                                return (
-                                  <Typography 
-                                    color={obtenerColorDiferencia(diff)}
-                                    sx={{ fontWeight: 'bold' }}
-                                  >
-                                    $ {diff.toLocaleString()}
-                                  </Typography>
-                                );
-                              })()}
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              </Grid>
-            )}
-
-            {/* Servicios Iniciales */}
-            {(cajaCompleta.saldosServiciosInicial?.length || 0) > 0 && (
-              <Grid item xs={12}>
-                <Card sx={{ borderRadius: 2 }}>
-                  <CardContent>
-                    <Button
-                      fullWidth
-                      variant="text"
-                      onClick={() => setMostrarServicios(!mostrarServicios)}
-                      endIcon={mostrarServicios ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                      sx={{ justifyContent: 'space-between', mb: 1 }}
-                    >
-                      <Typography variant="h6">
-                        🛠️ Servicios Iniciales
-                      </Typography>
-                    </Button>
-
-                    <Collapse in={mostrarServicios}>
-                      <Table size="small">
-                        <TableBody>
-                          <TableRow>
-                            <TableCell><strong>Servicio</strong></TableCell>
-                            <TableCell align="right"><strong>Monto</strong></TableCell>
-                          </TableRow>
-                          
-                          {cajaCompleta.saldosServiciosInicial?.map((servicio: any, index: number) => (
-                            <TableRow key={index}>
-                              <TableCell>{servicio.servicio}</TableCell>
-                              <TableCell align="right">{formatearMoneda(servicio.monto || 0)}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </Collapse>
-                  </CardContent>
-                </Card>
-              </Grid>
-            )}
-
-            {/* Servicios Finales - Solo si la caja está cerrada */}
-            {!estaAbierta && (cajaCompleta.saldosServiciosFinal?.length || 0) > 0 && (
-              <Grid item xs={12}>
-                <Card sx={{ borderRadius: 2 }}>
-                  <CardContent>
-                    <Typography variant="h6" sx={{ mb: 2 }}>
-                      🏆 Servicios Finales
-                    </Typography>
-
-                    <Table size="small">
-                      <TableBody>
-                        <TableRow>
-                          <TableCell><strong>Servicio</strong></TableCell>
-                          <TableCell align="right"><strong>Monto</strong></TableCell>
-                        </TableRow>
-                        
-                        {cajaCompleta.saldosServiciosFinal?.map((servicio: any, index: number) => (
-                          <TableRow key={index}>
-                            <TableCell>{servicio.servicio}</TableCell>
-                            <TableCell align="right">{formatearMoneda(servicio.monto || 0)}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              </Grid>
-            )}
-
-            {/* Diferencias de Servicios - Solo si la caja está cerrada */}
-            {!estaAbierta && (cajaCompleta.saldosServiciosInicial?.length || 0) > 0 && (cajaCompleta.saldosServiciosFinal?.length || 0) > 0 && (
-              <Grid item xs={12}>
-                <Card sx={{ borderRadius: 2, bgcolor: 'background.default' }}>
-                  <CardContent>
-                    <Typography variant="h6" sx={{ mb: 2 }}>
-                      ⚖️ Diferencias de Servicios
-                    </Typography>
-
-                    <Table size="small">
-                      <TableBody>
-                        <TableRow>
-                          <TableCell><strong>Servicio</strong></TableCell>
-                          <TableCell align="right"><strong>Diferencia</strong></TableCell>
-                        </TableRow>
-                        
-                        {cajaCompleta.saldosServiciosInicial?.map((servicio: any, index: number) => {
-                          const servicioFinal = cajaCompleta.saldosServiciosFinal?.find((s: any) => s.servicio === servicio.servicio);
-                          const diferencia = calcularDiferencia(servicio.monto || 0, servicioFinal?.monto || 0);
-                          
-                          return (
-                            <TableRow key={index}>
-                              <TableCell>{servicio.servicio}</TableCell>
-                              <TableCell align="right">
-                                <Typography 
-                                  color={obtenerColorDiferencia(diferencia)}
-                                  sx={{ fontWeight: 'bold' }}
-                                >
-                                  {formatearMoneda(diferencia)}
-                                </Typography>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              </Grid>
-            )}
-          </Grid>
+              <Collapse in={expandedSections.servicios}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Servicio</TableCell>
+                      <TableCell>Monto</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {datosEditados.saldosServiciosInicial.map((servicio, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{servicio.servicio}</TableCell>
+                        <TableCell>
+                          {modo === 'visualizacion' ? (
+                            formatearMontoServicio(servicio.monto) + ' Gs'
+                          ) : (
+                            <TextField
+                              size="small"
+                              value={formatearMontoServicio(servicio.monto)}
+                              onChange={(e) => {
+                                const numericValue = e.target.value.replace(/\D/g, '');
+                                const montoNumerico = parseInt(numericValue) || 0;
+                                handleServicioChange(index, montoNumerico);
+                              }}
+                              inputProps={{ 
+                                min: 0, 
+                                style: { textAlign: 'right' } 
+                              }}
+                              InputProps={{
+                                endAdornment: <Typography variant="caption">&nbsp;Gs</Typography>,
+                              }}
+                              onClick={handleInputClick}
+                            />
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Collapse>
+            </CardContent>
+          </Card>
         )}
       </DialogContent>
 
       <DialogActions sx={{ p: 2 }}>
-        <Button 
-          onClick={onClose} 
-          variant="contained" 
-          fullWidth
-          sx={{ borderRadius: 2 }}
-        >
-          Cerrar
-        </Button>
+        {modo === 'visualizacion' ? (
+          <>
+            <Button
+              onClick={onClose}
+              disabled={loading}
+              sx={{ borderRadius: 2 }}
+            >
+              Cerrar
+            </Button>
+            <Button
+              onClick={habilitarEdicion}
+              variant="contained"
+              startIcon={<EditIcon />}
+              disabled={loading}
+              sx={{ borderRadius: 2 }}
+            >
+              Editar Datos
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              onClick={cancelarEdicion}
+              disabled={loading}
+              startIcon={<CancelIcon />}
+              sx={{ borderRadius: 2 }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={guardarCambios}
+              variant="contained"
+              disabled={loading}
+              startIcon={loading ? <CircularProgress size={16} /> : <SaveIcon />}
+              sx={{ borderRadius: 2 }}
+            >
+              {loading ? 'Guardando...' : 'Guardar'}
+            </Button>
+          </>
+        )}
       </DialogActions>
     </Dialog>
   );
 };
 
-export default VerDetalleCaja; 
+export default VerDetalleCaja;

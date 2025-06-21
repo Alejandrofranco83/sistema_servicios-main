@@ -7,25 +7,16 @@ import {
   Button,
   List,
   ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
-  IconButton,
   Chip,
   Alert,
   CircularProgress,
   Fab,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   TextField,
   Grid,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
-  Divider,
-  useTheme,
   Collapse,
   Avatar
 } from '@mui/material';
@@ -50,7 +41,11 @@ import { useMobileSucursal } from '../../contexts/MobileSucursalContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import api from '../../../services/api';
 import VerDetalleCaja from './VerDetalleCaja';
+import VerDetalleCajaCompleto from './VerDetalleCajaCompleto';
+import FormCierreMobile from './FormCierreMobile';
+import { Caja as CajaCompleta } from './VerDetalleCaja';
 import FormAperturaMobile from './FormAperturaMobile';
+import MovimientosMobile from './MovimientosMobile';
 
 interface Caja {
   id: number;
@@ -71,7 +66,6 @@ interface Caja {
 }
 
 const MobileCajas: React.FC = () => {
-  const theme = useTheme();
   const { sucursalMovil, validarAccesoSucursal } = useMobileSucursal();
   const { user } = useAuth();
   
@@ -84,7 +78,14 @@ const MobileCajas: React.FC = () => {
   const [nuevaCajaOpen, setNuevaCajaOpen] = useState(false);
   const [filtrosOpen, setFiltrosOpen] = useState(false);
   const [verDetalleOpen, setVerDetalleOpen] = useState(false);
-  const [cajaSeleccionada, setCajaSeleccionada] = useState<Caja | null>(null);
+  const [verAperturaOpen, setVerAperturaOpen] = useState(false);
+  const [cerrarCajaOpen, setCerrarCajaOpen] = useState(false);
+  const [movimientosOpen, setMovimientosOpen] = useState(false);
+  // const [cajaSeleccionada, setCajaSeleccionada] = useState<Caja | null>(null);
+  const [cajaAperturaCompleta, setCajaAperturaCompleta] = useState<CajaCompleta | null>(null);
+  const [cajaDetalleCompleta, setCajaDetalleCompleta] = useState<any>(null);
+  const [cajaCierreCompleta, setCajaCierreCompleta] = useState<any>(null);
+  const [cajaMovimientos, setCajaMovimientos] = useState<Caja | null>(null);
   
   // Estados del formulario nueva caja ya no necesarios
   // Se manejará en FormAperturaMobile
@@ -95,13 +96,14 @@ const MobileCajas: React.FC = () => {
   const [fechaHasta, setFechaHasta] = useState<string>('');
 
   const isOperador = user?.rol?.nombre.toUpperCase() === 'OPERADOR';
-  const isAdmin = user?.rol?.nombre.toUpperCase() === 'ADMINISTRADOR';
+  // const isAdmin = user?.rol?.nombre.toUpperCase() === 'ADMINISTRADOR';
 
   // Cargar cajas al montar el componente
   useEffect(() => {
     if (validarAccesoSucursal()) {
       cargarCajas();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sucursalMovil]);
 
   // Función para cargar cajas
@@ -160,20 +162,59 @@ const MobileCajas: React.FC = () => {
   };
 
   // Funciones de acciones
-  const handleVerDetalle = (caja: Caja) => {
-    console.log('📱 Ver detalle de caja:', caja.cajaEnteroId);
-    setCajaSeleccionada(caja);
-    setVerDetalleOpen(true);
+  const handleVerDetalle = async (caja: Caja) => {
+    try {
+      console.log('📱 Ver detalle de caja:', caja.cajaEnteroId);
+      setLoading(true);
+      
+      // Cargar los datos completos de la caja incluidos saldoInicial y servicios
+      const response = await api.get(`/api/cajas/${caja.id}`);
+      const cajaCompleta = response.data;
+      
+      // Adaptar los datos para el componente completo
+      const cajaAdaptada = {
+        ...cajaCompleta,
+        id: cajaCompleta.id.toString(),
+        cajaEnteroId: cajaCompleta.cajaEnteroId || 0,
+        sucursalId: cajaCompleta.sucursalId.toString(),
+        usuarioId: cajaCompleta.usuarioId.toString(),
+        usuario: cajaCompleta.usuario?.username || cajaCompleta.usuario,
+        maletinId: cajaCompleta.maletinId?.toString() || '',
+      };
+      
+      setCajaDetalleCompleta(cajaAdaptada);
+      setVerDetalleOpen(true);
+    } catch (err: any) {
+      console.error('Error al cargar datos de detalle:', err);
+      setError('Error al cargar los datos de la caja');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleVerApertura = (caja: Caja) => {
-    console.log('Ver apertura de caja:', caja.cajaEnteroId);
-    // TODO: Implementar ver apertura
+  const handleVerApertura = async (caja: Caja) => {
+    try {
+      console.log('📱 Ver apertura de caja:', caja.cajaEnteroId);
+      setLoading(true);
+      
+      // Cargar los datos completos de la caja incluidos saldoInicial y servicios
+      const response = await api.get(`/api/cajas/${caja.id}`);
+      const cajaCompleta = response.data;
+      
+      setCajaAperturaCompleta(cajaCompleta);
+      setVerAperturaOpen(true);
+    } catch (err: any) {
+      console.error('Error al cargar datos de apertura:', err);
+      setError('Error al cargar los datos de apertura');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleVerMovimientos = (caja: Caja) => {
-    console.log('Ver movimientos de caja:', caja.cajaEnteroId);
-    // TODO: Implementar ver movimientos
+    console.log('📱 Ver movimientos de caja:', caja.cajaEnteroId);
+    setCajaMovimientos(caja);
+    setMovimientosOpen(true);
   };
 
   const handleRetiros = (caja: Caja) => {
@@ -191,24 +232,49 @@ const MobileCajas: React.FC = () => {
     // TODO: Implementar pagos
   };
 
-  const handleCerrarCaja = (caja: Caja) => {
-    console.log('Cerrar caja:', caja.cajaEnteroId);
-    // TODO: Implementar cerrar caja
+  const handleCerrarCaja = async (caja: Caja) => {
+    try {
+      console.log('📱 Cerrar/Editar caja:', caja.cajaEnteroId);
+      setLoading(true);
+      
+      // Cargar los datos completos de la caja incluidos saldoInicial y servicios
+      const response = await api.get(`/api/cajas/${caja.id}`);
+      const cajaCompleta = response.data;
+      
+      // Adaptar los datos para el componente de cierre
+      const cajaAdaptada = {
+        ...cajaCompleta,
+        id: cajaCompleta.id.toString(),
+        cajaEnteroId: cajaCompleta.cajaEnteroId || 0,
+        sucursalId: cajaCompleta.sucursalId?.toString() || '',
+        usuarioId: cajaCompleta.usuarioId?.toString() || '',
+        usuario: cajaCompleta.usuario?.username || cajaCompleta.usuario,
+        maletinId: cajaCompleta.maletinId?.toString() || '',
+      };
+      
+      setCajaCierreCompleta(cajaAdaptada);
+      setCerrarCajaOpen(true);
+    } catch (err: any) {
+      console.error('Error al cargar datos para cierre:', err);
+      setError('Error al cargar los datos de la caja');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Función para formatear moneda
-  const formatearMoneda = (monto: number | undefined | null): string => {
-    if (monto === undefined || monto === null || isNaN(monto)) {
-      return 'Gs. 0';
-    }
-    
-    return new Intl.NumberFormat('es-PY', {
-      style: 'currency',
-      currency: 'PYG',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(monto);
-  };
+  // const formatearMoneda = (monto: number | undefined | null): string => {
+  //   if (monto === undefined || monto === null || isNaN(monto)) {
+  //     return 'Gs. 0';
+  //   }
+  //   
+  //   return new Intl.NumberFormat('es-PY', {
+  //     style: 'currency',
+  //     currency: 'PYG',
+  //     minimumFractionDigits: 0,
+  //     maximumFractionDigits: 0
+  //   }).format(monto);
+  // };
 
   // Función para formatear fecha
   const formatearFecha = (fecha: string): string => {
@@ -511,10 +577,58 @@ const MobileCajas: React.FC = () => {
       />
 
       {/* Dialog Ver Detalle */}
-      <VerDetalleCaja
+      <VerDetalleCajaCompleto
         open={verDetalleOpen}
-        onClose={() => setVerDetalleOpen(false)}
-        caja={cajaSeleccionada}
+        onClose={() => {
+          setVerDetalleOpen(false);
+          setCajaDetalleCompleta(null);
+        }}
+        caja={cajaDetalleCompleta}
+      />
+
+      {/* Dialog Ver Apertura */}
+      <VerDetalleCaja
+        open={verAperturaOpen}
+        onClose={() => {
+          setVerAperturaOpen(false);
+          setCajaAperturaCompleta(null);
+        }}
+        caja={cajaAperturaCompleta}
+        onSuccess={() => {
+          cargarCajas();
+          setVerAperturaOpen(false);
+          setCajaAperturaCompleta(null);
+        }}
+      />
+
+      {/* Dialog Cerrar/Editar Caja */}
+      <FormCierreMobile
+        open={cerrarCajaOpen}
+        onClose={() => {
+          setCerrarCajaOpen(false);
+          setCajaCierreCompleta(null);
+        }}
+        caja={cajaCierreCompleta}
+        onSuccess={() => {
+          cargarCajas();
+          setCerrarCajaOpen(false);
+          setCajaCierreCompleta(null);
+        }}
+      />
+
+      {/* Dialog Movimientos */}
+      <MovimientosMobile
+        open={movimientosOpen}
+        onClose={() => {
+          setMovimientosOpen(false);
+          setCajaMovimientos(null);
+        }}
+        caja={cajaMovimientos}
+        onSuccess={() => {
+          cargarCajas();
+          setMovimientosOpen(false);
+          setCajaMovimientos(null);
+        }}
       />
     </Box>
   );
